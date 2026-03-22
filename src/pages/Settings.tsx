@@ -689,7 +689,7 @@ export function Settings() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3 border-b border-border/50">
             <div>
               <h4 className="font-medium text-foreground">Current Version</h4>
-              <p className="text-xs text-muted-foreground font-mono">v0.1.3</p>
+              <p className="text-xs text-muted-foreground font-mono">v0.1.5</p>
             </div>
             <div className="flex items-center gap-4">
               {updateState.status === "available" && (
