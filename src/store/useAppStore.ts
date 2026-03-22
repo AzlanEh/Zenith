@@ -1,13 +1,16 @@
 import { create } from "zustand";
 import { toast } from "sonner";
-import type { Theme, DailyStats, WeeklyStats, AppLimit, HourlyUsage, CategoryUsage } from "../types";
+import type { Theme, DailyStats, WeeklyStats, AppLimit, HourlyUsage, CategoryUsage, FocusSettings, NotificationSettings, WeeklyHourlyUsage } from "../types";
 import { api } from "../services/api";
+
+const pendingRequests = new Map<string, Promise<void>>();
 
 interface LoadingState {
   theme: boolean;
   dailyStats: boolean;
   weeklyStats: boolean;
   hourlyUsage: boolean;
+  weeklyHourlyUsage: boolean;
   categoryUsage: boolean;
   appLimits: boolean;
   blockedApps: boolean;
@@ -31,20 +34,40 @@ interface AppState {
   dailyStats: DailyStats | null;
   weeklyStats: WeeklyStats | null;
   hourlyUsage: HourlyUsage[];
+  weeklyHourlyUsage: WeeklyHourlyUsage[];
   categoryUsage: CategoryUsage[];
   appLimits: AppLimit[];
   blockedApps: string[];
   loading: LoadingState;
   error: string | null;
-  activeTab: "dashboard" | "history" | "goals" | "focus" | "limits" | "settings";
+  activeTab: "dashboard" | "analytics" | "focus" | "limits" | "settings";
   sidebarCollapsed: boolean;
   mobileSidebarOpen: boolean;
 
+  // Global frontend timer state
+  isFocusActive: boolean;
+  focusTimeLeft: number;
+  focusTotalTime: number;
+  setIsFocusActive: (active: boolean) => void;
+  setFocusTimeLeft: (time: number) => void;
+  setFocusTotalTime: (time: number) => void;
+  toggleFocusTimer: () => void;
+  resetFocusTimer: () => void;
+  tickFocusTimer: () => void;
+
   // Computed helper for backwards compatibility
-  isLoading: boolean;
+  isLoading: () => boolean;
   isInitialLoad: () => boolean;
 
-  setActiveTab: (tab: "dashboard" | "history" | "goals" | "focus" | "limits" | "settings") => void;
+  // Focus and Notification Settings
+  focusSettings: FocusSettings | null;
+  notificationSettings: NotificationSettings | null;
+  loadFocusSettings: () => Promise<void>;
+  loadNotificationSettings: () => Promise<void>;
+  updateFocusSettings: (settings: Partial<FocusSettings>) => Promise<void>;
+  updateNotificationSettings: (settings: Partial<NotificationSettings>) => Promise<void>;
+
+  setActiveTab: (tab: "dashboard" | "analytics" | "focus" | "limits" | "settings") => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
   setMobileSidebarOpen: (open: boolean) => void;
@@ -52,6 +75,7 @@ interface AppState {
   loadDailyStats: () => Promise<void>;
   loadWeeklyStats: () => Promise<void>;
   loadHourlyUsage: () => Promise<void>;
+  loadWeeklyHourlyUsage: () => Promise<void>;
   loadCategoryUsage: () => Promise<void>;
   loadAppLimits: () => Promise<void>;
   loadBlockedApps: () => Promise<void>;
@@ -90,6 +114,7 @@ const initialLoadingState: LoadingState = {
   dailyStats: false,
   weeklyStats: false,
   hourlyUsage: false,
+  weeklyHourlyUsage: false,
   categoryUsage: false,
   appLimits: false,
   blockedApps: false,
@@ -100,6 +125,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   dailyStats: null,
   weeklyStats: null,
   hourlyUsage: [],
+  weeklyHourlyUsage: [],
   categoryUsage: [],
   appLimits: [],
   blockedApps: [],
@@ -109,8 +135,67 @@ export const useAppStore = create<AppState>((set, get) => ({
   sidebarCollapsed: false,
   mobileSidebarOpen: false,
 
+  focusSettings: null,
+  notificationSettings: null,
+
+  // Global frontend timer state implementation
+  isFocusActive: false,
+  focusTimeLeft: 25 * 60,
+  focusTotalTime: 25 * 60,
+  
+  setIsFocusActive: (active) => set({ isFocusActive: active }),
+  setFocusTimeLeft: (time) => set({ focusTimeLeft: time }),
+  setFocusTotalTime: (time) => set({ focusTotalTime: time }),
+  toggleFocusTimer: async () => {
+    const state = get();
+    if (state.isFocusActive) {
+      // Stopping
+      try {
+        await api.stopFocusSession();
+        set({ isFocusActive: false });
+        toast.success("Focus mode ended");
+      } catch (e) {
+        console.error("Failed to stop focus session", e);
+      }
+    } else {
+      // Starting
+      try {
+        const durationMins = Math.ceil(state.focusTimeLeft / 60);
+        await api.startFocusSession(durationMins);
+        set({ isFocusActive: true, focusTotalTime: state.focusTimeLeft });
+        toast.success(`Focus mode started for ${durationMins} minutes`);
+      } catch (e) {
+        console.error("Failed to start focus session", e);
+        toast.error("Failed to start focus session. Have you added apps to block?");
+      }
+    }
+  },
+  resetFocusTimer: async () => {
+    const state = get();
+    if (state.isFocusActive) {
+      try {
+        await api.stopFocusSession();
+      } catch(e) {
+        console.error(e);
+      }
+    }
+    const defaultMins = state.focusSettings?.default_duration_minutes || 25;
+    set({ isFocusActive: false, focusTimeLeft: defaultMins * 60, focusTotalTime: defaultMins * 60 });
+  },
+  tickFocusTimer: () => set((state) => {
+    if (state.isFocusActive && state.focusTimeLeft > 0) {
+      return { focusTimeLeft: state.focusTimeLeft - 1 };
+    }
+    if (state.focusTimeLeft === 0 && state.isFocusActive) {
+      // Time's up
+      api.stopFocusSession().catch(console.error);
+      return { isFocusActive: false };
+    }
+    return state;
+  }),
+
   // Computed: true if ANY loading operation is in progress
-  get isLoading() {
+  isLoading: () => {
     const { loading } = get();
     return Object.values(loading).some(Boolean);
   },
@@ -141,68 +226,162 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   loadDailyStats: async () => {
-    try {
-      set((state) => ({ loading: { ...state.loading, dailyStats: true }, error: null }));
-      const dailyStats = await api.getDailyUsage();
-      set((state) => ({ dailyStats, loading: { ...state.loading, dailyStats: false } }));
-    } catch (error) {
-      console.error("Failed to load daily stats:", error);
-      set((state) => ({ error: String(error), loading: { ...state.loading, dailyStats: false } }));
-    }
+    const pending = pendingRequests.get("dailyStats");
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const dailyStats = await api.getDailyUsage();
+        set({ dailyStats, error: null });
+      } catch (error) {
+        console.error("Failed to load daily stats:", error);
+        set({ error: String(error), dailyStats: null });
+      }
+    })();
+    pendingRequests.set("dailyStats", request);
+    return request;
   },
 
   loadWeeklyStats: async () => {
-    try {
-      set((state) => ({ loading: { ...state.loading, weeklyStats: true }, error: null }));
-      const weeklyStats = await api.getWeeklyStats();
-      set((state) => ({ weeklyStats, loading: { ...state.loading, weeklyStats: false } }));
-    } catch (error) {
-      console.error("Failed to load weekly stats:", error);
-      set((state) => ({ error: String(error), loading: { ...state.loading, weeklyStats: false } }));
-    }
+    const pending = pendingRequests.get("weeklyStats");
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const weeklyStats = await api.getWeeklyStats();
+        set({ weeklyStats, error: null });
+      } catch (error) {
+        console.error("Failed to load weekly stats:", error);
+        set({ error: String(error) });
+      }
+    })();
+    pendingRequests.set("weeklyStats", request);
+    return request;
   },
 
   loadHourlyUsage: async () => {
-    try {
-      set((state) => ({ loading: { ...state.loading, hourlyUsage: true } }));
-      const hourlyUsage = await api.getHourlyUsage();
-      set((state) => ({ hourlyUsage, loading: { ...state.loading, hourlyUsage: false } }));
-    } catch (error) {
-      console.error("Failed to load hourly usage:", error);
-      set((state) => ({ loading: { ...state.loading, hourlyUsage: false } }));
-    }
+    const pending = pendingRequests.get("hourlyUsage");
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const hourlyUsage = await api.getHourlyUsage();
+        set({ hourlyUsage });
+      } catch (error) {
+        console.error("Failed to load hourly usage:", error);
+      }
+    })();
+    pendingRequests.set("hourlyUsage", request);
+    return request;
+  },
+
+  loadWeeklyHourlyUsage: async () => {
+    const pending = pendingRequests.get("weeklyHourlyUsage");
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const weeklyHourlyUsage = await api.getWeeklyHourlyUsage();
+        set({ weeklyHourlyUsage });
+      } catch (error) {
+        console.error("Failed to load weekly hourly usage:", error);
+      }
+    })();
+    pendingRequests.set("weeklyHourlyUsage", request);
+    return request;
   },
 
   loadCategoryUsage: async () => {
-    try {
-      set((state) => ({ loading: { ...state.loading, categoryUsage: true } }));
-      const categoryUsage = await api.getCategoryUsage();
-      set((state) => ({ categoryUsage, loading: { ...state.loading, categoryUsage: false } }));
-    } catch (error) {
-      console.error("Failed to load category usage:", error);
-      set((state) => ({ loading: { ...state.loading, categoryUsage: false } }));
-    }
+    const pending = pendingRequests.get("categoryUsage");
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const categoryUsage = await api.getCategoryUsage();
+        set({ categoryUsage });
+      } catch (error) {
+        console.error("Failed to load category usage:", error);
+      }
+    })();
+    pendingRequests.set("categoryUsage", request);
+    return request;
   },
 
   loadAppLimits: async () => {
-    try {
-      set((state) => ({ loading: { ...state.loading, appLimits: true } }));
-      const appLimits = await api.getAppLimits();
-      set((state) => ({ appLimits, loading: { ...state.loading, appLimits: false } }));
-    } catch (error) {
-      console.error("Failed to load app limits:", error);
-      set((state) => ({ loading: { ...state.loading, appLimits: false } }));
-    }
+    const pending = pendingRequests.get("appLimits");
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const appLimits = await api.getAppLimits();
+        set({ appLimits });
+      } catch (error) {
+        console.error("Failed to load app limits:", error);
+      }
+    })();
+    pendingRequests.set("appLimits", request);
+    return request;
   },
 
   loadBlockedApps: async () => {
+    const pending = pendingRequests.get("blockedApps");
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const blockedApps = await api.getBlockedApps();
+        set({ blockedApps });
+      } catch (error) {
+        console.error("Failed to load blocked apps:", error);
+      }
+    })();
+    pendingRequests.set("blockedApps", request);
+    return request;
+  },
+
+  loadFocusSettings: async () => {
     try {
-      set((state) => ({ loading: { ...state.loading, blockedApps: true } }));
-      const blockedApps = await api.getBlockedApps();
-      set((state) => ({ blockedApps, loading: { ...state.loading, blockedApps: false } }));
+      const settings = await api.getFocusSettings();
+      set({ focusSettings: settings });
     } catch (error) {
-      console.error("Failed to load blocked apps:", error);
-      set((state) => ({ loading: { ...state.loading, blockedApps: false } }));
+      console.error("Failed to load focus settings:", error);
+    }
+  },
+
+  loadNotificationSettings: async () => {
+    try {
+      const settings = await api.getNotificationSettings();
+      set({ notificationSettings: settings });
+    } catch (error) {
+      console.error("Failed to load notification settings:", error);
+    }
+  },
+
+  updateFocusSettings: async (updates) => {
+    try {
+      const current = get().focusSettings;
+      if (!current) return;
+      const next = { ...current, ...updates };
+      await api.setFocusSettings(next);
+      set({ focusSettings: next });
+      toast.success("Focus settings updated");
+    } catch (error) {
+      console.error("Failed to update focus settings:", error);
+      toast.error("Failed to update focus settings");
+    }
+  },
+
+  updateNotificationSettings: async (updates) => {
+    try {
+      const current = get().notificationSettings;
+      if (!current) return;
+      const next = { ...current, ...updates };
+      await api.setNotificationSettings(next);
+      set({ notificationSettings: next });
+      toast.success("Notification settings updated");
+    } catch (error) {
+      console.error("Failed to update notification settings:", error);
+      toast.error("Failed to update notification settings");
     }
   },
 
@@ -323,20 +502,25 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { 
       loadDailyStats, 
       loadWeeklyStats, 
+      loadHourlyUsage, 
+      loadWeeklyHourlyUsage,
+      loadCategoryUsage, 
       loadAppLimits, 
-      loadTheme,
-      loadHourlyUsage,
-      loadCategoryUsage,
       loadBlockedApps,
+      loadFocusSettings,
+      loadNotificationSettings
     } = get();
+    
     await Promise.all([
-      loadTheme(),
       loadDailyStats(),
       loadWeeklyStats(),
-      loadAppLimits(),
       loadHourlyUsage(),
+      loadWeeklyHourlyUsage(),
       loadCategoryUsage(),
+      loadAppLimits(),
       loadBlockedApps(),
+      loadFocusSettings(),
+      loadNotificationSettings()
     ]);
   },
 }));

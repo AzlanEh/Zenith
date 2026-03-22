@@ -1,4 +1,5 @@
 use crate::database::Database;
+use crate::focus_mode::FocusManager;
 use crate::limit_popup::EmergencyAccessManager;
 use crate::notification_settings::NotificationManager;
 use crate::window_tracker::{extract_app_name, get_active_window_name};
@@ -59,6 +60,8 @@ pub struct UsageTracker {
     app_handle: Option<AppHandle>,
     /// Track if popup is currently shown for an app (to avoid multiple popups)
     popup_shown_for: Arc<Mutex<Option<String>>>,
+    /// Focus manager for focus-mode blocking rules
+    focus_manager: Arc<FocusManager>,
     /// Counter for session flush interval (avoids unreliable modulo on timestamps)
     flush_counter: Arc<Mutex<u32>>,
     /// Buffer of failed DB writes to retry
@@ -68,7 +71,11 @@ pub struct UsageTracker {
 }
 
 impl UsageTracker {
-    pub fn new(db: Arc<Mutex<Database>>, emergency_access: Arc<EmergencyAccessManager>) -> Self {
+    pub fn new(
+        db: Arc<Mutex<Database>>,
+        emergency_access: Arc<EmergencyAccessManager>,
+        focus_manager: Arc<FocusManager>,
+    ) -> Self {
         let today = chrono::Local::now().format("%Y-%m-%d").to_string();
         UsageTracker {
             db,
@@ -81,10 +88,61 @@ impl UsageTracker {
             notification_manager: None,
             app_handle: None,
             popup_shown_for: Arc::new(Mutex::new(None)),
+            focus_manager,
             flush_counter: Arc::new(Mutex::new(0)),
             retry_buffer: Arc::new(Mutex::new(Vec::new())),
             last_written_end_time: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Reset runtime tracking state after destructive operations like wipe.
+    pub async fn reset_state(&self) {
+        *self.current_app.lock().await = None;
+        *self.current_session_id.lock().await = None;
+        *self.session_start.lock().await = None;
+        *self.popup_shown_for.lock().await = None;
+        *self.flush_counter.lock().await = 0;
+        *self.last_written_end_time.lock().await = None;
+        self.sent_notifications.lock().await.clear();
+        self.retry_buffer.lock().await.clear();
+    }
+
+    #[cfg(test)]
+    pub async fn set_test_state(
+        &self,
+        current_app: Option<String>,
+        session_id: Option<i64>,
+        session_start: Option<i64>,
+    ) {
+        *self.current_app.lock().await = current_app;
+        *self.current_session_id.lock().await = session_id;
+        *self.session_start.lock().await = session_start;
+        *self.popup_shown_for.lock().await = Some("test-popup".to_string());
+        *self.flush_counter.lock().await = 3;
+        *self.last_written_end_time.lock().await = Some(12345);
+        self.sent_notifications
+            .lock()
+            .await
+            .insert(("test".to_string(), NotificationType::Warning), true);
+        self.retry_buffer
+            .lock()
+            .await
+            .push(PendingWrite::UpdateSession {
+                session_id: 42,
+                end_time: 9999,
+            });
+    }
+
+    #[cfg(test)]
+    pub async fn test_state_snapshot(
+        &self,
+    ) -> (Option<String>, Option<i64>, Option<i64>, usize, usize) {
+        let app = self.current_app.lock().await.clone();
+        let session = *self.current_session_id.lock().await;
+        let start = *self.session_start.lock().await;
+        let notifications_len = self.sent_notifications.lock().await.len();
+        let retry_len = self.retry_buffer.lock().await.len();
+        (app, session, start, notifications_len, retry_len)
     }
 
     /// Set the Tauri app handle for creating windows
@@ -306,7 +364,9 @@ impl UsageTracker {
                 let is_blocked = db.is_app_blocked(app).unwrap_or(false);
                 drop(db); // Release lock before further operations
 
-                if is_blocked {
+                let focus_blocked = self.focus_manager.should_block_app(app).await;
+
+                if is_blocked || focus_blocked {
                     // Check if app has emergency access
                     if self.emergency_access.has_active_access(app).await {
                         // Allow the app, emergency access is active

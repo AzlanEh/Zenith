@@ -20,6 +20,7 @@ import type {
   GoalProgress,
   Achievement,
   GoalsStats,
+  WeeklyHourlyUsage,
 } from "../types";
 
 export const api = {
@@ -63,6 +64,10 @@ export const api = {
     return invoke("get_hourly_usage");
   },
 
+  getWeeklyHourlyUsage: (): Promise<WeeklyHourlyUsage[]> => {
+    return invoke("get_weekly_hourly_usage");
+  },
+
   getCategoryUsage: (): Promise<CategoryUsage[]> => {
     return invoke("get_category_usage");
   },
@@ -73,10 +78,6 @@ export const api = {
 
   checkAppBlocked: (appName: string): Promise<boolean> => {
     return invoke("check_app_blocked", { appName });
-  },
-
-  blockApp: (appName: string): Promise<void> => {
-    return invoke("block_app", { appName });
   },
 
   getBlockedApps: (): Promise<string[]> => {
@@ -135,6 +136,10 @@ export const api = {
 
   formatExportJson: (records: ExportRecord[]): Promise<string> => {
     return invoke("format_export_json", { records });
+  },
+
+  saveExportFile: (filePath: string, content: string): Promise<void> => {
+    return invoke("save_export_file", { filePath, content });
   },
 
   // Window control
@@ -265,5 +270,9 @@ export const api = {
 
   getGoalsStats: (): Promise<GoalsStats> => {
     return invoke("get_goals_stats");
+  },
+
+  wipeAllData: (): Promise<void> => {
+    return invoke("wipe_all_data");
   },
 };

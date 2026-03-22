@@ -93,6 +93,20 @@ impl Database {
         Ok(db)
     }
 
+    #[cfg(test)]
+    pub fn new_in_memory() -> SqliteResult<Self> {
+        let conn = Connection::open_in_memory()?;
+        conn.pragma_update(None, "journal_mode", "WAL")?;
+        conn.pragma_update(None, "busy_timeout", 5000)?;
+        conn.pragma_update(None, "foreign_keys", "ON")?;
+
+        let db = Database { conn };
+        db.init_schema()?;
+        db.run_migrations()?;
+        db.ensure_schema_columns()?;
+        Ok(db)
+    }
+
     fn init_schema(&self) -> SqliteResult<()> {
         // Create core tables - these are the base schema
         // Note: category, is_blocked were added by migration 1 but are included here
@@ -257,10 +271,13 @@ impl Database {
     }
 
     pub fn update_session_duration(&self, session_id: i64, end_time: i64) -> SqliteResult<()> {
-        self.conn.execute(
+        let rows = self.conn.execute(
             "UPDATE usage_sessions SET end_time = ?1, duration_seconds = ?1 - start_time WHERE id = ?2",
             rusqlite::params![end_time, session_id],
         )?;
+        if rows != 1 {
+            return Err(rusqlite::Error::QueryReturnedNoRows);
+        }
         Ok(())
     }
 
@@ -451,6 +468,39 @@ impl Database {
         Ok(result)
     }
 
+    pub fn get_weekly_hourly_usage(&self) -> SqliteResult<Vec<(String, i32, i64)>> {
+        let week_ago = Utc::now().timestamp() - (6 * 24 * 60 * 60); // Last 7 days including today
+        let mut stmt = self.conn.prepare(
+            "SELECT date(start_time, 'unixepoch', 'localtime') as date_str,
+                    (CAST(strftime('%H', start_time, 'unixepoch', 'localtime') AS INTEGER) * 2) + 
+                    (CAST(strftime('%M', start_time, 'unixepoch', 'localtime') AS INTEGER) / 30) as half_hour, 
+                    SUM(
+                        CASE WHEN duration_seconds = 0 AND end_time = start_time
+                             THEN MAX(strftime('%s','now') - start_time, 0)
+                             ELSE duration_seconds
+                        END
+                    ) as total
+             FROM usage_sessions
+             WHERE start_time >= ?1
+             GROUP BY date_str, half_hour
+             ORDER BY date_str ASC, half_hour ASC",
+        )?;
+
+        let rows = stmt.query_map([week_ago], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i32>(1)?,
+                row.get::<_, i64>(2)?,
+            ))
+        })?;
+
+        let mut result = Vec::new();
+        for row in rows {
+            result.push(row?);
+        }
+        Ok(result)
+    }
+
     pub fn get_category_usage(&self) -> SqliteResult<Vec<CategoryUsage>> {
         let mut stmt = self.conn.prepare(
             "SELECT COALESCE(a.category, 'Uncategorized') as category, 
@@ -587,6 +637,17 @@ impl Database {
         // self.conn.execute("VACUUM", [])?;
 
         Ok(deleted)
+    }
+
+    /// Completely wipe all user data (usage history, limits, categories, etc.)
+    pub fn wipe_all_data(&self) -> SqliteResult<()> {
+        self.conn.execute("DELETE FROM usage_sessions", [])?;
+        self.conn.execute("DELETE FROM app_limits", [])?;
+        // Apps table holds the categories and app state
+        self.conn.execute("DELETE FROM apps", [])?;
+        // Vacuum to shrink the DB file size
+        self.conn.execute("VACUUM", [])?;
+        Ok(())
     }
 
     /// Get the count of usage sessions and approximate database size info
@@ -773,5 +834,17 @@ impl Database {
             result.push(row?);
         }
         Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn update_session_duration_errors_for_missing_session() {
+        let db = Database::new_in_memory().expect("in-memory db");
+        let err = db.update_session_duration(999_999, Utc::now().timestamp());
+        assert!(matches!(err, Err(rusqlite::Error::QueryReturnedNoRows)));
     }
 }

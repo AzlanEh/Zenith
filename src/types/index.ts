@@ -61,6 +61,12 @@ export interface HourlyUsage {
   total_seconds: number;
 }
 
+export interface WeeklyHourlyUsage {
+  date: string;
+  hour: number;
+  total_seconds: number;
+}
+
 export interface CategoryUsage {
   category: string;
   total_seconds: number;

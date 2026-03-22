@@ -92,7 +92,7 @@ export const AppBreakdownPie = ({ data }: AppBreakdownPieProps) => {
               </ResponsiveContainer>
               {/* Center Text */}
               <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-center">
-                <p className="text-3xl font-bold font-display text-white">
+                <p className="text-3xl font-bold font-display text-foreground">
                   {data.length}
                 </p>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">

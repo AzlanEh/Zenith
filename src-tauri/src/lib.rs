@@ -10,6 +10,7 @@ mod limit_popup;
 mod migrations;
 mod notification_settings;
 mod notifications;
+mod settings_store;
 mod theme;
 mod tracker;
 mod tray;
@@ -26,7 +27,6 @@ use goals::{Achievement, Goal, GoalProgress, GoalsState};
 use limit_popup::EmergencyAccessManager;
 use notification_settings::{NotificationManager, NotificationSettings};
 use std::collections::HashMap;
-use std::process::Command;
 use std::sync::Arc;
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_updater::UpdaterExt;
@@ -155,6 +155,27 @@ async fn get_hourly_usage(state: State<'_, AppState>) -> CmdResult<Vec<HourlyUsa
     Ok(db.get_hourly_usage()?)
 }
 
+#[derive(serde::Serialize)]
+struct WeeklyHourlyUsage {
+    date: String,
+    hour: i32,
+    total_seconds: i64,
+}
+
+#[tauri::command]
+async fn get_weekly_hourly_usage(state: State<'_, AppState>) -> CmdResult<Vec<WeeklyHourlyUsage>> {
+    let db = state.db.lock().await;
+    let raw = db.get_weekly_hourly_usage()?;
+    Ok(raw
+        .into_iter()
+        .map(|(date, hour, total_seconds)| WeeklyHourlyUsage {
+            date,
+            hour,
+            total_seconds,
+        })
+        .collect())
+}
+
 #[tauri::command]
 async fn get_category_usage(state: State<'_, AppState>) -> CmdResult<Vec<CategoryUsage>> {
     let db = state.db.lock().await;
@@ -189,35 +210,6 @@ async fn check_app_blocked(state: State<'_, AppState>, app_name: String) -> CmdR
     }
     let db = state.db.lock().await;
     Ok(db.is_app_blocked(&app_name)?)
-}
-
-#[tauri::command]
-fn block_app(app_name: String) -> CmdResult<()> {
-    // Validate app name to prevent command injection
-    if !is_valid_app_name(&app_name) {
-        return Err(WellbeingError::InvalidAppName(app_name));
-    }
-
-    // On Linux, use wmctrl or xdotool to close app windows
-    #[cfg(target_os = "linux")]
-    {
-        // Try to close windows of the app using wmctrl
-        let _ = Command::new("wmctrl").args(["-c", &app_name]).output();
-
-        // Also try to kill the process (less aggressive approach - send SIGTERM)
-        // Using exact match with -x flag to avoid partial matches
-        let _ = Command::new("pkill").args(["-x", &app_name]).output();
-    }
-
-    // On Windows, use taskkill to terminate the app
-    #[cfg(target_os = "windows")]
-    {
-        let _ = Command::new("taskkill")
-            .args(["/IM", &format!("{}.exe", app_name), "/F"])
-            .output();
-    }
-
-    Ok(())
 }
 
 #[tauri::command]
@@ -316,9 +308,19 @@ fn get_autostart_status() -> AutostartStatus {
 /// Default data retention period in days
 const DEFAULT_RETENTION_DAYS: i64 = 90;
 
+fn parse_retention_days(days: Option<i64>) -> CmdResult<i64> {
+    let retention_days = days.unwrap_or(DEFAULT_RETENTION_DAYS);
+    if !(1..=3650).contains(&retention_days) {
+        return Err(WellbeingError::Other(
+            "Retention days must be between 1 and 3650".to_string(),
+        ));
+    }
+    Ok(retention_days)
+}
+
 #[tauri::command]
 async fn cleanup_old_data(state: State<'_, AppState>, days: Option<i64>) -> CmdResult<usize> {
-    let retention_days = days.unwrap_or(DEFAULT_RETENTION_DAYS);
+    let retention_days = parse_retention_days(days)?;
     let db = state.db.lock().await;
     Ok(db.cleanup_old_data(retention_days)?)
 }
@@ -327,6 +329,71 @@ async fn cleanup_old_data(state: State<'_, AppState>, days: Option<i64>) -> CmdR
 async fn get_storage_stats(state: State<'_, AppState>) -> CmdResult<(i64, i64, Option<String>)> {
     let db = state.db.lock().await;
     Ok(db.get_storage_stats()?)
+}
+
+#[tauri::command]
+async fn wipe_all_data(state: State<'_, AppState>) -> CmdResult<()> {
+    wipe_all_data_internal(state.inner()).await
+}
+
+async fn wipe_all_data_internal(state: &AppState) -> CmdResult<()> {
+    let db = state.db.lock().await;
+    db.wipe_all_data()?;
+    drop(db);
+
+    // Reset tracker state to avoid stale session IDs after wipe
+    {
+        let tracker = state.tracker.lock().await;
+        tracker.reset_state().await;
+    }
+
+    {
+        let background_tracker = state.background_tracker.lock().await;
+        if let Some(ref tracker) = *background_tracker {
+            tracker.reset_state().await;
+        }
+    }
+
+    // Clear in-memory state
+    let mut goals_state = state.goals_state.lock().await;
+    *goals_state = goals::GoalsState::new();
+
+    state.emergency_access.clear().await;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn save_export_file(file_path: String, content: String) -> CmdResult<()> {
+    if file_path.trim().is_empty() {
+        return Err(WellbeingError::Export("Export path is empty".into()));
+    }
+
+    if file_path.len() > 4096 || file_path.contains('\0') {
+        return Err(WellbeingError::Export("Invalid export path".into()));
+    }
+
+    let path = std::path::PathBuf::from(&file_path);
+    if !path.is_absolute() {
+        return Err(WellbeingError::Export(
+            "Export path must be absolute".into(),
+        ));
+    }
+
+    let extension = path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.to_ascii_lowercase())
+        .ok_or_else(|| WellbeingError::Export("Export file must have an extension".into()))?;
+
+    if extension != "csv" && extension != "json" {
+        return Err(WellbeingError::Export(
+            "Only CSV and JSON exports are allowed".into(),
+        ));
+    }
+
+    std::fs::write(path, content)?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -826,12 +893,13 @@ pub fn run_background() {
 
     // Create emergency access manager (limited functionality in background mode)
     let emergency_access = Arc::new(EmergencyAccessManager::new());
+    let focus_manager = Arc::new(FocusManager::new());
 
     // Create tokio runtime for async operations
     let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
 
     rt.block_on(async {
-        let tracker = Arc::new(UsageTracker::new(db, emergency_access));
+        let tracker = Arc::new(UsageTracker::new(db, emergency_access, focus_manager));
         let tracker_for_shutdown = Arc::clone(&tracker);
 
         tracing::info!("Background tracker started. Press Ctrl+C to stop.");
@@ -927,6 +995,7 @@ pub fn run() {
     let tracker = Arc::new(Mutex::new(UsageTracker::new(
         Arc::clone(&db),
         Arc::clone(&emergency_access),
+        Arc::clone(&focus_manager),
     )));
     let tracker_for_state = Arc::clone(&tracker);
 
@@ -1014,7 +1083,7 @@ pub fn run() {
 
             // Create the background tracker as an Arc so we can share it for shutdown
             let mut background_tracker =
-                UsageTracker::new(tracker_db, emergency_for_tracker);
+                UsageTracker::new(tracker_db, emergency_for_tracker, Arc::clone(&focus_manager_clone));
             background_tracker.set_app_handle(handle.clone());
             background_tracker.set_notification_manager(notification_manager_for_tracker);
             let background_tracker = Arc::new(background_tracker);
@@ -1093,10 +1162,10 @@ pub fn run() {
             get_all_apps,
             record_usage,
             get_hourly_usage,
+            get_weekly_hourly_usage,
             get_category_usage,
             set_app_category,
             check_app_blocked,
-            block_app,
             get_blocked_apps,
             grant_emergency_access,
             get_emergency_access_remaining,
@@ -1109,6 +1178,8 @@ pub fn run() {
             disable_autostart,
             get_autostart_status,
             cleanup_old_data,
+            wipe_all_data,
+            save_export_file,
             get_storage_stats,
             export_usage_data,
             format_export_csv,
@@ -1183,6 +1254,8 @@ pub fn run() {
 mod tests {
     use super::*;
     use database::ExportRecord;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
 
     #[test]
     fn test_valid_app_names() {
@@ -1258,6 +1331,25 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_retention_days_defaults() {
+        let parsed = parse_retention_days(None).unwrap();
+        assert_eq!(parsed, DEFAULT_RETENTION_DAYS);
+    }
+
+    #[test]
+    fn test_parse_retention_days_rejects_out_of_range() {
+        assert!(parse_retention_days(Some(0)).is_err());
+        assert!(parse_retention_days(Some(-10)).is_err());
+        assert!(parse_retention_days(Some(3651)).is_err());
+    }
+
+    #[test]
+    fn test_parse_retention_days_accepts_bounds() {
+        assert_eq!(parse_retention_days(Some(1)).unwrap(), 1);
+        assert_eq!(parse_retention_days(Some(3650)).unwrap(), 3650);
+    }
+
+    #[test]
     fn test_format_export_csv_structure() {
         let records = vec![
             ExportRecord {
@@ -1288,5 +1380,121 @@ mod tests {
 
         // Check second data row
         assert!(csv.contains("2026-01-12,Code,Development,120,2m,1"));
+    }
+
+    #[tokio::test]
+    async fn test_tracker_reset_clears_runtime_state() {
+        let db = Arc::new(Mutex::new(Database::new_in_memory().expect("in-memory db")));
+        let emergency = Arc::new(EmergencyAccessManager::new());
+        let focus_manager = Arc::new(FocusManager::new());
+        let tracker = UsageTracker::new(db, emergency, focus_manager);
+
+        tracker
+            .set_test_state(Some("Firefox".to_string()), Some(123), Some(456))
+            .await;
+
+        tracker.reset_state().await;
+        let snapshot = tracker.test_state_snapshot().await;
+
+        assert!(snapshot.0.is_none());
+        assert!(snapshot.1.is_none());
+        assert!(snapshot.2.is_none());
+        assert_eq!(snapshot.3, 0);
+        assert_eq!(snapshot.4, 0);
+    }
+
+    #[tokio::test]
+    async fn test_wipe_all_data_internal_clears_db_and_runtime_state() {
+        let db = Arc::new(Mutex::new(Database::new_in_memory().expect("in-memory db")));
+        {
+            let db_guard = db.lock().await;
+            let app_id = db_guard
+                .get_or_create_app("Firefox", None)
+                .expect("create app");
+            db_guard
+                .start_session(app_id, chrono::Utc::now().timestamp() - 60)
+                .expect("create session");
+            db_guard
+                .set_limit_with_block("Firefox", 60, true)
+                .expect("set limit");
+        }
+
+        let emergency_access = Arc::new(EmergencyAccessManager::new());
+        emergency_access.grant_access("Firefox").await;
+
+        let focus_manager = Arc::new(FocusManager::new());
+        let tracker = Arc::new(Mutex::new(UsageTracker::new(
+            Arc::clone(&db),
+            Arc::clone(&emergency_access),
+            Arc::clone(&focus_manager),
+        )));
+        {
+            let tracker_guard = tracker.lock().await;
+            tracker_guard
+                .set_test_state(Some("Firefox".to_string()), Some(1), Some(2))
+                .await;
+        }
+
+        let background_tracker = Arc::new(UsageTracker::new(
+            Arc::clone(&db),
+            Arc::clone(&emergency_access),
+            Arc::clone(&focus_manager),
+        ));
+        background_tracker
+            .set_test_state(Some("Code".to_string()), Some(9), Some(10))
+            .await;
+
+        let mut goals_state = GoalsState::new();
+        goals_state.add_goal(Goal {
+            id: "goal-1".to_string(),
+            name: "Limit distractions".to_string(),
+            goal_type: goals::GoalType::DailyLimit,
+            target_minutes: 60,
+            days: vec![],
+            enabled: true,
+            created_at: chrono::Local::now().format("%Y-%m-%d").to_string(),
+        });
+
+        let state = AppState {
+            db: Arc::clone(&db),
+            break_reminder: Arc::new(BreakReminder::new()),
+            notification_manager: Arc::new(NotificationManager::new()),
+            focus_manager,
+            goals_state: Arc::new(Mutex::new(goals_state)),
+            emergency_access: Arc::clone(&emergency_access),
+            tracker: Arc::clone(&tracker),
+            background_tracker: Arc::new(Mutex::new(Some(Arc::clone(&background_tracker)))),
+        };
+
+        wipe_all_data_internal(&state).await.expect("wipe succeeds");
+
+        {
+            let db_guard = db.lock().await;
+            assert_eq!(db_guard.get_all_apps().expect("apps").len(), 0);
+            assert_eq!(db_guard.get_all_limits().expect("limits").len(), 0);
+            assert_eq!(db_guard.get_daily_usage().expect("usage").len(), 0);
+        }
+
+        {
+            let tracker_guard = tracker.lock().await;
+            let snapshot = tracker_guard.test_state_snapshot().await;
+            assert!(snapshot.0.is_none());
+            assert!(snapshot.1.is_none());
+            assert!(snapshot.2.is_none());
+            assert_eq!(snapshot.3, 0);
+            assert_eq!(snapshot.4, 0);
+        }
+
+        let bg_snapshot = background_tracker.test_state_snapshot().await;
+        assert!(bg_snapshot.0.is_none());
+        assert!(bg_snapshot.1.is_none());
+        assert!(bg_snapshot.2.is_none());
+        assert_eq!(bg_snapshot.3, 0);
+        assert_eq!(bg_snapshot.4, 0);
+
+        assert!(!emergency_access.has_active_access("Firefox").await);
+
+        let goals_guard = state.goals_state.lock().await;
+        assert!(goals_guard.goals.is_empty());
     }
 }

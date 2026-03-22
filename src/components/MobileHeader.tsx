@@ -50,10 +50,10 @@ export const MobileHeader = () => {
             size="icon"
             className="h-9 w-9 rounded-lg"
             onClick={() => refreshAll()}
-            disabled={isLoading}
+            disabled={isLoading()}
             aria-label="Refresh data"
           >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isLoading() ? 'animate-spin' : ''}`} />
           </Button>
           
           {/* Notifications placeholder */}

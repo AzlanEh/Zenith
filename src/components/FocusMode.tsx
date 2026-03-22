@@ -317,10 +317,10 @@ export const FocusMode = () => {
             <div className={cn(
               "h-8 w-8 rounded-lg flex items-center justify-center transition-all",
               session.is_active 
-                ? "bg-gradient-to-br from-primary to-cyan-500 shadow-lg shadow-primary/30" 
-                : "bg-gradient-to-br from-slate-500 to-gray-500"
+                ? "bg-gradient-to-br from-primary to-cyan-500 shadow-lg shadow-primary/30 text-white" 
+                : "bg-muted text-muted-foreground"
             )}>
-              <Target className="h-4 w-4 text-white" />
+              <Target className="h-4 w-4" />
             </div>
             Focus Session
             {session.is_active && (

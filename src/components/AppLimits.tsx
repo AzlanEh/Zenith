@@ -114,15 +114,6 @@ export const AppLimits = () => {
     }
   };
 
-  const handleBlockNow = async (appName: string) => {
-    try {
-      await api.blockApp(appName);
-      loadBlockedApps();
-    } catch (error) {
-      console.error("Failed to block app:", error);
-    }
-  };
-
   const getUsageForApp = (appName: string) => {
     const app = trackedApps.find(
       (a) => a.app_name.toLowerCase() === appName.toLowerCase()
@@ -294,17 +285,6 @@ export const AppLimits = () => {
                     )}
                   </div>
 
-                  {/* Manual Block Action if exceeded but not yet blocked (rare case or manual intervention) */}
-                  {progress >= 100 && !blocked && limit.block_when_exceeded && (
-                     <Button 
-                        variant="destructive" 
-                        size="sm" 
-                        className="w-full mt-2"
-                        onClick={() => handleBlockNow(limit.app_name)}
-                     >
-                        Block Now
-                     </Button>
-                  )}
                 </CardContent>
               </Card>
             );

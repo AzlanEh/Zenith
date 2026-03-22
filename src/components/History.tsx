@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Area,
   AreaChart,
@@ -31,6 +31,12 @@ interface ComparisonData {
   current: HistoricalData | null;
   previous: HistoricalData | null;
 }
+
+const requestCache = new Map<string, { data: HistoricalData; timestamp: number }>();
+const pendingRequests = new Map<string, Promise<HistoricalData>>();
+
+const CACHE_STALE_TIME = 60000;
+const CACHE_MAX_SIZE = 50;
 
 export const History = () => {
   const [presetRange, setPresetRange] = useState<PresetRange>("30d");
@@ -71,35 +77,69 @@ export const History = () => {
     setPresetRange(preset);
   };
 
-  const loadData = async () => {
+  const getCachedHistoricalData = useCallback(async (
+    start: string,
+    end: string,
+    forceRefresh = false
+  ): Promise<HistoricalData> => {
+    const cacheKey = `hist:${start}:${end}`;
+
+    if (!forceRefresh) {
+      const cached = requestCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < CACHE_STALE_TIME) {
+        return cached.data;
+      }
+    }
+
+    const pending = pendingRequests.get(cacheKey);
+    if (pending) {
+      return pending;
+    }
+
+    const request = api.getHistoricalData(start, end).then((data) => {
+      if (requestCache.size >= CACHE_MAX_SIZE) {
+        const oldestKey = requestCache.keys().next().value;
+        if (oldestKey) requestCache.delete(oldestKey);
+      }
+      requestCache.set(cacheKey, { data, timestamp: Date.now() });
+      pendingRequests.delete(cacheKey);
+      return data;
+    }).catch((error) => {
+      pendingRequests.delete(cacheKey);
+      throw error;
+    });
+
+    pendingRequests.set(cacheKey, request);
+    return request;
+  }, []);
+
+  const loadData = async (forceRefresh = false) => {
     setLoading(true);
     setError(null);
 
     try {
-      // Calculate the period length in days
       const startMs = new Date(startDate).getTime();
       const endMs = new Date(endDate).getTime();
       const periodDays = Math.ceil((endMs - startMs) / (1000 * 60 * 60 * 24)) + 1;
 
-      // Calculate previous period dates
-      const prevEnd = new Date(startMs - 1000 * 60 * 60 * 24); // Day before start
+      const prevEnd = new Date(startMs - 1000 * 60 * 60 * 24);
       const prevStart = new Date(prevEnd.getTime() - (periodDays - 1) * 24 * 60 * 60 * 1000);
 
-      // Fetch both periods in parallel
       const [currentData, previousData] = await Promise.all([
-        api.getHistoricalData(startDate, endDate),
-        api.getHistoricalData(
+        getCachedHistoricalData(startDate, endDate, forceRefresh),
+        getCachedHistoricalData(
           prevStart.toISOString().split("T")[0],
-          prevEnd.toISOString().split("T")[0]
+          prevEnd.toISOString().split("T")[0],
+          forceRefresh
         ),
       ]);
 
       setData({ current: currentData, previous: previousData });
     } catch (err) {
       setError(String(err));
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -185,7 +225,7 @@ export const History = () => {
             Analyze your digital habits over time
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={loadData} disabled={loading} className="gap-2 self-start md:self-auto hover:bg-primary/10 hover:text-primary transition-colors">
+        <Button variant="outline" size="sm" onClick={() => loadData(true)} disabled={loading} className="gap-2 self-start md:self-auto hover:bg-primary/10 hover:text-primary transition-colors">
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
           Refresh Data
         </Button>

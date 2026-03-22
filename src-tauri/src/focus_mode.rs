@@ -142,8 +142,9 @@ pub struct FocusManager {
 
 impl FocusManager {
     pub fn new() -> Self {
+        let initial_settings = crate::settings_store::load_focus_settings().unwrap_or_default();
         Self {
-            settings: Arc::new(Mutex::new(FocusSettings::default())),
+            settings: Arc::new(Mutex::new(initial_settings)),
             is_active: AtomicBool::new(false),
             session: Arc::new(Mutex::new(FocusSession::default())),
             schedule_blocked_apps: Arc::new(Mutex::new(HashSet::new())),
@@ -155,7 +156,10 @@ impl FocusManager {
     }
 
     pub async fn update_settings(&self, settings: FocusSettings) {
-        *self.settings.lock().await = settings;
+        *self.settings.lock().await = settings.clone();
+        if let Err(e) = crate::settings_store::save_focus_settings(&settings) {
+            tracing::warn!(error = %e, "Failed to persist focus settings");
+        }
     }
 
     pub fn is_active(&self) -> bool {
@@ -355,7 +359,12 @@ impl FocusManager {
     pub async fn add_blocked_app(&self, app_name: String) {
         let mut session = self.session.lock().await;
         if !session.blocked_apps.contains(&app_name) {
-            session.blocked_apps.push(app_name);
+            session.blocked_apps.push(app_name.clone());
+        }
+
+        let mut settings = self.settings.lock().await;
+        if !settings.blocked_apps.contains(&app_name) {
+            settings.blocked_apps.push(app_name);
         }
     }
 
@@ -363,6 +372,9 @@ impl FocusManager {
     pub async fn remove_blocked_app(&self, app_name: &str) {
         let mut session = self.session.lock().await;
         session.blocked_apps.retain(|a| a != app_name);
+
+        let mut settings = self.settings.lock().await;
+        settings.blocked_apps.retain(|a| a != app_name);
     }
 
     fn get_start_message(&self, session: &FocusSession) -> String {

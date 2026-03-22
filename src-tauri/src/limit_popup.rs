@@ -94,6 +94,13 @@ impl EmergencyAccessManager {
         tracing::info!(app = %app_name, "Revoked emergency access");
     }
 
+    /// Clear all emergency access grants
+    pub async fn clear(&self) {
+        let mut grants = self.access_grants.lock().await;
+        grants.clear();
+        tracing::info!("Cleared all emergency access grants");
+    }
+
     /// Clean up expired grants
     pub async fn cleanup_expired(&self) {
         let now = chrono::Utc::now().timestamp();

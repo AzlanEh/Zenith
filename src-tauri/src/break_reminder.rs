@@ -39,8 +39,9 @@ pub struct BreakReminder {
 
 impl BreakReminder {
     pub fn new() -> Self {
+        let initial_settings = crate::settings_store::load_break_settings().unwrap_or_default();
         Self {
-            settings: Arc::new(Mutex::new(BreakSettings::default())),
+            settings: Arc::new(Mutex::new(initial_settings)),
             is_on_break: AtomicBool::new(false),
             minutes_worked: Arc::new(Mutex::new(0)),
         }
@@ -51,7 +52,10 @@ impl BreakReminder {
     }
 
     pub async fn update_settings(&self, settings: BreakSettings) {
-        *self.settings.lock().await = settings;
+        *self.settings.lock().await = settings.clone();
+        if let Err(e) = crate::settings_store::save_break_settings(&settings) {
+            tracing::warn!(error = %e, "Failed to persist break settings");
+        }
     }
 
     pub fn is_on_break(&self) -> bool {
