@@ -4,13 +4,23 @@ import { useAppStore } from '../store/useAppStore';
 import { api } from '../services/api';
 import type { InstalledApp } from '../types';
 import { AppIcon } from '../components/AppIcon';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 
 export function Limits() {
   const { appLimits, loadAppLimits, setAppLimit } = useAppStore();
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [selectedApps, setSelectedApps] = useState<string[]>([]);
+  const [activeCategory, setActiveCategory] = useState<string>('All');
+
+  useEffect(() => {
+    if (!isAddOpen) {
+      setSearchQuery('');
+      setSelectedApps([]);
+      setActiveCategory('All');
+    }
+  }, [isAddOpen]);
 
   useEffect(() => {
     loadAppLimits();
@@ -63,53 +73,131 @@ export function Limits() {
                   Add App
                 </button>
               </DialogTrigger>
-              <DialogContent className="max-w-md max-h-[80vh] flex flex-col gap-0 p-0 border border-border bg-background rounded-lg overflow-hidden">
-                <DialogHeader className="p-6 pb-4 border-b border-border">
-                  <DialogTitle className="text-xl font-serif-accent text-foreground">Add App Limit</DialogTitle>
-                </DialogHeader>
-                <div className="p-4 border-b border-border bg-secondary/20">
+              <DialogContent className="max-w-2xl bg-background border-border shadow-2xl flex flex-col max-h-[90vh] p-0 gap-0 overflow-hidden [&>button]:hidden">
+                {/* Header & Search */}
+                <div className="p-8 space-y-6 border-b border-border bg-secondary/10 relative">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <DialogTitle className="text-3xl font-serif-accent italic leading-none text-foreground">
+                        Add Application
+                      </DialogTitle>
+                      <p className="text-[0.65rem] font-mono uppercase tracking-[0.3em] text-muted-foreground mt-2">
+                        Constraint selection module
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setIsAddOpen(false)}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Plus className="w-6 h-6 rotate-45" />
+                    </button>
+                  </div>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <input 
-                      type="text" 
-                      placeholder="Search apps..." 
-                      className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:border-primary transition-colors"
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <input
+                      type="text"
+                      className="w-full bg-secondary/20 border-0 border-b-2 border-border/50 focus:border-primary focus:ring-0 text-foreground pl-12 py-4 text-sm tracking-wide transition-all placeholder:text-muted-foreground outline-none"
+                      placeholder="Search apps..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto p-2">
-                  {filteredInstalledApps.length === 0 ? (
-                    <div className="p-8 text-center text-muted-foreground text-sm">
-                      No apps found
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-1">
-                      {filteredInstalledApps.map((app) => (
-                        <button
+
+                {/* Content Area */}
+                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-background">
+                  {/* Category Filter Chips */}
+                  <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+                    {['All', ...Array.from(new Set(filteredInstalledApps.map(a => a.categories?.[0] || 'Uncategorized').filter(Boolean)))].map(category => (
+                      <button
+                        key={category}
+                        onClick={() => setActiveCategory(category)}
+                        className={`whitespace-nowrap px-4 py-1.5 text-[0.65rem] font-mono uppercase tracking-widest transition-all ${
+                          activeCategory === category
+                            ? 'bg-foreground text-background'
+                            : 'border border-border text-muted-foreground hover:text-foreground hover:border-foreground'
+                        }`}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2">
+                    {filteredInstalledApps
+                      .filter(app => activeCategory === 'All' || (app.categories?.[0] || 'Uncategorized') === activeCategory)
+                      .map((app) => {
+                      const isSelected = selectedApps.includes(app.name);
+                      return (
+                        <div
                           key={app.name}
                           onClick={() => {
-                            handleUpdateLimit(app.name, 60, true);
-                            setIsAddOpen(false);
+                            setSelectedApps(prev => 
+                              prev.includes(app.name) ? prev.filter(n => n !== app.name) : [...prev, app.name]
+                            );
                           }}
-                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 text-left transition-colors"
+                          className={`flex items-center justify-between p-4 transition-colors group cursor-pointer ${
+                            isSelected 
+                              ? 'bg-primary text-primary-foreground' 
+                              : 'bg-secondary/10 hover:bg-secondary/30 text-foreground'
+                          }`}
                         >
-                          <div className="size-10 bg-background border border-border flex flex-shrink-0 items-center justify-center rounded-lg p-1">
-                            <AppIcon 
-                              appName={app.name} 
-                              iconHint={app.icon ?? undefined}
-                              className="w-full h-full object-contain"
-                            />
+                          <div className="flex items-center gap-4">
+                            <div className={`w-10 h-10 flex items-center justify-center p-1 ${isSelected ? 'bg-primary-foreground/20' : 'bg-background border border-border'}`}>
+                              <AppIcon
+                                appName={app.name}
+                                iconHint={app.icon ?? undefined}
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                            <div>
+                              <span className="text-sm font-medium block">{app.name}</span>
+                              <span className={`text-[0.6rem] font-mono uppercase tracking-wider opacity-60 ${!isSelected && 'text-muted-foreground'}`}>
+                                {app.categories?.[0] || 'Uncategorized'}
+                              </span>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{app.name}</p>
-                            <p className="text-xs text-muted-foreground line-clamp-1">{app.categories?.[0] || 'App'}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                          {isSelected ? (
+                            <CheckCircle2 className="w-5 h-5 fill-current" />
+                          ) : (
+                            <div className="w-5 h-5 border-2 border-muted-foreground group-hover:border-primary transition-colors"></div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {filteredInstalledApps.filter(app => activeCategory === 'All' || (app.categories?.[0] || 'Uncategorized') === activeCategory).length === 0 && (
+                      <div className="text-center py-12 text-muted-foreground text-sm font-mono uppercase tracking-widest">
+                        No applications found
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer: Actions */}
+                <div className="p-6 md:p-8 bg-secondary/10 border-t border-border flex items-center justify-between mt-auto">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[0.65rem] font-mono text-muted-foreground uppercase tracking-wider">
+                      {selectedApps.length} application{selectedApps.length !== 1 && 's'} selected
+                    </span>
+                  </div>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => setIsAddOpen(false)}
+                      className="px-6 py-3 text-[0.7rem] font-mono uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      disabled={selectedApps.length === 0}
+                      onClick={() => {
+                        selectedApps.forEach(name => handleUpdateLimit(name, 60, true));
+                        setIsAddOpen(false);
+                      }}
+                      className="px-8 py-3 text-[0.7rem] font-mono uppercase tracking-[0.2em] bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Add Selected
+                    </button>
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>

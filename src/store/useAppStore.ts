@@ -54,7 +54,7 @@ interface AppState {
   tickFocusTimer: () => void;
 
   // Computed helper for backwards compatibility
-  isLoading: boolean;
+  isLoading: () => boolean;
   isInitialLoad: () => boolean;
 
   // Focus and Notification Settings
@@ -193,7 +193,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   }),
 
   // Computed: true if ANY loading operation is in progress
-  get isLoading() {
+  isLoading: () => {
     const { loading } = get();
     return Object.values(loading).some(Boolean);
   },
@@ -230,7 +230,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set((state) => ({ dailyStats, loading: { ...state.loading, dailyStats: false } }));
     } catch (error) {
       console.error("Failed to load daily stats:", error);
-      set((state) => ({ error: String(error), loading: { ...state.loading, dailyStats: false } }));
+      set((state) => ({ error: String(error), loading: { ...state.loading, dailyStats: false }, dailyStats: null }));
     }
   },
 

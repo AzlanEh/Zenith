@@ -2,8 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useAppStore } from "./useAppStore";
 import { api } from "../services/api";
-
-// Mock the API
 vi.mock("../services/api", () => ({
   api: {
     getDailyUsage: vi.fn(),
@@ -21,6 +19,8 @@ vi.mock("../services/api", () => ({
     startFocusSession: vi.fn(),
     stopFocusSession: vi.fn(),
     getTheme: vi.fn(),
+    setFocusSettings: vi.fn(),
+    setNotificationSettings: vi.fn(),
   },
 }));
 
@@ -114,7 +114,7 @@ describe("useAppStore - Data Loading", () => {
     expect(mockApi.getDailyUsage).toHaveBeenCalledTimes(1);
     expect(result.current.dailyStats).toBe(null);
     expect(result.current.loading.dailyStats).toBe(false);
-    expect(result.current.error).toBe("API error");
+    expect(result.current.error).toBe("Error: API error");
 
     consoleError.mockRestore();
   });
@@ -187,7 +187,7 @@ describe("useAppStore - App Limits Management", () => {
     });
 
     expect(mockApi.setAppLimit).toHaveBeenCalledWith("Test App", 120, true);
-    expect(result.current.error).toBe("API error");
+    expect(result.current.error).toBe("Error: API error");
 
     consoleError.mockRestore();
   });
@@ -455,12 +455,14 @@ describe("useAppStore - UI State Management", () => {
   });
 
   it("computes isLoading correctly", () => {
-    const { result } = renderHook(() => useAppStore((state) => ({
-      ...state,
-      loading: { ...state.loading, dailyStats: true },
-    })));
+    const { result } = renderHook(() =>
+      useAppStore((state) => ({
+        ...state,
+        loading: { ...state.loading, dailyStats: true },
+      }))
+    );
 
-    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isLoading()).toBe(true);
   });
 
   it("computes isInitialLoad correctly", () => {
@@ -468,11 +470,14 @@ describe("useAppStore - UI State Management", () => {
     const { result: initial } = renderHook(() => useAppStore());
     expect(initial.current.isInitialLoad()).toBe(true);
 
-    // After loading data
-    const { result: loaded } = renderHook(() => useAppStore((state) => ({
-      ...state,
-      dailyStats: { total_seconds: 100, apps: [] },
-    })));
+    // After loading data - need to test with a different hook instance
+    const { result: loaded } = renderHook(() =>
+      useAppStore((state) => ({
+        ...state,
+        dailyStats: { total_seconds: 100, apps: [] },
+        weeklyStats: { days: [], total_seconds: 0 },
+      }))
+    );
     expect(loaded.current.isInitialLoad()).toBe(false);
   });
 });

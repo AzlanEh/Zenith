@@ -46,21 +46,7 @@ describe("AppUsageList", () => {
     expect(screen.getByText("Discord")).toBeInTheDocument();
   });
 
-  it("displays session counts", () => {
-    render(
-      <AppUsageList
-        apps={mockApps}
-        totalToday={12600}
-        onCategoryChange={mockOnCategoryChange}
-      />
-    );
-
-    expect(screen.getByText("5 sessions")).toBeInTheDocument();
-    expect(screen.getByText("3 sessions")).toBeInTheDocument();
-    expect(screen.getByText("2 sessions")).toBeInTheDocument();
-  });
-
-  it("displays formatted durations", () => {
+it("displays formatted durations", () => {
     render(
       <AppUsageList
         apps={mockApps}
@@ -87,7 +73,7 @@ describe("AppUsageList", () => {
     expect(screen.getByText("Development")).toBeInTheDocument();
   });
 
-  it("displays 'Set category' for uncategorized apps", () => {
+  it("displays 'Uncategorized' for uncategorized apps", () => {
     render(
       <AppUsageList
         apps={mockApps}
@@ -96,7 +82,7 @@ describe("AppUsageList", () => {
       />
     );
 
-    expect(screen.getByText("Set category")).toBeInTheDocument();
+    expect(screen.getByText("Uncategorized")).toBeInTheDocument();
   });
 
   it("displays empty state when no apps", () => {
