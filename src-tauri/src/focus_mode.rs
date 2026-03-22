@@ -142,8 +142,9 @@ pub struct FocusManager {
 
 impl FocusManager {
     pub fn new() -> Self {
+        let initial_settings = crate::settings_store::load_focus_settings().unwrap_or_default();
         Self {
-            settings: Arc::new(Mutex::new(FocusSettings::default())),
+            settings: Arc::new(Mutex::new(initial_settings)),
             is_active: AtomicBool::new(false),
             session: Arc::new(Mutex::new(FocusSession::default())),
             schedule_blocked_apps: Arc::new(Mutex::new(HashSet::new())),
@@ -155,7 +156,10 @@ impl FocusManager {
     }
 
     pub async fn update_settings(&self, settings: FocusSettings) {
-        *self.settings.lock().await = settings;
+        *self.settings.lock().await = settings.clone();
+        if let Err(e) = crate::settings_store::save_focus_settings(&settings) {
+            tracing::warn!(error = %e, "Failed to persist focus settings");
+        }
     }
 
     pub fn is_active(&self) -> bool {

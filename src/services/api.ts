@@ -80,10 +80,6 @@ export const api = {
     return invoke("check_app_blocked", { appName });
   },
 
-  blockApp: (appName: string): Promise<void> => {
-    return invoke("block_app", { appName });
-  },
-
   getBlockedApps: (): Promise<string[]> => {
     return invoke("get_blocked_apps");
   },
@@ -140,6 +136,10 @@ export const api = {
 
   formatExportJson: (records: ExportRecord[]): Promise<string> => {
     return invoke("format_export_json", { records });
+  },
+
+  saveExportFile: (filePath: string, content: string): Promise<void> => {
+    return invoke("save_export_file", { filePath, content });
   },
 
   // Window control

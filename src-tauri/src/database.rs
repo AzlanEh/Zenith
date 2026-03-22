@@ -93,6 +93,20 @@ impl Database {
         Ok(db)
     }
 
+    #[cfg(test)]
+    pub fn new_in_memory() -> SqliteResult<Self> {
+        let conn = Connection::open_in_memory()?;
+        conn.pragma_update(None, "journal_mode", "WAL")?;
+        conn.pragma_update(None, "busy_timeout", 5000)?;
+        conn.pragma_update(None, "foreign_keys", "ON")?;
+
+        let db = Database { conn };
+        db.init_schema()?;
+        db.run_migrations()?;
+        db.ensure_schema_columns()?;
+        Ok(db)
+    }
+
     fn init_schema(&self) -> SqliteResult<()> {
         // Create core tables - these are the base schema
         // Note: category, is_blocked were added by migration 1 but are included here
@@ -257,10 +271,13 @@ impl Database {
     }
 
     pub fn update_session_duration(&self, session_id: i64, end_time: i64) -> SqliteResult<()> {
-        self.conn.execute(
+        let rows = self.conn.execute(
             "UPDATE usage_sessions SET end_time = ?1, duration_seconds = ?1 - start_time WHERE id = ?2",
             rusqlite::params![end_time, session_id],
         )?;
+        if rows != 1 {
+            return Err(rusqlite::Error::QueryReturnedNoRows);
+        }
         Ok(())
     }
 
@@ -817,5 +834,17 @@ impl Database {
             result.push(row?);
         }
         Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn update_session_duration_errors_for_missing_session() {
+        let db = Database::new_in_memory().expect("in-memory db");
+        let err = db.update_session_duration(999_999, Utc::now().timestamp());
+        assert!(matches!(err, Err(rusqlite::Error::QueryReturnedNoRows)));
     }
 }

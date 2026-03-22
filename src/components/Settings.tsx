@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Moon, Sun, Monitor, Download, FileJson, FileText, Timer, Keyboard, Bell, RefreshCw, ArrowUpCircle, CheckCircle2 } from "lucide-react";
 import { save } from "@tauri-apps/plugin-dialog";
-import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { api } from "@/services/api";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { useUpdaterContext } from "@/contexts/UpdaterContext";
@@ -194,7 +193,7 @@ export const Settings = () => {
 
       if (filePath) {
         // Write the file
-        await writeTextFile(filePath, content);
+        await api.saveExportFile(filePath, content);
         setExportMessage(`Exported ${records.length} records to ${filePath}`);
       } else {
         setExportMessage("Export cancelled.");

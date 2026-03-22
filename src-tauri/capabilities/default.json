@@ -9,7 +9,6 @@
     "notification:default",
     "dialog:default",
     "fs:default",
-    "fs:allow-home-write-recursive",
     "updater:default",
     "updater:allow-check",
     "updater:allow-download-and-install",

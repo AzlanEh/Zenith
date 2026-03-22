@@ -19,6 +19,9 @@
       }
     ],
     "security": {
+      "capabilities": [
+        "default"
+      ],
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data:; font-src 'self' data:; connect-src ipc: http://ipc.localhost",
       "assetProtocol": {
         "enable": true,

@@ -6,7 +6,6 @@ import {
   confirm as tauriConfirm,
   message as tauriMessage,
 } from "@tauri-apps/plugin-dialog";
-import { writeTextFile } from "@tauri-apps/plugin-fs";
 import type { BreakSettings, AutostartStatus } from "../types";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { useUpdater } from "../hooks/useUpdater";
@@ -105,7 +104,7 @@ export function Settings() {
       });
 
       if (filePath) {
-        await writeTextFile(filePath, content);
+        await api.saveExportFile(filePath, content);
         setExportMessage(`Saved to ${filePath}`);
       } else {
         setExportMessage(null);

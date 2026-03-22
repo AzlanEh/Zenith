@@ -33,8 +33,10 @@ pub struct NotificationManager {
 
 impl NotificationManager {
     pub fn new() -> Self {
+        let initial_settings =
+            crate::settings_store::load_notification_settings().unwrap_or_default();
         Self {
-            settings: RwLock::new(NotificationSettings::default()),
+            settings: RwLock::new(initial_settings),
             muted: AtomicBool::new(false),
         }
     }
@@ -44,7 +46,10 @@ impl NotificationManager {
     }
 
     pub async fn update_settings(&self, settings: NotificationSettings) {
-        *self.settings.write().await = settings;
+        *self.settings.write().await = settings.clone();
+        if let Err(e) = crate::settings_store::save_notification_settings(&settings) {
+            tracing::warn!(error = %e, "Failed to persist notification settings");
+        }
     }
 
     /// Check if notifications should be shown based on DND schedule
