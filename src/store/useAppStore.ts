@@ -36,15 +36,26 @@ interface AppState {
   blockedApps: string[];
   loading: LoadingState;
   error: string | null;
-  activeTab: "dashboard" | "history" | "goals" | "focus" | "limits" | "settings";
+  activeTab: "dashboard" | "analytics" | "focus" | "limits" | "settings";
   sidebarCollapsed: boolean;
   mobileSidebarOpen: boolean;
+
+  // Global frontend timer state
+  isFocusActive: boolean;
+  focusTimeLeft: number;
+  focusTotalTime: number;
+  setIsFocusActive: (active: boolean) => void;
+  setFocusTimeLeft: (time: number) => void;
+  setFocusTotalTime: (time: number) => void;
+  toggleFocusTimer: () => void;
+  resetFocusTimer: () => void;
+  tickFocusTimer: () => void;
 
   // Computed helper for backwards compatibility
   isLoading: boolean;
   isInitialLoad: () => boolean;
 
-  setActiveTab: (tab: "dashboard" | "history" | "goals" | "focus" | "limits" | "settings") => void;
+  setActiveTab: (tab: "dashboard" | "analytics" | "focus" | "limits" | "settings") => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
   setMobileSidebarOpen: (open: boolean) => void;
@@ -108,6 +119,61 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeTab: "dashboard",
   sidebarCollapsed: false,
   mobileSidebarOpen: false,
+
+  // Global frontend timer state implementation
+  isFocusActive: false,
+  focusTimeLeft: 25 * 60,
+  focusTotalTime: 25 * 60,
+  
+  setIsFocusActive: (active) => set({ isFocusActive: active }),
+  setFocusTimeLeft: (time) => set({ focusTimeLeft: time }),
+  setFocusTotalTime: (time) => set({ focusTotalTime: time }),
+  toggleFocusTimer: async () => {
+    const state = get();
+    if (state.isFocusActive) {
+      // Stopping
+      try {
+        await api.stopFocusSession();
+        set({ isFocusActive: false });
+        toast.success("Focus mode ended");
+      } catch (e) {
+        console.error("Failed to stop focus session", e);
+      }
+    } else {
+      // Starting
+      try {
+        const durationMins = Math.ceil(state.focusTimeLeft / 60);
+        await api.startFocusSession(durationMins);
+        set({ isFocusActive: true, focusTotalTime: state.focusTimeLeft });
+        toast.success(`Focus mode started for ${durationMins} minutes`);
+      } catch (e) {
+        console.error("Failed to start focus session", e);
+        toast.error("Failed to start focus session. Have you added apps to block?");
+      }
+    }
+  },
+  resetFocusTimer: async () => {
+    const state = get();
+    if (state.isFocusActive) {
+      try {
+        await api.stopFocusSession();
+      } catch(e) {
+        console.error(e);
+      }
+    }
+    set({ isFocusActive: false, focusTimeLeft: 25 * 60, focusTotalTime: 25 * 60 });
+  },
+  tickFocusTimer: () => set((state) => {
+    if (state.isFocusActive && state.focusTimeLeft > 0) {
+      return { focusTimeLeft: state.focusTimeLeft - 1 };
+    }
+    if (state.focusTimeLeft === 0 && state.isFocusActive) {
+      // Time's up
+      api.stopFocusSession().catch(console.error);
+      return { isFocusActive: false };
+    }
+    return state;
+  }),
 
   // Computed: true if ANY loading operation is in progress
   get isLoading() {
