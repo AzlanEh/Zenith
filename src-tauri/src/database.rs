@@ -451,6 +451,39 @@ impl Database {
         Ok(result)
     }
 
+    pub fn get_weekly_hourly_usage(&self) -> SqliteResult<Vec<(String, i32, i64)>> {
+        let week_ago = Utc::now().timestamp() - (6 * 24 * 60 * 60); // Last 7 days including today
+        let mut stmt = self.conn.prepare(
+            "SELECT date(start_time, 'unixepoch', 'localtime') as date_str,
+                    (CAST(strftime('%H', start_time, 'unixepoch', 'localtime') AS INTEGER) * 2) + 
+                    (CAST(strftime('%M', start_time, 'unixepoch', 'localtime') AS INTEGER) / 30) as half_hour, 
+                    SUM(
+                        CASE WHEN duration_seconds = 0 AND end_time = start_time
+                             THEN MAX(strftime('%s','now') - start_time, 0)
+                             ELSE duration_seconds
+                        END
+                    ) as total
+             FROM usage_sessions
+             WHERE start_time >= ?1
+             GROUP BY date_str, half_hour
+             ORDER BY date_str ASC, half_hour ASC",
+        )?;
+
+        let rows = stmt.query_map([week_ago], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i32>(1)?,
+                row.get::<_, i64>(2)?,
+            ))
+        })?;
+
+        let mut result = Vec::new();
+        for row in rows {
+            result.push(row?);
+        }
+        Ok(result)
+    }
+
     pub fn get_category_usage(&self) -> SqliteResult<Vec<CategoryUsage>> {
         let mut stmt = self.conn.prepare(
             "SELECT COALESCE(a.category, 'Uncategorized') as category, 
@@ -587,6 +620,17 @@ impl Database {
         // self.conn.execute("VACUUM", [])?;
 
         Ok(deleted)
+    }
+
+    /// Completely wipe all user data (usage history, limits, categories, etc.)
+    pub fn wipe_all_data(&self) -> SqliteResult<()> {
+        self.conn.execute("DELETE FROM usage_sessions", [])?;
+        self.conn.execute("DELETE FROM app_limits", [])?;
+        // Apps table holds the categories and app state
+        self.conn.execute("DELETE FROM apps", [])?;
+        // Vacuum to shrink the DB file size
+        self.conn.execute("VACUUM", [])?;
+        Ok(())
     }
 
     /// Get the count of usage sessions and approximate database size info

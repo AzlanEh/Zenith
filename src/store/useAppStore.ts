@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { toast } from "sonner";
-import type { Theme, DailyStats, WeeklyStats, AppLimit, HourlyUsage, CategoryUsage } from "../types";
+import type { Theme, DailyStats, WeeklyStats, AppLimit, HourlyUsage, CategoryUsage, FocusSettings, NotificationSettings, WeeklyHourlyUsage } from "../types";
 import { api } from "../services/api";
 
 interface LoadingState {
@@ -8,6 +8,7 @@ interface LoadingState {
   dailyStats: boolean;
   weeklyStats: boolean;
   hourlyUsage: boolean;
+  weeklyHourlyUsage: boolean;
   categoryUsage: boolean;
   appLimits: boolean;
   blockedApps: boolean;
@@ -31,6 +32,7 @@ interface AppState {
   dailyStats: DailyStats | null;
   weeklyStats: WeeklyStats | null;
   hourlyUsage: HourlyUsage[];
+  weeklyHourlyUsage: WeeklyHourlyUsage[];
   categoryUsage: CategoryUsage[];
   appLimits: AppLimit[];
   blockedApps: string[];
@@ -55,6 +57,14 @@ interface AppState {
   isLoading: boolean;
   isInitialLoad: () => boolean;
 
+  // Focus and Notification Settings
+  focusSettings: FocusSettings | null;
+  notificationSettings: NotificationSettings | null;
+  loadFocusSettings: () => Promise<void>;
+  loadNotificationSettings: () => Promise<void>;
+  updateFocusSettings: (settings: Partial<FocusSettings>) => Promise<void>;
+  updateNotificationSettings: (settings: Partial<NotificationSettings>) => Promise<void>;
+
   setActiveTab: (tab: "dashboard" | "analytics" | "focus" | "limits" | "settings") => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
@@ -63,6 +73,7 @@ interface AppState {
   loadDailyStats: () => Promise<void>;
   loadWeeklyStats: () => Promise<void>;
   loadHourlyUsage: () => Promise<void>;
+  loadWeeklyHourlyUsage: () => Promise<void>;
   loadCategoryUsage: () => Promise<void>;
   loadAppLimits: () => Promise<void>;
   loadBlockedApps: () => Promise<void>;
@@ -101,6 +112,7 @@ const initialLoadingState: LoadingState = {
   dailyStats: false,
   weeklyStats: false,
   hourlyUsage: false,
+  weeklyHourlyUsage: false,
   categoryUsage: false,
   appLimits: false,
   blockedApps: false,
@@ -111,6 +123,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   dailyStats: null,
   weeklyStats: null,
   hourlyUsage: [],
+  weeklyHourlyUsage: [],
   categoryUsage: [],
   appLimits: [],
   blockedApps: [],
@@ -119,6 +132,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeTab: "dashboard",
   sidebarCollapsed: false,
   mobileSidebarOpen: false,
+
+  focusSettings: null,
+  notificationSettings: null,
 
   // Global frontend timer state implementation
   isFocusActive: false,
@@ -161,7 +177,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         console.error(e);
       }
     }
-    set({ isFocusActive: false, focusTimeLeft: 25 * 60, focusTotalTime: 25 * 60 });
+    const defaultMins = state.focusSettings?.default_duration_minutes || 25;
+    set({ isFocusActive: false, focusTimeLeft: defaultMins * 60, focusTotalTime: defaultMins * 60 });
   },
   tickFocusTimer: () => set((state) => {
     if (state.isFocusActive && state.focusTimeLeft > 0) {
@@ -239,6 +256,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
+  loadWeeklyHourlyUsage: async () => {
+    try {
+      set((state) => ({ loading: { ...state.loading, weeklyHourlyUsage: true } }));
+      const weeklyHourlyUsage = await api.getWeeklyHourlyUsage();
+      set((state) => ({ weeklyHourlyUsage, loading: { ...state.loading, weeklyHourlyUsage: false } }));
+    } catch (error) {
+      console.error("Failed to load weekly hourly usage:", error);
+      set((state) => ({ loading: { ...state.loading, weeklyHourlyUsage: false } }));
+    }
+  },
+
   loadCategoryUsage: async () => {
     try {
       set((state) => ({ loading: { ...state.loading, categoryUsage: true } }));
@@ -269,6 +297,52 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (error) {
       console.error("Failed to load blocked apps:", error);
       set((state) => ({ loading: { ...state.loading, blockedApps: false } }));
+    }
+  },
+
+  loadFocusSettings: async () => {
+    try {
+      const settings = await api.getFocusSettings();
+      set({ focusSettings: settings });
+    } catch (error) {
+      console.error("Failed to load focus settings:", error);
+    }
+  },
+
+  loadNotificationSettings: async () => {
+    try {
+      const settings = await api.getNotificationSettings();
+      set({ notificationSettings: settings });
+    } catch (error) {
+      console.error("Failed to load notification settings:", error);
+    }
+  },
+
+  updateFocusSettings: async (updates) => {
+    try {
+      const current = get().focusSettings;
+      if (!current) return;
+      const next = { ...current, ...updates };
+      await api.setFocusSettings(next);
+      set({ focusSettings: next });
+      toast.success("Focus settings updated");
+    } catch (error) {
+      console.error("Failed to update focus settings:", error);
+      toast.error("Failed to update focus settings");
+    }
+  },
+
+  updateNotificationSettings: async (updates) => {
+    try {
+      const current = get().notificationSettings;
+      if (!current) return;
+      const next = { ...current, ...updates };
+      await api.setNotificationSettings(next);
+      set({ notificationSettings: next });
+      toast.success("Notification settings updated");
+    } catch (error) {
+      console.error("Failed to update notification settings:", error);
+      toast.error("Failed to update notification settings");
     }
   },
 
@@ -389,20 +463,25 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { 
       loadDailyStats, 
       loadWeeklyStats, 
+      loadHourlyUsage, 
+      loadWeeklyHourlyUsage,
+      loadCategoryUsage, 
       loadAppLimits, 
-      loadTheme,
-      loadHourlyUsage,
-      loadCategoryUsage,
       loadBlockedApps,
+      loadFocusSettings,
+      loadNotificationSettings
     } = get();
+    
     await Promise.all([
-      loadTheme(),
       loadDailyStats(),
       loadWeeklyStats(),
-      loadAppLimits(),
       loadHourlyUsage(),
+      loadWeeklyHourlyUsage(),
       loadCategoryUsage(),
+      loadAppLimits(),
       loadBlockedApps(),
+      loadFocusSettings(),
+      loadNotificationSettings()
     ]);
   },
 }));

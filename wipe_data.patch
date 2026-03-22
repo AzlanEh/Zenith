@@ -1,0 +1,17 @@
+--- src-tauri/src/database.rs
++++ src-tauri/src/database.rs
+@@ -482,6 +482,14 @@
+         Ok(deleted)
+     }
+ 
++    /// Completely wipe all user data (usage history, limits, goals, etc.)
++    pub fn wipe_all_data(&self) -> SqliteResult<()> {
++        self.conn.execute("DELETE FROM usage_sessions", [])?;
++        self.conn.execute("DELETE FROM app_limits", [])?;
++        self.conn.execute("DELETE FROM app_categories", [])?;
++        self.conn.execute("DELETE FROM emergency_access", [])?;
++        Ok(())
++    }
++
+     /// Get the count of usage sessions and approximate database size info
+     pub fn get_storage_stats(&self) -> SqliteResult<(i64, i64, Option<String>)> {

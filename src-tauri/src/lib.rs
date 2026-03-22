@@ -155,6 +155,22 @@ async fn get_hourly_usage(state: State<'_, AppState>) -> CmdResult<Vec<HourlyUsa
     Ok(db.get_hourly_usage()?)
 }
 
+#[derive(serde::Serialize)]
+struct WeeklyHourlyUsage {
+    date: String,
+    hour: i32,
+    total_seconds: i64,
+}
+
+#[tauri::command]
+async fn get_weekly_hourly_usage(state: State<'_, AppState>) -> CmdResult<Vec<WeeklyHourlyUsage>> {
+    let db = state.db.lock().await;
+    let raw = db.get_weekly_hourly_usage()?;
+    Ok(raw.into_iter()
+        .map(|(date, hour, total_seconds)| WeeklyHourlyUsage { date, hour, total_seconds })
+        .collect())
+}
+
 #[tauri::command]
 async fn get_category_usage(state: State<'_, AppState>) -> CmdResult<Vec<CategoryUsage>> {
     let db = state.db.lock().await;
@@ -327,6 +343,20 @@ async fn cleanup_old_data(state: State<'_, AppState>, days: Option<i64>) -> CmdR
 async fn get_storage_stats(state: State<'_, AppState>) -> CmdResult<(i64, i64, Option<String>)> {
     let db = state.db.lock().await;
     Ok(db.get_storage_stats()?)
+}
+
+#[tauri::command]
+async fn wipe_all_data(state: State<'_, AppState>) -> CmdResult<()> {
+    let db = state.db.lock().await;
+    db.wipe_all_data()?;
+    
+    // Clear in-memory state
+    let mut goals_state = state.goals_state.lock().await;
+    *goals_state = goals::GoalsState::new();
+    
+    state.emergency_access.clear().await;
+    
+    Ok(())
 }
 
 #[tauri::command]
@@ -1093,6 +1123,7 @@ pub fn run() {
             get_all_apps,
             record_usage,
             get_hourly_usage,
+            get_weekly_hourly_usage,
             get_category_usage,
             set_app_category,
             check_app_blocked,
@@ -1109,6 +1140,7 @@ pub fn run() {
             disable_autostart,
             get_autostart_status,
             cleanup_old_data,
+            wipe_all_data,
             get_storage_stats,
             export_usage_data,
             format_export_csv,

@@ -47,27 +47,9 @@ export function Limits() {
   });
 
   return (
-    <div className="flex-1 h-screen overflow-y-auto relative bg-background">
-      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border px-4 lg:px-8 py-5 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-serif-accent text-foreground tracking-tight">Limits &amp; Blocking</h2>
-          <p className="text-sm text-muted-foreground mt-1">Manage your digital diet and restrictions.</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <button className="flex items-center gap-2 bg-transparent hover:bg-secondary text-foreground px-5 py-2.5 font-medium text-sm transition-all border border-border rounded-lg">
-            Discard
-          </button>
-          <button className="flex items-center gap-2 bg-foreground hover:bg-foreground/90 text-background px-5 py-2.5 font-medium text-sm transition-all shadow-sm rounded-lg" onClick={() => loadAppLimits()}>
-            <span className="material-symbols-outlined text-lg">save</span>
-            Save Changes
-          </button>
-        </div>
-      </header>
-
-      <div className="p-4 lg:p-8 max-w-5xl mx-auto flex flex-col gap-8 pb-20">
-        
+    <div className="p-4 lg:p-8 max-w-5xl mx-auto flex flex-col gap-8 pb-20 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* Daily App Limits */}
-        <section className="glass-panel p-6 md:p-8 rounded-2xl">
+        <section className="glass-panel p-6 md:p-8 rounded-lg">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-xl font-serif-accent text-foreground">Daily App Limits</h3>
@@ -81,7 +63,7 @@ export function Limits() {
                   Add App
                 </button>
               </DialogTrigger>
-              <DialogContent className="max-w-md max-h-[80vh] flex flex-col gap-0 p-0 border border-border bg-background rounded-2xl overflow-hidden">
+              <DialogContent className="max-w-md max-h-[80vh] flex flex-col gap-0 p-0 border border-border bg-background rounded-lg overflow-hidden">
                 <DialogHeader className="p-6 pb-4 border-b border-border">
                   <DialogTitle className="text-xl font-serif-accent text-foreground">Add App Limit</DialogTitle>
                 </DialogHeader>
@@ -181,7 +163,7 @@ export function Limits() {
                         handleUpdateLimit(app.app_name, app.daily_limit_minutes, !app.block_when_exceeded);
                       }}
                     />
-                    <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-foreground"></div>
+                    <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-foreground"></div>
                   </label>
                 </div>
               </div>
@@ -193,7 +175,7 @@ export function Limits() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           
           {/* Downtime Schedule */}
-          <section className="glass-panel p-6 md:p-8 rounded-2xl flex flex-col">
+          <section className="glass-panel p-6 md:p-8 rounded-lg flex flex-col">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="text-xl font-serif-accent text-foreground">Downtime</h3>
@@ -206,7 +188,7 @@ export function Limits() {
                   checked={downtimeEnabled}
                   onChange={() => setDowntimeEnabled(!downtimeEnabled)}
                 />
-                <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-foreground"></div>
+                <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-foreground"></div>
               </label>
             </div>
             
@@ -233,7 +215,7 @@ export function Limits() {
           </section>
 
           {/* Strict Mode Configuration */}
-          <section className="glass-panel p-6 md:p-8 rounded-2xl border-t-4 border-t-chart-4 flex flex-col">
+          <section className="glass-panel p-6 md:p-8 rounded-lg border-t-4 border-t-chart-4 flex flex-col">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="text-xl font-serif-accent text-foreground">Strict Blocking</h3>
@@ -246,7 +228,7 @@ export function Limits() {
                   checked={strictMode}
                   onChange={() => setStrictMode(!strictMode)}
                 />
-                <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-chart-4"></div>
+                <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-chart-4"></div>
               </label>
             </div>
             
@@ -276,7 +258,6 @@ export function Limits() {
           </section>
           
         </div>
-      </div>
     </div>
   );
 }

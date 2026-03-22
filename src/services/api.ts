@@ -20,6 +20,7 @@ import type {
   GoalProgress,
   Achievement,
   GoalsStats,
+  WeeklyHourlyUsage,
 } from "../types";
 
 export const api = {
@@ -61,6 +62,10 @@ export const api = {
 
   getHourlyUsage: (): Promise<HourlyUsage[]> => {
     return invoke("get_hourly_usage");
+  },
+
+  getWeeklyHourlyUsage: (): Promise<WeeklyHourlyUsage[]> => {
+    return invoke("get_weekly_hourly_usage");
   },
 
   getCategoryUsage: (): Promise<CategoryUsage[]> => {
@@ -265,5 +270,9 @@ export const api = {
 
   getGoalsStats: (): Promise<GoalsStats> => {
     return invoke("get_goals_stats");
+  },
+
+  wipeAllData: (): Promise<void> => {
+    return invoke("wipe_all_data");
   },
 };

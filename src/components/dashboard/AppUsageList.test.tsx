@@ -138,9 +138,9 @@ describe("AppUsageList", () => {
       />
     );
 
-    // Click on "Set category" badge for Discord
-    const setCategoryBadge = screen.getByText("Set category");
-    await user.click(setCategoryBadge);
+    // Click on "Uncategorized" badge for Discord
+    const uncategorizedBadge = screen.getByText("Uncategorized");
+    await user.click(uncategorizedBadge);
 
     // Should now show a select dropdown
     expect(screen.getByRole("combobox")).toBeInTheDocument();
@@ -155,6 +155,6 @@ describe("AppUsageList", () => {
       />
     );
 
-    expect(screen.getByText("App Usage Today")).toBeInTheDocument();
+    expect(screen.getByText("Top Applications")).toBeInTheDocument();
   });
 });

@@ -5,16 +5,37 @@ import { api } from '../services/api';
 import type { InstalledApp, FocusSettings } from '../types';
 import { AppIcon } from '../components/AppIcon';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { Switch } from '../components/ui/switch';
+import { toast } from 'sonner';
 
 export function FocusMode() {
   const isFocusActive = useAppStore(state => state.isFocusActive);
   const focusTimeLeft = useAppStore(state => state.focusTimeLeft);
+  const setFocusTimeLeft = useAppStore(state => state.setFocusTimeLeft);
   const toggleFocusTimer = useAppStore(state => state.toggleFocusTimer);
   const resetFocusTimer = useAppStore(state => state.resetFocusTimer);
+  const updateFocusSettings = useAppStore(state => state.updateFocusSettings);
 
   const [settings, setSettings] = useState<FocusSettings | null>(null);
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [isManageOpen, setIsManageOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Local state for modal settings
+  const [localFocusMin, setLocalFocusMin] = useState(25);
+  const [localShortBreak, setLocalShortBreak] = useState(5);
+  const [localLongBreak, setLocalLongBreak] = useState(15);
+  const [localAutoStartBreaks, setLocalAutoStartBreaks] = useState(false);
+  const [localAutoStartSession, setLocalAutoStartSession] = useState(false);
+  const [localSoundscape, setLocalSoundscape] = useState('white_noise');
+  const [localVolume, setLocalVolume] = useState(65);
+
+  useEffect(() => {
+    if (isSettingsOpen && settings) {
+      setLocalFocusMin(settings.default_duration_minutes);
+      // Initialize other local settings here if added to backend later
+    }
+  }, [isSettingsOpen, settings]);
 
   useEffect(() => {
     loadData();
@@ -28,6 +49,17 @@ export function FocusMode() {
       ]);
       setSettings(settingsData);
       setInstalledApps(appsData);
+
+      // Sync the timer to the user's default duration if it's currently stopped
+      // and hasn't been manually adjusted away from the store's default initialization
+      if (!useAppStore.getState().isFocusActive) {
+        const storeTime = useAppStore.getState().focusTimeLeft;
+        // Optional: only overwrite if it's the exact 25 min default or previous default,
+        // but for now, just sync it when they first load the page if it's not active
+        if (storeTime === 25 * 60 || storeTime === settingsData.default_duration_minutes * 60) {
+           setFocusTimeLeft(settingsData.default_duration_minutes * 60);
+        }
+      }
     } catch (e) {
       console.error(e);
     }
@@ -51,6 +83,25 @@ export function FocusMode() {
     }
   };
 
+  const handleSaveSettings = async () => {
+    if (!settings) return;
+    try {
+      const newSettings = { ...settings, default_duration_minutes: localFocusMin };
+      await api.setFocusSettings(newSettings);
+      setSettings(newSettings);
+      await updateFocusSettings({ default_duration_minutes: localFocusMin });
+      
+      if (!isFocusActive) {
+        setFocusTimeLeft(localFocusMin * 60);
+      }
+      setIsSettingsOpen(false);
+      toast.success("Timer settings saved");
+    } catch (e) {
+      console.error("Failed to save settings", e);
+      toast.error("Failed to save timer settings");
+    }
+  };
+
   const minutes = Math.floor(focusTimeLeft / 60);
   const seconds = focusTimeLeft % 60;
 
@@ -65,7 +116,7 @@ export function FocusMode() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 h-full">
         {/* Timer Section */}
         <div className="xl:col-span-2 flex flex-col gap-6">
-          <div className="glass-panel flex-1 flex flex-col items-center justify-center p-8 lg:p-12 relative overflow-hidden group rounded-2xl">
+          <div className="glass-panel flex-1 flex flex-col items-center justify-center p-8 lg:p-12 relative overflow-hidden group rounded-lg">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-secondary rounded-full blur-3xl opacity-50 pointer-events-none"></div>
             
             <div className="relative z-10 flex flex-col items-center justify-between h-full w-full max-w-md mx-auto">
@@ -118,10 +169,187 @@ export function FocusMode() {
                 </div>
                 
                 <div className="flex justify-center gap-6 pt-4 border-t border-border/50">
-                  <button className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors">
-                    <Settings className="w-4 h-4" />
-                    Timer Settings
-                  </button>
+                  <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                    <DialogTrigger asChild>
+                      <button className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors">
+                        <Settings className="w-4 h-4" />
+                        Timer Settings
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl !p-0 bg-background border border-border shadow-2xl flex flex-col max-h-[90vh] [&>button]:hidden">
+                      {/* Modal Header */}
+                      <div className="p-8 border-b border-border flex justify-between items-end bg-background">
+                          <div>
+                              <span className="text-[0.65rem] uppercase tracking-[0.2em] font-mono text-muted-foreground mb-2 block">
+                                  Configuration
+                              </span>
+                              <h2 className="font-serif-accent text-4xl italic text-foreground">
+                                  Timer Settings
+                              </h2>
+                          </div>
+                          <button
+                              onClick={() => setIsSettingsOpen(false)}
+                              className="p-2 hover:bg-secondary transition-colors rounded-lg text-muted-foreground hover:text-foreground"
+                          >
+                              <span className="material-symbols-outlined text-2xl">close</span>
+                          </button>
+                      </div>
+
+                      {/* Modal Content (Scrollable Area) */}
+                      <div className="flex-1 overflow-y-auto p-8 no-scrollbar">
+                          {/* Section: Durations */}
+                          <section className="mb-12">
+                              <h3 className="font-serif-accent text-xl mb-6 text-foreground">
+                                  Focus Intervals
+                              </h3>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                  <div className="space-y-3">
+                                      <label className="text-[0.65rem] uppercase tracking-widest font-mono text-muted-foreground">Focus (Min)</label>
+                                      <div className="relative group">
+                                          <input
+                                              className="w-full bg-secondary/30 border-0 border-b-2 border-border focus:border-foreground focus:ring-0 font-mono text-2xl py-4 px-3 transition-all text-foreground outline-none"
+                                              type="number"
+                                              value={localFocusMin}
+                                              onChange={(e) => {
+                                                  const val = parseInt(e.target.value);
+                                                  if (!isNaN(val)) setLocalFocusMin(val);
+                                              }}
+                                          />
+                                          <span className="absolute right-3 bottom-4 text-muted-foreground font-mono text-xs pointer-events-none">MIN</span>
+                                      </div>
+                                  </div>
+                                  <div className="space-y-3">
+                                      <label className="text-[0.65rem] uppercase tracking-widest font-mono text-muted-foreground">Short Break</label>
+                                      <div className="relative group">
+                                          <input
+                                              className="w-full bg-secondary/30 border-0 border-b-2 border-border focus:border-foreground focus:ring-0 font-mono text-2xl py-4 px-3 transition-all text-foreground outline-none"
+                                              type="number"
+                                              value={localShortBreak}
+                                              onChange={(e) => {
+                                                  const val = parseInt(e.target.value);
+                                                  if (!isNaN(val)) setLocalShortBreak(val);
+                                              }}
+                                          />
+                                          <span className="absolute right-3 bottom-4 text-muted-foreground font-mono text-xs pointer-events-none">MIN</span>
+                                      </div>
+                                  </div>
+                                  <div className="space-y-3">
+                                      <label className="text-[0.65rem] uppercase tracking-widest font-mono text-muted-foreground">Long Break</label>
+                                      <div className="relative group">
+                                          <input
+                                              className="w-full bg-secondary/30 border-0 border-b-2 border-border focus:border-foreground focus:ring-0 font-mono text-2xl py-4 px-3 transition-all text-foreground outline-none"
+                                              type="number"
+                                              value={localLongBreak}
+                                              onChange={(e) => {
+                                                  const val = parseInt(e.target.value);
+                                                  if (!isNaN(val)) setLocalLongBreak(val);
+                                              }}
+                                          />
+                                          <span className="absolute right-3 bottom-4 text-muted-foreground font-mono text-xs pointer-events-none">MIN</span>
+                                      </div>
+                                  </div>
+                              </div>
+                          </section>
+
+                          {/* Section: Automation Toggles */}
+                          <section className="mb-12 grid grid-cols-1 md:grid-cols-2 gap-8">
+                              <label className="flex items-center justify-between p-6 bg-secondary/30 border border-border/50 cursor-pointer hover:border-border transition-colors group">
+                                  <div className="space-y-1">
+                                      <p className="text-sm font-medium text-foreground">
+                                          Auto-start Breaks
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                          Transition automatically after focus
+                                      </p>
+                                  </div>
+                                  <div className="relative">
+                                      <Switch 
+                                          checked={localAutoStartBreaks}
+                                          onCheckedChange={setLocalAutoStartBreaks}
+                                      />
+                                  </div>
+                              </label>
+                              <label className="flex items-center justify-between p-6 bg-secondary/30 border border-border/50 cursor-pointer hover:border-border transition-colors group">
+                                  <div className="space-y-1">
+                                      <p className="text-sm font-medium text-foreground">
+                                          Auto-start Session
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                          Begin next focus period instantly
+                                      </p>
+                                  </div>
+                                  <div className="relative">
+                                      <Switch 
+                                          checked={localAutoStartSession}
+                                          onCheckedChange={setLocalAutoStartSession}
+                                      />
+                                  </div>
+                              </label>
+                          </section>
+
+                          {/* Section: Sound & Ambience */}
+                          <section>
+                              <div className="flex justify-between items-baseline mb-6">
+                                  <h3 className="font-serif-accent text-xl text-foreground">Soundscape</h3>
+                                  <span className="text-[0.65rem] uppercase tracking-widest font-mono text-muted-foreground">Active: {localSoundscape.replace('_', ' ')}</span>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                                  {[
+                                      { id: 'white_noise', icon: 'blur_on', label: 'White Noise' },
+                                      { id: 'rain', icon: 'water_drop', label: 'Rain' },
+                                      { id: 'lofi', icon: 'piano', label: 'Lofi' },
+                                      { id: 'nature', icon: 'graphic_eq', label: 'Nature' },
+                                  ].map((sound) => (
+                                      <button 
+                                          key={sound.id}
+                                          onClick={() => setLocalSoundscape(sound.id)}
+                                          className={`flex flex-col items-center justify-center gap-3 p-6 transition-all border ${
+                                              localSoundscape === sound.id 
+                                                  ? 'bg-foreground text-background border-foreground' 
+                                                  : 'bg-secondary/30 hover:bg-secondary text-foreground border-transparent'
+                                          }`}
+                                      >
+                                          <span className="material-symbols-outlined text-3xl">{sound.icon}</span>
+                                          <span className="font-mono text-[0.6rem] uppercase tracking-tighter">{sound.label}</span>
+                                      </button>
+                                  ))}
+                              </div>
+                              <div className="space-y-4 px-2">
+                                  <div className="flex justify-between font-mono text-[0.65rem] text-muted-foreground tracking-widest uppercase">
+                                      <span>Volume</span>
+                                      <span>{localVolume}%</span>
+                                  </div>
+                                  <div className="w-full">
+                                      <input 
+                                          type="range" 
+                                          min="0" 
+                                          max="100" 
+                                          value={localVolume} 
+                                          onChange={(e) => setLocalVolume(parseInt(e.target.value))}
+                                          className="w-full" 
+                                      />
+                                  </div>
+                              </div>
+                          </section>
+                      </div>
+
+                      {/* Modal Footer */}
+                      <div className="p-8 border-t border-border bg-secondary/10 flex flex-col md:flex-row gap-4 justify-between items-center mt-auto">
+                          <button
+                              onClick={() => setIsSettingsOpen(false)}
+                              className="w-full md:w-auto px-10 py-4 text-[0.7rem] uppercase tracking-[0.3em] font-mono text-muted-foreground hover:text-foreground transition-colors border border-transparent hover:border-border order-2 md:order-1"
+                          >
+                              Cancel
+                          </button>
+                          <button
+                              onClick={handleSaveSettings}
+                              className="w-full md:w-auto px-12 py-4 bg-foreground text-background text-[0.7rem] uppercase tracking-[0.3em] font-mono hover:bg-foreground/90 transition-all order-1 md:order-2"
+                          >
+                              Save Settings
+                          </button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                   <button className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors">
                     <Music className="w-4 h-4" />
                     Soundscapes
@@ -134,7 +362,7 @@ export function FocusMode() {
 
         {/* Right Sidebar Stats & Apps */}
         <div className="flex flex-col gap-6 h-full">
-          <div className="glass-panel p-6 flex flex-col gap-6 rounded-2xl">
+          <div className="glass-panel p-6 flex flex-col gap-6 rounded-lg">
             <h3 className="text-lg font-serif-accent text-foreground border-b border-border pb-3">Focus Statistics</h3>
             <div className="space-y-6">
               <div>
@@ -162,7 +390,7 @@ export function FocusMode() {
             </div>
           </div>
 
-          <div className="glass-panel p-6 flex-1 flex flex-col rounded-2xl overflow-hidden">
+          <div className="glass-panel p-6 flex-1 flex flex-col rounded-lg overflow-hidden">
             <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
               <h3 className="text-lg font-serif-accent text-foreground">Blocked Apps</h3>
               <span className="px-2 py-0.5 text-xs font-medium bg-secondary text-foreground border border-border rounded">{isFocusActive ? 'Active' : 'Inactive'}</span>
@@ -207,7 +435,7 @@ export function FocusMode() {
                   Manage Blocklist
                 </button>
               </DialogTrigger>
-              <DialogContent className="max-w-md max-h-[80vh] flex flex-col p-6 bg-background rounded-2xl">
+              <DialogContent className="max-w-md max-h-[80vh] flex flex-col p-6 bg-background rounded-lg">
                 <DialogHeader className="mb-4">
                   <DialogTitle className="text-xl font-serif-accent">Add App to Blocklist</DialogTitle>
                 </DialogHeader>

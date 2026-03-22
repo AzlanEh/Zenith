@@ -355,7 +355,12 @@ impl FocusManager {
     pub async fn add_blocked_app(&self, app_name: String) {
         let mut session = self.session.lock().await;
         if !session.blocked_apps.contains(&app_name) {
-            session.blocked_apps.push(app_name);
+            session.blocked_apps.push(app_name.clone());
+        }
+        
+        let mut settings = self.settings.lock().await;
+        if !settings.blocked_apps.contains(&app_name) {
+            settings.blocked_apps.push(app_name);
         }
     }
 
@@ -363,6 +368,9 @@ impl FocusManager {
     pub async fn remove_blocked_app(&self, app_name: &str) {
         let mut session = self.session.lock().await;
         session.blocked_apps.retain(|a| a != app_name);
+        
+        let mut settings = self.settings.lock().await;
+        settings.blocked_apps.retain(|a| a != app_name);
     }
 
     fn get_start_message(&self, session: &FocusSession) -> String {

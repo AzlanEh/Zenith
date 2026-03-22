@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
+import { Loader2 } from 'lucide-react';
 
 const COLORS = ['text-chart-1', 'text-chart-2', 'text-chart-3', 'text-chart-4', 'text-chart-5'];
 const ICONS = ['bolt', 'language', 'chat', 'public', 'apps'];
 
 export function ActivityRing() {
   const [mounted, setMounted] = useState(false);
-  const { dailyStats, loadDailyStats } = useAppStore();
+  const { dailyStats, loadDailyStats, loading } = useAppStore();
 
   useEffect(() => {
     setMounted(true);
@@ -41,8 +42,16 @@ export function ActivityRing() {
   // Calculate percentage based on a nominal 8-hour workday target
   const overallPercentage = Math.min(100, Math.round((totalHours / 8) * 100));
 
+  if (loading.dailyStats && !dailyStats) {
+    return (
+      <div className="glass-panel rounded-lg p-6 lg:p-8 flex flex-col xl:flex-row gap-8 items-center justify-center min-h-[300px]">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <div className="glass-panel rounded-2xl p-6 lg:p-8 flex flex-col xl:flex-row gap-8 items-center justify-between">
+    <div className="glass-panel rounded-lg p-6 lg:p-8 flex flex-col xl:flex-row gap-8 items-center justify-between">
       <div className="relative size-64 xl:size-72 flex-shrink-0">
         <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
           {/* Background tracks */}
