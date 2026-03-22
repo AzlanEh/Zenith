@@ -166,8 +166,13 @@ struct WeeklyHourlyUsage {
 async fn get_weekly_hourly_usage(state: State<'_, AppState>) -> CmdResult<Vec<WeeklyHourlyUsage>> {
     let db = state.db.lock().await;
     let raw = db.get_weekly_hourly_usage()?;
-    Ok(raw.into_iter()
-        .map(|(date, hour, total_seconds)| WeeklyHourlyUsage { date, hour, total_seconds })
+    Ok(raw
+        .into_iter()
+        .map(|(date, hour, total_seconds)| WeeklyHourlyUsage {
+            date,
+            hour,
+            total_seconds,
+        })
         .collect())
 }
 
@@ -349,13 +354,13 @@ async fn get_storage_stats(state: State<'_, AppState>) -> CmdResult<(i64, i64, O
 async fn wipe_all_data(state: State<'_, AppState>) -> CmdResult<()> {
     let db = state.db.lock().await;
     db.wipe_all_data()?;
-    
+
     // Clear in-memory state
     let mut goals_state = state.goals_state.lock().await;
     *goals_state = goals::GoalsState::new();
-    
+
     state.emergency_access.clear().await;
-    
+
     Ok(())
 }
 
