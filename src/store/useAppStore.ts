@@ -3,6 +3,8 @@ import { toast } from "sonner";
 import type { Theme, DailyStats, WeeklyStats, AppLimit, HourlyUsage, CategoryUsage, FocusSettings, NotificationSettings, WeeklyHourlyUsage } from "../types";
 import { api } from "../services/api";
 
+const pendingRequests = new Map<string, Promise<void>>();
+
 interface LoadingState {
   theme: boolean;
   dailyStats: boolean;
@@ -224,80 +226,117 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   loadDailyStats: async () => {
-    try {
-      set((state) => ({ loading: { ...state.loading, dailyStats: true }, error: null }));
-      const dailyStats = await api.getDailyUsage();
-      set((state) => ({ dailyStats, loading: { ...state.loading, dailyStats: false } }));
-    } catch (error) {
-      console.error("Failed to load daily stats:", error);
-      set((state) => ({ error: String(error), loading: { ...state.loading, dailyStats: false }, dailyStats: null }));
-    }
+    const pending = pendingRequests.get("dailyStats");
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const dailyStats = await api.getDailyUsage();
+        set({ dailyStats, error: null });
+      } catch (error) {
+        console.error("Failed to load daily stats:", error);
+        set({ error: String(error), dailyStats: null });
+      }
+    })();
+    pendingRequests.set("dailyStats", request);
+    return request;
   },
 
   loadWeeklyStats: async () => {
-    try {
-      set((state) => ({ loading: { ...state.loading, weeklyStats: true }, error: null }));
-      const weeklyStats = await api.getWeeklyStats();
-      set((state) => ({ weeklyStats, loading: { ...state.loading, weeklyStats: false } }));
-    } catch (error) {
-      console.error("Failed to load weekly stats:", error);
-      set((state) => ({ error: String(error), loading: { ...state.loading, weeklyStats: false } }));
-    }
+    const pending = pendingRequests.get("weeklyStats");
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const weeklyStats = await api.getWeeklyStats();
+        set({ weeklyStats, error: null });
+      } catch (error) {
+        console.error("Failed to load weekly stats:", error);
+        set({ error: String(error) });
+      }
+    })();
+    pendingRequests.set("weeklyStats", request);
+    return request;
   },
 
   loadHourlyUsage: async () => {
-    try {
-      set((state) => ({ loading: { ...state.loading, hourlyUsage: true } }));
-      const hourlyUsage = await api.getHourlyUsage();
-      set((state) => ({ hourlyUsage, loading: { ...state.loading, hourlyUsage: false } }));
-    } catch (error) {
-      console.error("Failed to load hourly usage:", error);
-      set((state) => ({ loading: { ...state.loading, hourlyUsage: false } }));
-    }
+    const pending = pendingRequests.get("hourlyUsage");
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const hourlyUsage = await api.getHourlyUsage();
+        set({ hourlyUsage });
+      } catch (error) {
+        console.error("Failed to load hourly usage:", error);
+      }
+    })();
+    pendingRequests.set("hourlyUsage", request);
+    return request;
   },
 
   loadWeeklyHourlyUsage: async () => {
-    try {
-      set((state) => ({ loading: { ...state.loading, weeklyHourlyUsage: true } }));
-      const weeklyHourlyUsage = await api.getWeeklyHourlyUsage();
-      set((state) => ({ weeklyHourlyUsage, loading: { ...state.loading, weeklyHourlyUsage: false } }));
-    } catch (error) {
-      console.error("Failed to load weekly hourly usage:", error);
-      set((state) => ({ loading: { ...state.loading, weeklyHourlyUsage: false } }));
-    }
+    const pending = pendingRequests.get("weeklyHourlyUsage");
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const weeklyHourlyUsage = await api.getWeeklyHourlyUsage();
+        set({ weeklyHourlyUsage });
+      } catch (error) {
+        console.error("Failed to load weekly hourly usage:", error);
+      }
+    })();
+    pendingRequests.set("weeklyHourlyUsage", request);
+    return request;
   },
 
   loadCategoryUsage: async () => {
-    try {
-      set((state) => ({ loading: { ...state.loading, categoryUsage: true } }));
-      const categoryUsage = await api.getCategoryUsage();
-      set((state) => ({ categoryUsage, loading: { ...state.loading, categoryUsage: false } }));
-    } catch (error) {
-      console.error("Failed to load category usage:", error);
-      set((state) => ({ loading: { ...state.loading, categoryUsage: false } }));
-    }
+    const pending = pendingRequests.get("categoryUsage");
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const categoryUsage = await api.getCategoryUsage();
+        set({ categoryUsage });
+      } catch (error) {
+        console.error("Failed to load category usage:", error);
+      }
+    })();
+    pendingRequests.set("categoryUsage", request);
+    return request;
   },
 
   loadAppLimits: async () => {
-    try {
-      set((state) => ({ loading: { ...state.loading, appLimits: true } }));
-      const appLimits = await api.getAppLimits();
-      set((state) => ({ appLimits, loading: { ...state.loading, appLimits: false } }));
-    } catch (error) {
-      console.error("Failed to load app limits:", error);
-      set((state) => ({ loading: { ...state.loading, appLimits: false } }));
-    }
+    const pending = pendingRequests.get("appLimits");
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const appLimits = await api.getAppLimits();
+        set({ appLimits });
+      } catch (error) {
+        console.error("Failed to load app limits:", error);
+      }
+    })();
+    pendingRequests.set("appLimits", request);
+    return request;
   },
 
   loadBlockedApps: async () => {
-    try {
-      set((state) => ({ loading: { ...state.loading, blockedApps: true } }));
-      const blockedApps = await api.getBlockedApps();
-      set((state) => ({ blockedApps, loading: { ...state.loading, blockedApps: false } }));
-    } catch (error) {
-      console.error("Failed to load blocked apps:", error);
-      set((state) => ({ loading: { ...state.loading, blockedApps: false } }));
-    }
+    const pending = pendingRequests.get("blockedApps");
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const blockedApps = await api.getBlockedApps();
+        set({ blockedApps });
+      } catch (error) {
+        console.error("Failed to load blocked apps:", error);
+      }
+    })();
+    pendingRequests.set("blockedApps", request);
+    return request;
   },
 
   loadFocusSettings: async () => {

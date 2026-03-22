@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Target,
   Plus,
@@ -69,6 +69,10 @@ const ACHIEVEMENT_ICONS: Record<string, React.ReactNode> = {
   rocket: <Rocket className="h-6 w-6" />,
 };
 
+const GOALS_CACHE_TIME = 30000;
+const goalsCache = new Map<string, { data: unknown; timestamp: number }>();
+const goalsPendingRequests = new Map<string, Promise<unknown>>();
+
 type GoalTypeKey = "daily_limit" | "app_limit" | "category_limit" | "minimum_productive";
 
 export const Goals = () => {
@@ -99,14 +103,41 @@ export const Goals = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const getCachedData = useCallback(async <T,>(
+    key: string,
+    fetcher: () => Promise<T>
+  ): Promise<T> => {
+    const cached = goalsCache.get(key) as { data: T; timestamp: number } | undefined;
+    if (cached && Date.now() - cached.timestamp < GOALS_CACHE_TIME) {
+      return cached.data;
+    }
+
+    const pending = goalsPendingRequests.get(key) as Promise<T> | undefined;
+    if (pending) {
+      return pending;
+    }
+
+    const request = fetcher().then((data) => {
+      goalsCache.set(key, { data, timestamp: Date.now() });
+      goalsPendingRequests.delete(key);
+      return data;
+    }).catch((error) => {
+      goalsPendingRequests.delete(key);
+      throw error;
+    });
+
+    goalsPendingRequests.set(key, request);
+    return request;
+  }, []);
+
   const loadData = async () => {
     try {
       const [goalsData, progressData, achievementsData, statsData] =
         await Promise.all([
-          api.getGoals(),
-          api.getGoalsProgress(),
-          api.getAchievements(),
-          api.getGoalsStats(),
+          getCachedData("goals", () => api.getGoals()),
+          getCachedData("progress", () => api.getGoalsProgress()),
+          getCachedData("achievements", () => api.getAchievements()),
+          getCachedData("stats", () => api.getGoalsStats()),
         ]);
       setGoals(goalsData);
       setProgress(progressData);
@@ -119,7 +150,7 @@ export const Goals = () => {
 
   const loadProgress = async () => {
     try {
-      const progressData = await api.getGoalsProgress();
+      const progressData = await getCachedData("progress", () => api.getGoalsProgress());
       setProgress(progressData);
     } catch (error) {
       console.error("Failed to load progress:", error);
