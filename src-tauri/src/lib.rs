@@ -360,6 +360,24 @@ async fn wipe_all_data_internal(state: &AppState) -> CmdResult<()> {
 
     state.emergency_access.clear().await;
 
+    // Clear persisted settings files and reset in-memory managers
+    crate::settings_store::clear_all_settings_files()?;
+    state
+        .focus_manager
+        .update_settings(FocusSettings::default())
+        .await;
+    state
+        .break_reminder
+        .update_settings(BreakSettings::default())
+        .await;
+    state
+        .notification_manager
+        .update_settings(NotificationSettings::default())
+        .await;
+    state.break_reminder.reset_timer().await;
+    state.break_reminder.end_break().await;
+    state.notification_manager.unmute();
+
     Ok(())
 }
 

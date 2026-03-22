@@ -236,6 +236,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       } catch (error) {
         console.error("Failed to load daily stats:", error);
         set({ error: String(error), dailyStats: null });
+      } finally {
+        pendingRequests.delete("dailyStats");
       }
     })();
     pendingRequests.set("dailyStats", request);
@@ -253,6 +255,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       } catch (error) {
         console.error("Failed to load weekly stats:", error);
         set({ error: String(error) });
+      } finally {
+        pendingRequests.delete("weeklyStats");
       }
     })();
     pendingRequests.set("weeklyStats", request);
@@ -269,6 +273,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ hourlyUsage });
       } catch (error) {
         console.error("Failed to load hourly usage:", error);
+      } finally {
+        pendingRequests.delete("hourlyUsage");
       }
     })();
     pendingRequests.set("hourlyUsage", request);
@@ -285,6 +291,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ weeklyHourlyUsage });
       } catch (error) {
         console.error("Failed to load weekly hourly usage:", error);
+      } finally {
+        pendingRequests.delete("weeklyHourlyUsage");
       }
     })();
     pendingRequests.set("weeklyHourlyUsage", request);
@@ -301,6 +309,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ categoryUsage });
       } catch (error) {
         console.error("Failed to load category usage:", error);
+      } finally {
+        pendingRequests.delete("categoryUsage");
       }
     })();
     pendingRequests.set("categoryUsage", request);
@@ -317,6 +327,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ appLimits });
       } catch (error) {
         console.error("Failed to load app limits:", error);
+      } finally {
+        pendingRequests.delete("appLimits");
       }
     })();
     pendingRequests.set("appLimits", request);
@@ -333,6 +345,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ blockedApps });
       } catch (error) {
         console.error("Failed to load blocked apps:", error);
+      } finally {
+        pendingRequests.delete("blockedApps");
       }
     })();
     pendingRequests.set("blockedApps", request);

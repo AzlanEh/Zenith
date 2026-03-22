@@ -361,10 +361,14 @@ impl FocusManager {
         if !session.blocked_apps.contains(&app_name) {
             session.blocked_apps.push(app_name.clone());
         }
+        drop(session);
 
         let mut settings = self.settings.lock().await;
         if !settings.blocked_apps.contains(&app_name) {
             settings.blocked_apps.push(app_name);
+            if let Err(e) = crate::settings_store::save_focus_settings(&settings) {
+                tracing::warn!(error = %e, "Failed to persist focus blocked apps");
+            }
         }
     }
 
@@ -372,9 +376,16 @@ impl FocusManager {
     pub async fn remove_blocked_app(&self, app_name: &str) {
         let mut session = self.session.lock().await;
         session.blocked_apps.retain(|a| a != app_name);
+        drop(session);
 
         let mut settings = self.settings.lock().await;
+        let before = settings.blocked_apps.len();
         settings.blocked_apps.retain(|a| a != app_name);
+        if settings.blocked_apps.len() != before {
+            if let Err(e) = crate::settings_store::save_focus_settings(&settings) {
+                tracing::warn!(error = %e, "Failed to persist focus blocked apps");
+            }
+        }
     }
 
     fn get_start_message(&self, session: &FocusSession) -> String {

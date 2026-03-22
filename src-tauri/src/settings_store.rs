@@ -27,6 +27,29 @@ fn settings_dir() -> PathBuf {
         .join(SETTINGS_DIR)
 }
 
+#[cfg(test)]
+pub fn clear_all_settings_files() -> io::Result<()> {
+    Ok(())
+}
+
+#[cfg(not(test))]
+pub fn clear_all_settings_files() -> io::Result<()> {
+    let dir = settings_dir();
+    for file_name in [
+        FOCUS_SETTINGS_FILE,
+        BREAK_SETTINGS_FILE,
+        NOTIFICATION_SETTINGS_FILE,
+    ] {
+        let path = dir.join(file_name);
+        match fs::remove_file(&path) {
+            Ok(_) => {}
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(())
+}
+
 #[cfg(not(test))]
 fn write_json<T: serde::Serialize>(file_name: &str, value: &T) -> io::Result<()> {
     let dir = settings_dir();
