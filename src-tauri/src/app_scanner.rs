@@ -226,7 +226,7 @@ fn get_installed_apps_linux() -> Vec<InstalledApp> {
             if let Ok(entries) = fs::read_dir(&dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    if path.extension().map_or(false, |ext| ext == "desktop") {
+                    if path.extension().is_some_and(|ext| ext == "desktop") {
                         if let Some(app) = parse_desktop_file(&path) {
                             // Avoid duplicates by name
                             if !apps.iter().any(|a: &InstalledApp| a.name == app.name) {

@@ -96,7 +96,7 @@ impl FocusSchedule {
 }
 
 /// Current focus session state
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FocusSession {
     /// Whether focus mode is currently active
     pub is_active: bool,
@@ -114,21 +114,6 @@ pub struct FocusSession {
     pub is_scheduled: bool,
     /// The schedule name if this is a scheduled session
     pub schedule_name: Option<String>,
-}
-
-impl Default for FocusSession {
-    fn default() -> Self {
-        Self {
-            is_active: false,
-            start_time: None,
-            end_time: None,
-            duration_minutes: None,
-            minutes_remaining: None,
-            blocked_apps: vec![],
-            is_scheduled: false,
-            schedule_name: None,
-        }
-    }
 }
 
 /// Focus mode manager
@@ -483,7 +468,7 @@ mod tests {
     #[test]
     fn test_default_settings() {
         let settings = FocusSettings::default();
-        assert!(!settings.notify_on_start || settings.notify_on_start); // Just checking default exists
+        assert!(settings.notify_on_start);
         assert_eq!(settings.default_duration_minutes, 25);
         assert!(settings.blocked_apps.is_empty());
     }

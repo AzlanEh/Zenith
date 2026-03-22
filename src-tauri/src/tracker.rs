@@ -311,7 +311,7 @@ impl UsageTracker {
             use std::sync::atomic::{AtomicU64, Ordering};
             static TRACK_CALL_COUNT: AtomicU64 = AtomicU64::new(0);
             let call_num = TRACK_CALL_COUNT.fetch_add(1, Ordering::Relaxed);
-            if call_num < 20 || call_num % 60 == 0 {
+            if call_num < 20 || call_num.is_multiple_of(60) {
                 tracing::info!(
                     call_num,
                     window_name = ?window_name,
@@ -337,7 +337,7 @@ impl UsageTracker {
                     use std::sync::atomic::{AtomicU64, Ordering};
                     static EXTRACT_CALL_COUNT: AtomicU64 = AtomicU64::new(0);
                     let call_num = EXTRACT_CALL_COUNT.fetch_add(1, Ordering::Relaxed);
-                    if call_num < 20 || call_num % 60 == 0 {
+                    if call_num < 20 || call_num.is_multiple_of(60) {
                         tracing::info!(
                             call_num,
                             raw_name = %name,

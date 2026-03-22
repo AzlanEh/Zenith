@@ -1,4 +1,3 @@
-use dirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;

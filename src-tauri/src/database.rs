@@ -191,19 +191,18 @@ impl Database {
     }
 
     pub fn get_or_create_app(&self, name: &str, path: Option<String>) -> SqliteResult<i64> {
-        if let Some(row) = self
+        if let Ok(row) = self
             .conn
-            .query_row("SELECT id FROM apps WHERE name = ?1", &[name], |row| {
+            .query_row("SELECT id FROM apps WHERE name = ?1", [name], |row| {
                 row.get(0)
             })
-            .ok()
         {
             return Ok(row);
         }
 
         self.conn.execute(
             "INSERT INTO apps (name, path) VALUES (?1, ?2)",
-            &[name, &path.unwrap_or_default()],
+            [name, &path.unwrap_or_default()],
         )?;
         Ok(self.conn.last_insert_rowid())
     }
@@ -219,14 +218,14 @@ impl Database {
 
         // Get or create app
         let app_id: i64 =
-            match tx.query_row("SELECT id FROM apps WHERE name = ?1", &[app_name], |row| {
+            match tx.query_row("SELECT id FROM apps WHERE name = ?1", [app_name], |row| {
                 row.get(0)
             }) {
                 Ok(id) => id,
                 Err(_) => {
                     tx.execute(
                         "INSERT INTO apps (name, path) VALUES (?1, ?2)",
-                        &[app_name, ""],
+                        [app_name, ""],
                     )?;
                     tx.last_insert_rowid()
                 }
@@ -379,7 +378,7 @@ impl Database {
                 "SELECT al.daily_limit_minutes FROM app_limits al
              JOIN apps a ON al.app_id = a.id
              WHERE a.name = ?1",
-                &[app_name],
+                [app_name],
                 |row| row.get(0),
             )
             .optional()
@@ -412,7 +411,7 @@ impl Database {
     pub fn remove_limit(&self, app_name: &str) -> SqliteResult<()> {
         self.conn.execute(
             "DELETE FROM app_limits WHERE app_id = (SELECT id FROM apps WHERE name = ?1)",
-            &[app_name],
+            [app_name],
         )?;
         Ok(())
     }

@@ -34,6 +34,10 @@ vi.mock("sonner", () => ({
 
 const mockApi = vi.mocked(api);
 
+beforeEach(() => {
+  useAppStore.setState(useAppStore.getInitialState(), true);
+});
+
 describe("useAppStore - Theme Management", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -200,7 +204,10 @@ describe("useAppStore - App Limits Management", () => {
     mockApi.removeAppLimit.mockResolvedValue(undefined);
     mockApi.getAppLimits.mockResolvedValue([]);
 
-    const { result } = renderHook(() => useAppStore((state) => ({ ...state, appLimits: mockLimits })));
+    const { result } = renderHook(() => useAppStore());
+    act(() => {
+      useAppStore.setState({ appLimits: mockLimits });
+    });
 
     const removedData = await act(async () => {
       return await result.current.removeAppLimit("Test App");
@@ -233,7 +240,10 @@ describe("useAppStore - App Limits Management", () => {
       { id: 1, app_id: 1, app_name: "Test App", daily_limit_minutes: 120, block_when_exceeded: true },
     ];
 
-    const { result } = renderHook(() => useAppStore((state) => ({ ...state, appLimits: mockLimits })));
+    const { result } = renderHook(() => useAppStore());
+    act(() => {
+      useAppStore.setState({ appLimits: mockLimits });
+    });
 
     const limit = result.current.getAppLimit("Test App");
     expect(limit).toEqual(mockLimits[0]);
@@ -294,11 +304,13 @@ describe("useAppStore - Focus Mode", () => {
       schedule_name: null,
     });
 
-    const { result } = renderHook(() => useAppStore((state) => ({
-      ...state,
-      isFocusActive: true,
-      focusTimeLeft: 1500, // 25 minutes
-    })));
+    const { result } = renderHook(() => useAppStore());
+    act(() => {
+      useAppStore.setState({
+        isFocusActive: true,
+        focusTimeLeft: 1500,
+      });
+    });
 
     await act(async () => {
       await result.current.toggleFocusTimer();
@@ -309,11 +321,13 @@ describe("useAppStore - Focus Mode", () => {
   });
 
   it("ticks focus timer correctly", () => {
-    const { result } = renderHook(() => useAppStore((state) => ({
-      ...state,
-      isFocusActive: true,
-      focusTimeLeft: 60, // 1 minute
-    })));
+    const { result } = renderHook(() => useAppStore());
+    act(() => {
+      useAppStore.setState({
+        isFocusActive: true,
+        focusTimeLeft: 60,
+      });
+    });
 
     act(() => {
       result.current.tickFocusTimer();
@@ -334,11 +348,13 @@ describe("useAppStore - Focus Mode", () => {
       schedule_name: null,
     });
 
-    const { result } = renderHook(() => useAppStore((state) => ({
-      ...state,
-      isFocusActive: true,
-      focusTimeLeft: 0,
-    })));
+    const { result } = renderHook(() => useAppStore());
+    act(() => {
+      useAppStore.setState({
+        isFocusActive: true,
+        focusTimeLeft: 0,
+      });
+    });
 
     act(() => {
       result.current.tickFocusTimer();
@@ -360,12 +376,21 @@ describe("useAppStore - Focus Mode", () => {
       schedule_name: null,
     });
 
-    const { result } = renderHook(() => useAppStore((state) => ({
-      ...state,
-      isFocusActive: true,
-      focusTimeLeft: 1500,
-      focusSettings: { blocked_apps: [], default_duration_minutes: 30, notify_on_start: true, notify_on_end: true, block_notifications: false, schedules: [] },
-    })));
+    const { result } = renderHook(() => useAppStore());
+    act(() => {
+      useAppStore.setState({
+        isFocusActive: true,
+        focusTimeLeft: 1500,
+        focusSettings: {
+          blocked_apps: [],
+          default_duration_minutes: 30,
+          notify_on_start: true,
+          notify_on_end: true,
+          block_notifications: false,
+          schedules: [],
+        },
+      });
+    });
 
     await act(async () => {
       await result.current.resetFocusTimer();
@@ -389,12 +414,14 @@ describe("useAppStore - Focus Mode", () => {
       schedule_name: null,
     });
 
-    const { result } = renderHook(() => useAppStore((state) => ({
-      ...state,
-      isFocusActive: true,
-      focusTimeLeft: 1500,
-      focusSettings: null,
-    })));
+    const { result } = renderHook(() => useAppStore());
+    act(() => {
+      useAppStore.setState({
+        isFocusActive: true,
+        focusTimeLeft: 1500,
+        focusSettings: null,
+      });
+    });
 
     await act(async () => {
       await result.current.resetFocusTimer();
@@ -455,12 +482,12 @@ describe("useAppStore - UI State Management", () => {
   });
 
   it("computes isLoading correctly", () => {
-    const { result } = renderHook(() =>
-      useAppStore((state) => ({
-        ...state,
+    const { result } = renderHook(() => useAppStore());
+    act(() => {
+      useAppStore.setState((state) => ({
         loading: { ...state.loading, dailyStats: true },
-      }))
-    );
+      }));
+    });
 
     expect(result.current.isLoading()).toBe(true);
   });
@@ -471,13 +498,13 @@ describe("useAppStore - UI State Management", () => {
     expect(initial.current.isInitialLoad()).toBe(true);
 
     // After loading data - need to test with a different hook instance
-    const { result: loaded } = renderHook(() =>
-      useAppStore((state) => ({
-        ...state,
+    const { result: loaded } = renderHook(() => useAppStore());
+    act(() => {
+      useAppStore.setState({
         dailyStats: { total_seconds: 100, apps: [] },
         weeklyStats: { days: [], total_seconds: 0 },
-      }))
-    );
+      });
+    });
     expect(loaded.current.isInitialLoad()).toBe(false);
   });
 });
@@ -523,10 +550,10 @@ describe("useAppStore - Focus Settings", () => {
 
     mockApi.setFocusSettings.mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useAppStore((state) => ({
-      ...state,
-      focusSettings: currentSettings,
-    })));
+    const { result } = renderHook(() => useAppStore());
+    act(() => {
+      useAppStore.setState({ focusSettings: currentSettings });
+    });
 
     await act(async () => {
       await result.current.updateFocusSettings(updates);
@@ -544,10 +571,19 @@ describe("useAppStore - Focus Settings", () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     mockApi.setFocusSettings.mockRejectedValue(new Error("API error"));
 
-    const { result } = renderHook(() => useAppStore((state) => ({
-      ...state,
-      focusSettings: { blocked_apps: [], default_duration_minutes: 25, notify_on_start: true, notify_on_end: true, block_notifications: false, schedules: [] },
-    })));
+    const { result } = renderHook(() => useAppStore());
+    act(() => {
+      useAppStore.setState({
+        focusSettings: {
+          blocked_apps: [],
+          default_duration_minutes: 25,
+          notify_on_start: true,
+          notify_on_end: true,
+          block_notifications: false,
+          schedules: [],
+        },
+      });
+    });
 
     await act(async () => {
       await result.current.updateFocusSettings({ default_duration_minutes: 30 });
@@ -602,10 +638,10 @@ describe("useAppStore - Notification Settings", () => {
 
     mockApi.setNotificationSettings.mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useAppStore((state) => ({
-      ...state,
-      notificationSettings: currentSettings,
-    })));
+    const { result } = renderHook(() => useAppStore());
+    act(() => {
+      useAppStore.setState({ notificationSettings: currentSettings });
+    });
 
     await act(async () => {
       await result.current.updateNotificationSettings(updates);
