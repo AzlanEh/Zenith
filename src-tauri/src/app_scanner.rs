@@ -2,6 +2,9 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+#[cfg(target_os = "linux")]
+use std::collections::VecDeque;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InstalledApp {
     pub name: String,
@@ -43,7 +46,69 @@ fn canonicalize_path(path: &PathBuf) -> String {
 }
 
 #[cfg(target_os = "linux")]
+fn push_unique_path(paths: &mut Vec<PathBuf>, path: PathBuf) {
+    if !paths.iter().any(|p| p == &path) {
+        paths.push(path);
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn find_icon_recursive(
+    root: &PathBuf,
+    icon_stem: &str,
+    extensions: &[&str],
+    max_depth: usize,
+) -> Option<String> {
+    if !root.exists() || !root.is_dir() {
+        return None;
+    }
+
+    let mut queue: VecDeque<(PathBuf, usize)> = VecDeque::new();
+    queue.push_back((root.clone(), 0));
+
+    while let Some((dir, depth)) = queue.pop_front() {
+        if depth > max_depth {
+            continue;
+        }
+
+        let Ok(entries) = fs::read_dir(&dir) else {
+            continue;
+        };
+
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if depth < max_depth {
+                    queue.push_back((path, depth + 1));
+                }
+                continue;
+            }
+
+            let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            if stem != icon_stem {
+                continue;
+            }
+
+            let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
+                continue;
+            };
+            if extensions
+                .iter()
+                .any(|known| known.eq_ignore_ascii_case(ext))
+            {
+                return Some(canonicalize_path(&path));
+            }
+        }
+    }
+
+    None
+}
+
+#[cfg(target_os = "linux")]
 fn resolve_icon_path_linux(icon: &str) -> Option<String> {
+    let icon = icon.trim().trim_matches('"');
     let path = PathBuf::from(icon);
 
     // If the icon is already an absolute path and the file exists, return the
@@ -57,16 +122,32 @@ fn resolve_icon_path_linux(icon: &str) -> Option<String> {
     let preferred_sizes = [
         "256x256", "128x128", "64x64", "48x48", "scalable", "32x32", "24x24", "22x22", "16x16",
     ];
-    let extensions = ["png", "svg", "xpm"];
+    let extensions = ["png", "svg", "svgz", "xpm"];
 
     // Build search paths: user overrides first, then system paths.
     let mut search_dirs: Vec<PathBuf> = Vec::new();
 
     if let Some(home) = dirs::home_dir() {
-        search_dirs.push(home.join(".local/share/icons"));
-        search_dirs.push(home.join(".icons"));
+        let user_icons = home.join(".local/share/icons");
+        let user_dot_icons = home.join(".icons");
+        search_dirs.push(user_icons.clone());
+        search_dirs.push(user_dot_icons.clone());
         // Some apps (e.g. AppImages, manually installed) store their icons here
         search_dirs.push(home.join(".local/share/applications/icons"));
+
+        // Include user theme directories dynamically (e.g. Tela, Yaru, Colloid)
+        for root in [&user_icons, &user_dot_icons] {
+            if root.exists() {
+                if let Ok(entries) = fs::read_dir(root) {
+                    for entry in entries.flatten() {
+                        let dir = entry.path();
+                        if dir.is_dir() {
+                            push_unique_path(&mut search_dirs, dir);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // Pixmaps (many apps install icons here directly by name)
@@ -84,14 +165,63 @@ fn resolve_icon_path_linux(icon: &str) -> Option<String> {
         "/usr/share/icons/Numix",
     ];
 
+    // Include all system icon themes dynamically so icons from non-hardcoded themes resolve.
+    let mut dynamic_icon_bases: Vec<PathBuf> = icon_base_dirs.iter().map(PathBuf::from).collect();
+    let system_icons_root = PathBuf::from("/usr/share/icons");
+    if system_icons_root.exists() {
+        if let Ok(entries) = fs::read_dir(&system_icons_root) {
+            for entry in entries.flatten() {
+                let dir = entry.path();
+                if dir.is_dir() {
+                    push_unique_path(&mut dynamic_icon_bases, dir);
+                }
+            }
+        }
+    }
+
+    // If icon already contains an extension, try direct lookups first.
+    let has_known_ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|ext| {
+            extensions
+                .iter()
+                .any(|known| known.eq_ignore_ascii_case(ext))
+        })
+        .unwrap_or(false);
+
+    if has_known_ext {
+        // Relative icon paths appear in some desktop files (e.g. "hicolor/128x128/apps/foo.png")
+        for base in dynamic_icon_bases.iter().chain(search_dirs.iter()) {
+            let candidate = base.join(&path);
+            if candidate.exists() {
+                return Some(canonicalize_path(&candidate));
+            }
+        }
+
+        // Flat icon filename in common dirs
+        for dir in &search_dirs {
+            let candidate = dir.join(icon);
+            if candidate.exists() {
+                return Some(canonicalize_path(&candidate));
+            }
+        }
+    }
+
+    let icon_stem = if has_known_ext {
+        path.file_stem().and_then(|s| s.to_str()).unwrap_or(icon)
+    } else {
+        icon
+    };
+
     // For icon name resolution, first try hicolor theme (the fallback theme per FreeDesktop spec)
     for size in &preferred_sizes {
-        for base in &icon_base_dirs {
+        for base in &dynamic_icon_bases {
             for ext in &extensions {
-                let candidate = PathBuf::from(base)
+                let candidate = base
                     .join(size)
                     .join("apps")
-                    .join(format!("{}.{}", icon, ext));
+                    .join(format!("{}.{}", icon_stem, ext));
                 if candidate.exists() {
                     return Some(canonicalize_path(&candidate));
                 }
@@ -101,7 +231,7 @@ fn resolve_icon_path_linux(icon: &str) -> Option<String> {
 
     // Also try pixmaps directory directly (flat layout, no size subdirs)
     for ext in &extensions {
-        let candidate = PathBuf::from("/usr/share/pixmaps").join(format!("{}.{}", icon, ext));
+        let candidate = PathBuf::from("/usr/share/pixmaps").join(format!("{}.{}", icon_stem, ext));
         if candidate.exists() {
             return Some(canonicalize_path(&candidate));
         }
@@ -110,7 +240,7 @@ fn resolve_icon_path_linux(icon: &str) -> Option<String> {
     // Try user icon dirs flat
     for dir in &search_dirs {
         for ext in &extensions {
-            let candidate = dir.join(format!("{}.{}", icon, ext));
+            let candidate = dir.join(format!("{}.{}", icon_stem, ext));
             if candidate.exists() {
                 return Some(canonicalize_path(&candidate));
             }
@@ -125,7 +255,7 @@ fn resolve_icon_path_linux(icon: &str) -> Option<String> {
                 let candidate = PathBuf::from(base)
                     .join(size)
                     .join("apps")
-                    .join(format!("{}.{}", icon, ext));
+                    .join(format!("{}.{}", icon_stem, ext));
                 if candidate.exists() {
                     return Some(canonicalize_path(&candidate));
                 }
@@ -141,11 +271,52 @@ fn resolve_icon_path_linux(icon: &str) -> Option<String> {
                 let candidate = user_flatpak_base
                     .join(size)
                     .join("apps")
-                    .join(format!("{}.{}", icon, ext));
+                    .join(format!("{}.{}", icon_stem, ext));
                 if candidate.exists() {
                     return Some(canonicalize_path(&candidate));
                 }
             }
+        }
+    }
+
+    // Flatpak app install directories (icons bundled inside each app)
+    let mut flatpak_app_roots = vec![PathBuf::from("/var/lib/flatpak/app")];
+    if let Some(home) = dirs::home_dir() {
+        flatpak_app_roots.push(home.join(".local/share/flatpak/app"));
+    }
+
+    for root in &flatpak_app_roots {
+        let app_hicolor = root
+            .join(icon_stem)
+            .join("current/active/files/share/icons/hicolor");
+        for size in &preferred_sizes {
+            for ext in &extensions {
+                let candidate = app_hicolor
+                    .join(size)
+                    .join("apps")
+                    .join(format!("{}.{}", icon_stem, ext));
+                if candidate.exists() {
+                    return Some(canonicalize_path(&candidate));
+                }
+            }
+        }
+    }
+
+    // Last-resort fallback for odd app icon locations
+    let mut recursive_roots = vec![
+        PathBuf::from("/usr/share/icons"),
+        PathBuf::from("/usr/share/pixmaps"),
+        PathBuf::from("/usr/share"),
+    ];
+    if let Some(home) = dirs::home_dir() {
+        recursive_roots.push(home.join(".local/share/icons"));
+        recursive_roots.push(home.join(".icons"));
+        recursive_roots.push(home.join(".local/share/flatpak/app"));
+    }
+
+    for root in &recursive_roots {
+        if let Some(found) = find_icon_recursive(root, icon_stem, &extensions, 6) {
+            return Some(found);
         }
     }
 
@@ -228,8 +399,27 @@ fn get_installed_apps_linux() -> Vec<InstalledApp> {
                     let path = entry.path();
                     if path.extension().is_some_and(|ext| ext == "desktop") {
                         if let Some(app) = parse_desktop_file(&path) {
-                            // Avoid duplicates by name
-                            if !apps.iter().any(|a: &InstalledApp| a.name == app.name) {
+                            if let Some(existing) = apps.iter_mut().find(|a: &&mut InstalledApp| {
+                                a.name.eq_ignore_ascii_case(&app.name)
+                            }) {
+                                let existing_score = score_installed_app(existing);
+                                let incoming_score = score_installed_app(&app);
+
+                                if incoming_score > existing_score {
+                                    *existing = app;
+                                } else {
+                                    if existing.icon.is_none() && app.icon.is_some() {
+                                        existing.icon = app.icon;
+                                    }
+                                    if existing.exec.is_none() && app.exec.is_some() {
+                                        existing.exec = app.exec;
+                                    }
+                                    if existing.categories.is_empty() && !app.categories.is_empty()
+                                    {
+                                        existing.categories = app.categories;
+                                    }
+                                }
+                            } else {
                                 apps.push(app);
                             }
                         }
@@ -493,6 +683,28 @@ fn clean_exec(exec: &str) -> String {
         result = result.replace(code, "");
     }
     result.trim().to_string()
+}
+
+#[cfg(target_os = "linux")]
+fn score_installed_app(app: &InstalledApp) -> usize {
+    let mut score = 0;
+    if app.icon.as_ref().is_some_and(|s| !s.trim().is_empty()) {
+        score += 4;
+    }
+    if app.exec.as_ref().is_some_and(|s| !s.trim().is_empty()) {
+        score += 2;
+    }
+    if !app.categories.is_empty() {
+        score += 1;
+    }
+    if app
+        .desktop_file
+        .to_lowercase()
+        .contains(&app.name.to_lowercase().replace(' ', ""))
+    {
+        score += 1;
+    }
+    score
 }
 
 /// Map app categories from .desktop to our simplified categories
