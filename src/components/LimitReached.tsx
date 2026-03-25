@@ -2,14 +2,13 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Clock, X } from "lucide-react";
-import "@/index.css";
+import { toast } from "sonner";
 
 export function LimitReached() {
   const [appName, setAppName] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Get app name from URL query parameter
     const params = new URLSearchParams(window.location.search);
     const app = params.get("app");
     if (app) {
@@ -24,6 +23,7 @@ export function LimitReached() {
       await invoke("quit_blocked_app", { appName });
     } catch (error) {
       console.error("Failed to quit app:", error);
+      toast.error("Failed to quit app. Please try closing it manually.");
     }
     setIsLoading(false);
   };
@@ -35,6 +35,7 @@ export function LimitReached() {
       await invoke("grant_emergency_access", { appName });
     } catch (error) {
       console.error("Failed to grant emergency access:", error);
+      toast.error("Failed to grant emergency access. Please try again.");
     }
     setIsLoading(false);
   };
@@ -42,19 +43,16 @@ export function LimitReached() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm bg-card rounded-lg border shadow-lg p-6 text-center">
-        {/* Warning Icon */}
         <div className="flex justify-center mb-4">
           <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
             <AlertTriangle className="w-8 h-8 text-destructive" />
           </div>
         </div>
 
-        {/* Title */}
         <h1 className="text-xl font-semibold text-foreground mb-2">
           App Limit Reached
         </h1>
 
-        {/* Description */}
         <p className="text-muted-foreground mb-2">
           You've reached your daily limit for
         </p>
@@ -62,7 +60,6 @@ export function LimitReached() {
           {appName || "this app"}
         </p>
 
-        {/* Buttons */}
         <div className="space-y-3">
           <Button
             variant="destructive"
@@ -87,7 +84,6 @@ export function LimitReached() {
           </Button>
         </div>
 
-        {/* Footer note */}
         <p className="text-xs text-muted-foreground mt-4">
           Emergency use grants temporary access. The limit will be enforced
           again after 10 minutes.
