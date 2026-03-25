@@ -6,15 +6,16 @@ test.describe("Accessibility", () => {
   });
 
   test("should have skip navigation link", async ({ page }) => {
-    // Skip link should be visible on tab
     await page.keyboard.press("Tab");
     const skipLink = page.getByText("Skip to main content");
     await expect(skipLink).toBeFocused();
   });
 
   test("should have proper heading hierarchy", async ({ page }) => {
-    // Dashboard should have h2
-    const mainHeading = page.getByRole("heading", { level: 2, name: "Dashboard" });
+    const mainHeading = page.getByRole("heading", {
+      level: 2,
+      name: "Today's Overview",
+    });
     await expect(mainHeading).toBeVisible();
   });
 
@@ -39,20 +40,17 @@ test.describe("Accessibility", () => {
   });
 
   test("should have proper ARIA labels on buttons", async ({ page }) => {
-    // Add limit button should have aria-label
-    await page.getByRole("button", { name: /limits/i }).click();
-    await expect(
-      page.getByRole("button", { name: /add new app limit/i })
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /dashboard/i })).toBeVisible();
+
+    await page.getByRole("button", { name: /app limits/i }).click();
+    await expect(page.getByRole("button", { name: /add app/i })).toBeVisible();
   });
 
   test("should announce content changes", async ({ page }) => {
-    // Navigate to different sections and verify content updates
-    await page.getByRole("button", { name: /history/i }).click();
-    await expect(page.getByRole("heading", { name: "History" })).toBeVisible();
-    
-    // The main region should update its aria-label
+    await page.getByRole("button", { name: /analytics/i }).click();
+    await expect(page.getByRole("heading", { name: "Detailed Analytics" })).toBeVisible();
+
     const main = page.getByRole("main");
-    await expect(main).toHaveAttribute("aria-label", /History view/i);
+    await expect(main).toHaveAttribute("aria-label", /Detailed Analytics view/i);
   });
 });

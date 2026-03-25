@@ -8,21 +8,17 @@ test.describe("Settings", () => {
   });
 
   test("should display theme settings", async ({ page }) => {
-    await expect(page.getByText(/appearance/i)).toBeVisible();
-    await expect(page.getByRole("button", { name: /light/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /dark/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /system/i })).toBeVisible();
+    await expect(page.getByText("Appearance").first()).toBeVisible();
+    await expect(page.locator('input[name="theme"][value="light"]')).toBeAttached();
+    await expect(page.locator('input[name="theme"][value="dark"]')).toBeAttached();
+    await expect(page.locator('input[name="theme"][value="system"]')).toBeAttached();
   });
 
   test("should switch themes", async ({ page }) => {
-    // Click dark mode
-    await page.getByRole("button", { name: /dark/i }).click();
-    // Check if dark class is applied to html
+    await page.locator('input[name="theme"][value="dark"]').check({ force: true });
     await expect(page.locator("html")).toHaveClass(/dark/);
 
-    // Click light mode
-    await page.getByRole("button", { name: /light/i }).click();
-    // Check if dark class is removed
+    await page.locator('input[name="theme"][value="light"]').check({ force: true });
     await expect(page.locator("html")).not.toHaveClass(/dark/);
   });
 
@@ -39,6 +35,6 @@ test.describe("Settings", () => {
   });
 
   test("should display data management section", async ({ page }) => {
-    await expect(page.getByText(/data management/i)).toBeVisible();
+    await expect(page.getByText(/delete all data/i)).toBeVisible();
   });
 });
