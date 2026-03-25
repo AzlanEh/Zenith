@@ -120,6 +120,24 @@ const initialLoadingState: LoadingState = {
   blockedApps: false,
 };
 
+const defaultFocusSettings: FocusSettings = {
+  blocked_apps: [],
+  default_duration_minutes: 25,
+  notify_on_start: true,
+  notify_on_end: true,
+  block_notifications: false,
+  schedules: [],
+};
+
+const defaultNotificationSettings: NotificationSettings = {
+  enabled: true,
+  warning_threshold: 80,
+  exceeded_threshold: 100,
+  dnd_enabled: false,
+  dnd_start_hour: 22,
+  dnd_end_hour: 7,
+};
+
 export const useAppStore = create<AppState>((set, get) => ({
   theme: defaultTheme,
   dailyStats: null,
@@ -187,7 +205,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       return { focusTimeLeft: state.focusTimeLeft - 1 };
     }
     if (state.focusTimeLeft === 0 && state.isFocusActive) {
-      // Time's up
       api.stopFocusSession().catch(console.error);
       return { isFocusActive: false };
     }
@@ -273,6 +290,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ hourlyUsage });
       } catch (error) {
         console.error("Failed to load hourly usage:", error);
+        set({ hourlyUsage: [] });
       } finally {
         pendingRequests.delete("hourlyUsage");
       }
@@ -291,6 +309,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ weeklyHourlyUsage });
       } catch (error) {
         console.error("Failed to load weekly hourly usage:", error);
+        set({ weeklyHourlyUsage: [] });
       } finally {
         pendingRequests.delete("weeklyHourlyUsage");
       }
@@ -309,6 +328,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ categoryUsage });
       } catch (error) {
         console.error("Failed to load category usage:", error);
+        set({ categoryUsage: [] });
       } finally {
         pendingRequests.delete("categoryUsage");
       }
@@ -327,6 +347,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ appLimits });
       } catch (error) {
         console.error("Failed to load app limits:", error);
+        set({ appLimits: [] });
       } finally {
         pendingRequests.delete("appLimits");
       }
@@ -345,6 +366,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ blockedApps });
       } catch (error) {
         console.error("Failed to load blocked apps:", error);
+        set({ blockedApps: [] });
       } finally {
         pendingRequests.delete("blockedApps");
       }
@@ -354,21 +376,41 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   loadFocusSettings: async () => {
-    try {
-      const settings = await api.getFocusSettings();
-      set({ focusSettings: settings });
-    } catch (error) {
-      console.error("Failed to load focus settings:", error);
-    }
+    const pending = pendingRequests.get("focusSettings");
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const settings = await api.getFocusSettings();
+        set({ focusSettings: settings });
+      } catch (error) {
+        console.error("Failed to load focus settings:", error);
+        set({ focusSettings: defaultFocusSettings });
+      } finally {
+        pendingRequests.delete("focusSettings");
+      }
+    })();
+    pendingRequests.set("focusSettings", request);
+    return request;
   },
 
   loadNotificationSettings: async () => {
-    try {
-      const settings = await api.getNotificationSettings();
-      set({ notificationSettings: settings });
-    } catch (error) {
-      console.error("Failed to load notification settings:", error);
-    }
+    const pending = pendingRequests.get("notificationSettings");
+    if (pending) return pending;
+
+    const request = (async () => {
+      try {
+        const settings = await api.getNotificationSettings();
+        set({ notificationSettings: settings });
+      } catch (error) {
+        console.error("Failed to load notification settings:", error);
+        set({ notificationSettings: defaultNotificationSettings });
+      } finally {
+        pendingRequests.delete("notificationSettings");
+      }
+    })();
+    pendingRequests.set("notificationSettings", request);
+    return request;
   },
 
   updateFocusSettings: async (updates) => {
