@@ -306,19 +306,10 @@ impl UsageTracker {
     async fn track_window(&self) -> Result<(), String> {
         let mut window_name = get_active_window_name()?;
 
-        // Diagnostic: log what the window detector returns (first 20 calls, then every 60th)
-        {
-            use std::sync::atomic::{AtomicU64, Ordering};
-            static TRACK_CALL_COUNT: AtomicU64 = AtomicU64::new(0);
-            let call_num = TRACK_CALL_COUNT.fetch_add(1, Ordering::Relaxed);
-            if call_num < 20 || call_num.is_multiple_of(60) {
-                tracing::info!(
-                    call_num,
-                    window_name = ?window_name,
-                    "track_window: raw window detection result"
-                );
-            }
-        }
+        tracing::trace!(
+            has_window = window_name.is_some(),
+            "track_window: raw window detection result"
+        );
 
         // Check for idle - platform-specific behavior
         let idle_seconds = get_idle_seconds();
@@ -332,20 +323,10 @@ impl UsageTracker {
         let app_name = match window_name {
             Some(ref name) => {
                 let extracted = extract_app_name(name);
-                // Diagnostic: log what extract_app_name returns
-                {
-                    use std::sync::atomic::{AtomicU64, Ordering};
-                    static EXTRACT_CALL_COUNT: AtomicU64 = AtomicU64::new(0);
-                    let call_num = EXTRACT_CALL_COUNT.fetch_add(1, Ordering::Relaxed);
-                    if call_num < 20 || call_num.is_multiple_of(60) {
-                        tracing::info!(
-                            call_num,
-                            raw_name = %name,
-                            extracted_name = ?extracted,
-                            "track_window: extract_app_name result"
-                        );
-                    }
-                }
+                tracing::trace!(
+                    extracted = extracted.is_some(),
+                    "track_window: extract_app_name result"
+                );
                 extracted
             }
             None => None,

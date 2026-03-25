@@ -533,8 +533,25 @@ impl Database {
     }
 
     pub fn is_app_blocked(&self, app_name: &str) -> SqliteResult<bool> {
-        // Check if app has a limit with blocking enabled and usage exceeded
-        // Use dynamic duration for in-progress sessions
+        // Fast path: check if app has a blocking limit at all (uses index on apps.name)
+        let has_blocking_limit: bool = self
+            .conn
+            .query_row(
+                "SELECT al.block_when_exceeded = 1
+             FROM apps a
+             JOIN app_limits al ON a.id = al.app_id
+             WHERE a.name = ?1",
+                rusqlite::params![app_name],
+                |row| row.get(0),
+            )
+            .optional()?
+            .unwrap_or(false);
+
+        if !has_blocking_limit {
+            return Ok(false);
+        }
+
+        // Slow path: app has blocking enabled, check if usage exceeds limit
         let result: Option<(i32, i64)> = self
             .conn
             .query_row(
