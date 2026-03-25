@@ -3,12 +3,18 @@ import { renderHook } from "@testing-library/react";
 import { useTheme } from "./useTheme";
 import { useAppStore } from "../store/useAppStore";
 
-// Mock the store
 vi.mock("../store/useAppStore", () => ({
   useAppStore: vi.fn(),
 }));
 
 const mockUseAppStore = vi.mocked(useAppStore);
+
+function setupMock(theme: any, loadTheme: any) {
+  mockUseAppStore.mockImplementation((selector: any) => {
+    const state = { theme, loadTheme };
+    return selector ? selector(state) : state;
+  });
+}
 
 describe("useTheme", () => {
   beforeEach(() => {
@@ -34,11 +40,7 @@ describe("useTheme", () => {
       },
     };
 
-    mockUseAppStore.mockReturnValue({
-      theme: mockTheme,
-      loadTheme: mockLoadTheme,
-    } as any);
-
+    setupMock(mockTheme, mockLoadTheme);
     renderHook(() => useTheme());
 
     expect(mockLoadTheme).toHaveBeenCalledTimes(1);
@@ -62,11 +64,7 @@ describe("useTheme", () => {
       },
     };
 
-    mockUseAppStore.mockReturnValue({
-      theme: mockTheme,
-      loadTheme: vi.fn(),
-    } as any);
-
+    setupMock(mockTheme, vi.fn());
     const { result } = renderHook(() => useTheme());
 
     expect(result.current).toBe(mockTheme);
@@ -93,17 +91,15 @@ describe("useTheme", () => {
     let currentTheme: any = null;
     const mockLoadTheme = vi.fn();
 
-    mockUseAppStore.mockImplementation(() => ({
-      theme: currentTheme,
-      loadTheme: mockLoadTheme,
-    } as any));
+    mockUseAppStore.mockImplementation((selector: any) => {
+      const state = { theme: currentTheme, loadTheme: mockLoadTheme };
+      return selector ? selector(state) : state;
+    });
 
     const { rerender } = renderHook(() => useTheme());
 
-    // Initially no theme
     expect(document.documentElement.style.getPropertyValue("--color-primary")).toBe("");
 
-    // Update theme
     currentTheme = mockTheme;
     rerender();
 
@@ -120,11 +116,7 @@ describe("useTheme", () => {
   });
 
   it("handles null theme gracefully", () => {
-    mockUseAppStore.mockReturnValue({
-      theme: null,
-      loadTheme: vi.fn(),
-    } as any);
-
+    setupMock(null, vi.fn());
     const { result } = renderHook(() => useTheme());
 
     expect(result.current).toBeNull();
@@ -151,21 +143,18 @@ describe("useTheme", () => {
     let currentTheme: any = mockTheme;
     const mockLoadTheme = vi.fn();
 
-    mockUseAppStore.mockImplementation(() => ({
-      theme: currentTheme,
-      loadTheme: mockLoadTheme,
-    } as any));
+    mockUseAppStore.mockImplementation((selector: any) => {
+      const state = { theme: currentTheme, loadTheme: mockLoadTheme };
+      return selector ? selector(state) : state;
+    });
 
     const { rerender } = renderHook(() => useTheme());
 
-    // Theme applied
     expect(document.documentElement.style.getPropertyValue("--color-primary")).toBe("red");
 
-    // Clear theme
     currentTheme = null;
     rerender();
 
-    // CSS properties should be cleared (set to empty string)
     expect(document.documentElement.style.getPropertyValue("--color-primary")).toBe("");
   });
 });

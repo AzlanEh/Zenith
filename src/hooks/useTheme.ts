@@ -1,12 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAppStore } from "../store/useAppStore";
 
 export const useTheme = () => {
-  const { theme, loadTheme } = useAppStore();
+  const theme = useAppStore(state => state.theme);
+  const loadTheme = useAppStore(state => state.loadTheme);
+
+  const loadThemeRef = useRef(loadTheme);
+  loadThemeRef.current = loadTheme;
 
   useEffect(() => {
-    loadTheme();
-  }, [loadTheme]);
+    loadThemeRef.current();
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -22,7 +26,6 @@ export const useTheme = () => {
       root.style.setProperty("--color-danger", theme.colors.danger);
       root.style.setProperty("--font-family", theme.fonts.family);
     } else {
-      // Clear CSS properties when theme is null
       root.style.removeProperty("--color-primary");
       root.style.removeProperty("--color-secondary");
       root.style.removeProperty("--color-background");

@@ -29,7 +29,14 @@ export function useUndo() {
       }
 
       // Execute the action immediately
-      await execute();
+      try {
+        await execute();
+      } catch (error) {
+        toast.error("Action failed", {
+          description: String(error),
+        });
+        return;
+      }
 
       // Show toast with undo option
       toast(description, {

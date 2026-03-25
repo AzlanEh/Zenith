@@ -231,16 +231,20 @@ describe("useUndo", () => {
 
     const { result } = renderHook(() => useUndo());
 
-    await expect(act(async () => {
+    await act(async () => {
       await result.current.executeWithUndo({
         id: "test-action",
         execute,
         undo,
         description: "Test action",
       });
-    })).rejects.toThrow("Execute failed");
+    });
 
-    // Toast should not be shown if execute fails
+    // Should show error toast instead of throwing
+    expect(toast.error).toHaveBeenCalledWith("Action failed", {
+      description: "Error: Execute failed",
+    });
+    // Undo toast should NOT be shown since execute failed
     expect(toast).not.toHaveBeenCalled();
   });
 });
