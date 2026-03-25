@@ -1,14 +1,23 @@
-import { useEffect } from "react";
+import { useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { useAppStore } from "./store/useAppStore";
 import { useDarkMode } from "./hooks/useDarkMode";
 
 import { Sidebar, Page } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
-import { Dashboard } from './pages/Dashboard';
-import { Settings } from './pages/Settings';
-import { FocusMode } from './pages/FocusMode';
-import { Analytics } from './pages/Analytics';
-import { Limits } from './pages/Limits';
+
+const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+const FocusMode = lazy(() => import('./pages/FocusMode').then(m => ({ default: m.FocusMode })));
+const Analytics = lazy(() => import('./pages/Analytics').then(m => ({ default: m.Analytics })));
+const Limits = lazy(() => import('./pages/Limits').then(m => ({ default: m.Limits })));
+
+function PageLoader() {
+  return (
+    <div className="flex-1 flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    </div>
+  );
+}
 
 function App() {
   const activeTab = useAppStore(state => state.activeTab);
@@ -18,10 +27,9 @@ function App() {
   const isFocusActive = useAppStore(state => state.isFocusActive);
   const tickFocusTimer = useAppStore(state => state.tickFocusTimer);
 
-  useDarkMode(); // Automatically handles applying theme to document and listening to system theme changes
+  useDarkMode();
 
   useEffect(() => {
-    // Global Focus Timer tick
     let interval: number | undefined;
     if (isFocusActive) {
       interval = window.setInterval(() => {
@@ -33,11 +41,11 @@ function App() {
     };
   }, [isFocusActive, tickFocusTimer]);
 
-  const toggleSidebar = () => {
+  const toggleSidebar = useCallback(() => {
     setSidebarOpen(!sidebarOpen);
-  };
+  }, [setSidebarOpen, sidebarOpen]);
 
-  const getHeaderInfo = () => {
+  const headerInfo = useMemo(() => {
     switch(activeTab) {
       case 'settings':
         return { title: "Settings", subtitle: "Manage your account and preferences." };
@@ -55,7 +63,6 @@ function App() {
           month: 'long', 
           day: 'numeric' 
         });
-        // Add appropriate suffix (st, nd, rd, th) to the day
         const day = today.getDate();
         const suffix = ['th', 'st', 'nd', 'rd'][(day % 10 > 3 ? 0 : (day % 100 - day % 10 !== 10 ? 1 : 0) * (day % 10))];
         const formattedDate = dateString.replace(/\d+/, day + suffix);
@@ -63,17 +70,17 @@ function App() {
         return { title: "Today's Overview", subtitle: formattedDate };
       }
     }
-  };
-
-  const headerInfo = getHeaderInfo();
-
-  // Custom header actions for specific pages
-  const getHeaderActions = () => {
-    return undefined; // Handled within individual pages
-  };
+  }, [activeTab]);
 
   return (
     <div className="bg-background text-foreground min-h-screen flex overflow-hidden selection:bg-chart-1 selection:text-white">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:bg-background focus:text-foreground focus:px-3 focus:py-2 focus:rounded focus:border focus:border-border"
+      >
+        Skip to main content
+      </a>
+
       <Sidebar 
         isOpen={sidebarOpen} 
         currentPage={activeTab as Page}
@@ -88,22 +95,27 @@ function App() {
         />
       )}
 
-      <main className="flex-1 flex flex-col h-screen overflow-y-auto relative bg-background">
+      <main
+        id="main-content"
+        aria-label={`${headerInfo.title} view`}
+        className="flex-1 flex flex-col h-screen overflow-y-auto relative bg-background"
+      >
         <Header 
           toggleSidebar={toggleSidebar} 
+          sidebarOpen={sidebarOpen}
           title={headerInfo.title}
           subtitle={headerInfo.subtitle}
-        >
-          {getHeaderActions()}
-        </Header>
+        />
         
-        <div key={activeTab} className="flex-1 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out fill-mode-both">
-          {activeTab === 'dashboard' && <Dashboard />}
-          {activeTab === 'settings' && <Settings />}
-          {activeTab === 'focus' && <FocusMode />}
-          {activeTab === 'analytics' && <Analytics />}
-          {activeTab === 'limits' && <Limits />}
-        </div>
+        <Suspense fallback={<PageLoader />}>
+          <div className="flex-1 flex flex-col">
+            {activeTab === 'dashboard' && <Dashboard />}
+            {activeTab === 'settings' && <Settings />}
+            {activeTab === 'focus' && <FocusMode />}
+            {activeTab === 'analytics' && <Analytics />}
+            {activeTab === 'limits' && <Limits />}
+          </div>
+        </Suspense>
       </main>
     </div>
   );

@@ -1,15 +1,17 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Menu } from 'lucide-react';
 
 interface HeaderProps {
   toggleSidebar: () => void;
+  sidebarOpen: boolean;
   title?: string;
   subtitle?: string;
   children?: React.ReactNode;
 }
 
-export function Header({ 
+export const Header = memo(function Header({ 
   toggleSidebar, 
+  sidebarOpen,
   title = "Good morning, Azlan",
   subtitle = "Here is your wellness overview for today.",
   children
@@ -19,6 +21,7 @@ export function Header({
       <div className="flex items-center gap-4">
         <button 
           onClick={toggleSidebar}
+          aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
           className="lg:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md"
         >
           <Menu className="w-5 h-5" />
@@ -36,4 +39,4 @@ export function Header({
       )}
     </header>
   );
-}
+});
