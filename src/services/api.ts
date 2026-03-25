@@ -272,7 +272,7 @@ export const api = {
     return invoke("get_goals_stats");
   },
 
-  wipeAllData: (): Promise<void> => {
-    return invoke("wipe_all_data");
+  wipeAllData: (confirmationText: string): Promise<void> => {
+    return invoke("wipe_all_data", { confirmationText });
   },
 };

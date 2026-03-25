@@ -55,10 +55,9 @@ async fn get_daily_usage(state: State<'_, AppState>) -> CmdResult<DailyStats> {
 
     let total_seconds: i64 = apps.iter().map(|a| a.duration_seconds).sum();
 
-    tracing::info!(
+    tracing::debug!(
         app_count = apps.len(),
         total_seconds,
-        apps = ?apps.iter().map(|a| (&a.app_name, a.duration_seconds)).collect::<Vec<_>>(),
         "get_daily_usage called by frontend"
     );
 
@@ -103,6 +102,14 @@ async fn set_app_limit(
     minutes: i32,
     block_when_exceeded: Option<bool>,
 ) -> CmdResult<()> {
+    if !is_valid_app_name(&app_name) {
+        return Err(WellbeingError::InvalidAppName(app_name));
+    }
+    if minutes < 1 || minutes > 1440 {
+        return Err(WellbeingError::Other(
+            "Daily limit must be between 1 and 1440 minutes".to_string(),
+        ));
+    }
     let db = state.db.lock().await;
     let block = block_when_exceeded.unwrap_or(false);
     db.set_limit_with_block(&app_name, minutes, block)?;
@@ -117,14 +124,17 @@ async fn get_app_limits(state: State<'_, AppState>) -> CmdResult<Vec<AppLimit>> 
 
 #[tauri::command]
 async fn remove_app_limit(state: State<'_, AppState>, app_name: String) -> CmdResult<()> {
+    if !is_valid_app_name(&app_name) {
+        return Err(WellbeingError::InvalidAppName(app_name));
+    }
     let db = state.db.lock().await;
     db.remove_limit(&app_name)?;
     Ok(())
 }
 
 #[tauri::command]
-fn get_theme() -> Theme {
-    ThemeLoader::load()
+fn get_theme() -> CmdResult<Theme> {
+    Ok(ThemeLoader::load())
 }
 
 #[tauri::command]
@@ -144,6 +154,11 @@ async fn record_usage(
     app_name: String,
     duration_seconds: i64,
 ) -> CmdResult<()> {
+    if duration_seconds < 0 {
+        return Err(WellbeingError::Other(
+            "Duration cannot be negative".to_string(),
+        ));
+    }
     let mut db = state.db.lock().await;
     db.record_usage_atomic(&app_name, duration_seconds)?;
     Ok(())
@@ -188,6 +203,16 @@ async fn set_app_category(
     app_name: String,
     category: String,
 ) -> CmdResult<()> {
+    if category.trim().is_empty() {
+        return Err(WellbeingError::Other(
+            "Category cannot be empty".to_string(),
+        ));
+    }
+    if category.len() > 100 {
+        return Err(WellbeingError::Other(
+            "Category name too long (max 100 characters)".to_string(),
+        ));
+    }
     let db = state.db.lock().await;
     db.set_app_category(&app_name, &category)?;
     Ok(())
@@ -267,13 +292,13 @@ async fn quit_blocked_app(state: State<'_, AppState>, app_name: String) -> CmdRe
 }
 
 #[tauri::command]
-fn get_installed_apps() -> Vec<InstalledApp> {
-    app_scanner::get_installed_apps()
+fn get_installed_apps() -> CmdResult<Vec<InstalledApp>> {
+    Ok(app_scanner::get_installed_apps())
 }
 
 #[tauri::command]
-fn resolve_app_icon(icon_name: String) -> Option<String> {
-    app_scanner::resolve_icon_path(&icon_name)
+fn resolve_app_icon(icon_name: String) -> CmdResult<Option<String>> {
+    Ok(app_scanner::resolve_icon_path(&icon_name))
 }
 
 #[tauri::command]
@@ -301,8 +326,8 @@ fn disable_autostart() -> CmdResult<String> {
 }
 
 #[tauri::command]
-fn get_autostart_status() -> AutostartStatus {
-    autostart::get_autostart_status()
+fn get_autostart_status() -> CmdResult<AutostartStatus> {
+    Ok(autostart::get_autostart_status())
 }
 
 /// Default data retention period in days
@@ -332,7 +357,12 @@ async fn get_storage_stats(state: State<'_, AppState>) -> CmdResult<(i64, i64, O
 }
 
 #[tauri::command]
-async fn wipe_all_data(state: State<'_, AppState>) -> CmdResult<()> {
+async fn wipe_all_data(state: State<'_, AppState>, confirmation_text: String) -> CmdResult<()> {
+    if confirmation_text.trim() != "DELETE" {
+        return Err(WellbeingError::Other(
+            "Confirmation text mismatch. Type DELETE to confirm data wipe.".to_string(),
+        ));
+    }
     wipe_all_data_internal(state.inner()).await
 }
 
@@ -410,7 +440,29 @@ fn save_export_file(file_path: String, content: String) -> CmdResult<()> {
         ));
     }
 
-    std::fs::write(path, content)?;
+    let canonical_parent = path
+        .parent()
+        .ok_or_else(|| {
+            WellbeingError::Export("Export path must include a parent directory".into())
+        })?
+        .canonicalize()
+        .map_err(|_| WellbeingError::Export("Export parent directory does not exist".into()))?;
+
+    let canonical_path = canonical_parent.join(
+        path.file_name()
+            .ok_or_else(|| WellbeingError::Export("Invalid export file name".into()))?,
+    );
+
+    if canonical_path.exists() {
+        let metadata = std::fs::symlink_metadata(&canonical_path)?;
+        if metadata.file_type().is_symlink() {
+            return Err(WellbeingError::Export(
+                "Refusing to write export file through a symlink".into(),
+            ));
+        }
+    }
+
+    std::fs::write(canonical_path, content)?;
     Ok(())
 }
 
@@ -703,12 +755,18 @@ async fn should_block_app_focus(state: State<'_, AppState>, app_name: String) ->
 
 #[tauri::command]
 async fn add_focus_blocked_app(state: State<'_, AppState>, app_name: String) -> CmdResult<()> {
+    if !is_valid_app_name(&app_name) {
+        return Err(WellbeingError::InvalidAppName(app_name));
+    }
     state.focus_manager.add_blocked_app(app_name).await;
     Ok(())
 }
 
 #[tauri::command]
 async fn remove_focus_blocked_app(state: State<'_, AppState>, app_name: String) -> CmdResult<()> {
+    if !is_valid_app_name(&app_name) {
+        return Err(WellbeingError::InvalidAppName(app_name));
+    }
     state.focus_manager.remove_blocked_app(&app_name).await;
     Ok(())
 }
@@ -903,10 +961,19 @@ pub fn run_background() {
         .join("wellbeing.db");
 
     if let Some(parent) = db_path.parent() {
-        std::fs::create_dir_all(parent).expect("Failed to create data directory");
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            tracing::error!(error = %e, path = %parent.display(), "Failed to create data directory");
+            return;
+        }
     }
 
-    let db = Database::new(db_path).expect("Failed to initialize database");
+    let db = match Database::new(db_path) {
+        Ok(db) => db,
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to initialize database");
+            return;
+        }
+    };
     let db = Arc::new(Mutex::new(db));
 
     // Create emergency access manager (limited functionality in background mode)
@@ -914,7 +981,13 @@ pub fn run_background() {
     let focus_manager = Arc::new(FocusManager::new());
 
     // Create tokio runtime for async operations
-    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+    let rt = match tokio::runtime::Runtime::new() {
+        Ok(rt) => rt,
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to create tokio runtime");
+            return;
+        }
+    };
 
     rt.block_on(async {
         let tracker = Arc::new(UsageTracker::new(db, emergency_access, focus_manager));
@@ -927,10 +1000,20 @@ pub fn run_background() {
             #[cfg(unix)]
             {
                 use tokio::signal::unix::{signal, SignalKind};
-                let mut sigterm =
-                    signal(SignalKind::terminate()).expect("Failed to register SIGTERM handler");
-                let mut sigint =
-                    signal(SignalKind::interrupt()).expect("Failed to register SIGINT handler");
+                let mut sigterm = match signal(SignalKind::terminate()) {
+                    Ok(sig) => sig,
+                    Err(e) => {
+                        tracing::error!(error = %e, "Failed to register SIGTERM handler");
+                        return;
+                    }
+                };
+                let mut sigint = match signal(SignalKind::interrupt()) {
+                    Ok(sig) => sig,
+                    Err(e) => {
+                        tracing::error!(error = %e, "Failed to register SIGINT handler");
+                        return;
+                    }
+                };
                 tokio::select! {
                     _ = sigterm.recv() => tracing::info!("Received SIGTERM"),
                     _ = sigint.recv() => tracing::info!("Received SIGINT"),
@@ -938,9 +1021,10 @@ pub fn run_background() {
             }
             #[cfg(not(unix))]
             {
-                tokio::signal::ctrl_c()
-                    .await
-                    .expect("Failed to register Ctrl+C handler");
+                if let Err(e) = tokio::signal::ctrl_c().await {
+                    tracing::error!(error = %e, "Failed to register Ctrl+C handler");
+                    return;
+                }
                 tracing::info!("Received Ctrl+C");
             }
         };
@@ -979,10 +1063,19 @@ pub fn run() {
         .join("wellbeing.db");
 
     if let Some(parent) = db_path.parent() {
-        std::fs::create_dir_all(parent).expect("Failed to create data directory");
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            tracing::error!(error = %e, path = %parent.display(), "Failed to create data directory");
+            return;
+        }
     }
 
-    let db = Database::new(db_path).expect("Failed to initialize database");
+    let db = match Database::new(db_path) {
+        Ok(db) => db,
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to initialize database");
+            return;
+        }
+    };
     let db = Arc::new(Mutex::new(db));
 
     // Create break reminder
@@ -1021,7 +1114,7 @@ pub fn run() {
     let background_tracker_slot: Arc<Mutex<Option<Arc<UsageTracker>>>> = Arc::new(Mutex::new(None));
     let background_tracker_for_state = Arc::clone(&background_tracker_slot);
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
@@ -1072,10 +1165,12 @@ pub fn run() {
             {
                 let asset_scope = app.asset_protocol_scope();
                 let mut linux_icon_dirs: Vec<std::path::PathBuf> = vec![
+                    std::path::PathBuf::from("/usr/share"),
                     std::path::PathBuf::from("/usr/share/icons"),
                     std::path::PathBuf::from("/usr/share/pixmaps"),
                     std::path::PathBuf::from("/var/lib/flatpak/exports/share/icons"),
                     std::path::PathBuf::from("/var/lib/flatpak/app"),
+                    std::path::PathBuf::from("/app/share"),
                     std::path::PathBuf::from("/opt"),
                 ];
                 if let Some(home) = dirs::home_dir() {
@@ -1236,36 +1331,44 @@ pub fn run() {
             check_for_update,
             install_update
         ])
-        .build(tauri::generate_context!())
-        .expect("error while building tauri application")
-        .run(move |app_handle, event| {
-            if let tauri::RunEvent::Exit = event {
-                // Graceful shutdown: finalize the current tracking session
-                // so we don't lose data for the session that was active at exit time
-                tracing::info!("App exiting, finalizing tracking session...");
-                let state: tauri::State<'_, AppState> = app_handle.state();
-                let bg_tracker = state.background_tracker.clone();
-                // Use blocking_lock since we're in the exit handler (not async context)
-                let tracker_opt = bg_tracker.blocking_lock();
-                if let Some(ref tracker) = *tracker_opt {
-                    let tracker: Arc<UsageTracker> = Arc::clone(tracker);
-                    // Run finalization synchronously to ensure it completes before exit
-                    let rt = tokio::runtime::Handle::try_current();
-                    match rt {
-                        Ok(handle) => {
-                            handle.block_on(tracker.finalize_current_session());
-                        }
-                        Err(_) => {
-                            // No runtime available, create one
-                            let rt = tokio::runtime::Runtime::new();
-                            if let Ok(rt) = rt {
-                                rt.block_on(tracker.finalize_current_session());
-                            }
+        .build(tauri::generate_context!());
+
+    let app = match app {
+        Ok(app) => app,
+        Err(e) => {
+            tracing::error!(error = %e, "error while building tauri application");
+            return;
+        }
+    };
+
+    app.run(move |app_handle, event| {
+        if let tauri::RunEvent::Exit = event {
+            // Graceful shutdown: finalize the current tracking session
+            // so we don't lose data for the session that was active at exit time
+            tracing::info!("App exiting, finalizing tracking session...");
+            let state: tauri::State<'_, AppState> = app_handle.state();
+            let bg_tracker = state.background_tracker.clone();
+            // Use blocking_lock since we're in the exit handler (not async context)
+            let tracker_opt = bg_tracker.blocking_lock();
+            if let Some(ref tracker) = *tracker_opt {
+                let tracker: Arc<UsageTracker> = Arc::clone(tracker);
+                // Run finalization synchronously to ensure it completes before exit
+                let rt = tokio::runtime::Handle::try_current();
+                match rt {
+                    Ok(handle) => {
+                        handle.block_on(tracker.finalize_current_session());
+                    }
+                    Err(_) => {
+                        // No runtime available, create one
+                        let rt = tokio::runtime::Runtime::new();
+                        if let Ok(rt) = rt {
+                            rt.block_on(tracker.finalize_current_session());
                         }
                     }
                 }
             }
-        });
+        }
+    });
 }
 
 #[cfg(test)]

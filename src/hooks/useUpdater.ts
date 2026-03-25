@@ -8,6 +8,10 @@ export interface UpdateInfo {
   date: string | null;
 }
 
+export type UpdateErrorCode =
+  | "system-managed-install"
+  | "unknown";
+
 export type UpdateState =
   | { status: "idle" }
   | { status: "checking" }
@@ -15,11 +19,31 @@ export type UpdateState =
   | { status: "up-to-date" }
   | { status: "downloading"; progress: number }
   | { status: "installing" }
-  | { status: "error"; message: string };
+  | { status: "error"; message: string; code: UpdateErrorCode };
 
 interface DownloadProgressEvent {
   chunkLength: number;
   contentLength: number | null;
+}
+
+function mapUpdateError(
+  err: unknown,
+): { message: string; code: UpdateErrorCode } {
+  const raw = err instanceof Error ? err.message : String(err);
+  const normalized = raw.toLowerCase();
+
+  if (
+    normalized.includes("permission denied") &&
+    normalized.includes("tauri_current_app")
+  ) {
+    return {
+      code: "system-managed-install",
+      message:
+        "This installation is managed by your system package manager and cannot self-update. Please update Wellbeing using your distro's package manager, or install the AppImage build for in-app updates.",
+    };
+  }
+
+  return { code: "unknown", message: raw };
 }
 
 export function useUpdater() {
@@ -48,8 +72,8 @@ export function useUpdater() {
           // Background check: don't alarm the user with an error state
           setState({ status: "idle" });
         } else {
-          const message = err instanceof Error ? err.message : String(err);
-          setState({ status: "error", message });
+          const mapped = mapUpdateError(err);
+          setState({ status: "error", ...mapped });
         }
         return null;
       }
@@ -84,8 +108,8 @@ export function useUpdater() {
     try {
       await invoke("install_update");
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setState({ status: "error", message });
+      const mapped = mapUpdateError(err);
+      setState({ status: "error", ...mapped });
     } finally {
       unlisteners.forEach((fn) => fn());
     }

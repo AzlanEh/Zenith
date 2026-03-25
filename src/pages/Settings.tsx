@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { api } from "../services/api";
 import {
@@ -10,6 +10,7 @@ import type { BreakSettings, AutostartStatus } from "../types";
 import { useDarkMode } from "../hooks/useDarkMode";
 import { useUpdater } from "../hooks/useUpdater";
 import { CheckCircle2, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -20,15 +21,21 @@ import {
 
 export function Settings() {
   const { theme, setTheme } = useDarkMode();
-  const { state: updateState, checkForUpdate } = useUpdater();
-  const {
-    focusSettings,
-    notificationSettings,
-    loadFocusSettings,
-    loadNotificationSettings,
-    updateFocusSettings,
-    updateNotificationSettings,
-  } = useAppStore();
+  const { state: updateState, checkForUpdate, installUpdate } = useUpdater();
+  const showLinuxUpdateHint =
+    updateState.status === "error" &&
+    updateState.code === "system-managed-install";
+  const focusSettings = useAppStore(state => state.focusSettings);
+  const notificationSettings = useAppStore(state => state.notificationSettings);
+  const updateFocusSettings = useAppStore(state => state.updateFocusSettings);
+  const updateNotificationSettings = useAppStore(state => state.updateNotificationSettings);
+  const loadFocusSettings = useAppStore(state => state.loadFocusSettings);
+  const loadNotificationSettings = useAppStore(state => state.loadNotificationSettings);
+
+  const loadFocusRef = useRef(loadFocusSettings);
+  const loadNotifRef = useRef(loadNotificationSettings);
+  loadFocusRef.current = loadFocusSettings;
+  loadNotifRef.current = loadNotificationSettings;
 
   const [autostartStatus, setAutostartStatus] =
     useState<AutostartStatus | null>(null);
@@ -47,11 +54,23 @@ export function Settings() {
   );
 
   useEffect(() => {
-    loadFocusSettings();
-    loadNotificationSettings();
-    api.getAutostartStatus().then(setAutostartStatus).catch(console.error);
-    api.getBreakSettings().then(setBreakSettings).catch(console.error);
-  }, [loadFocusSettings, loadNotificationSettings]);
+    loadFocusRef.current();
+    loadNotifRef.current();
+    api.getAutostartStatus().then(setAutostartStatus).catch((e) => {
+      console.error("Failed to load autostart status:", e);
+    });
+    api.getBreakSettings().then(setBreakSettings).catch((e) => {
+      console.error("Failed to load break settings:", e);
+      setBreakSettings({
+        enabled: false,
+        work_minutes: 50,
+        break_minutes: 10,
+        show_notification: true,
+        play_sound: false,
+      });
+      toast.error("Using default break settings");
+    });
+  }, []);
 
   const handleToggleAutostart = async (enabled: boolean) => {
     try {
@@ -64,17 +83,21 @@ export function Settings() {
       setAutostartStatus(status);
     } catch (e) {
       console.error("Autostart error:", e);
+      toast.error("Failed to update autostart setting");
     }
   };
 
   const updateBreakSettings = async (updates: Partial<BreakSettings>) => {
     if (!breakSettings) return;
+    const prev = breakSettings;
     const next = { ...breakSettings, ...updates };
     setBreakSettings(next);
     try {
       await api.setBreakSettings(next);
     } catch (e) {
       console.error("Break settings update error:", e);
+      setBreakSettings(prev);
+      toast.error("Failed to update break settings");
     }
   };
 
@@ -127,7 +150,18 @@ export function Settings() {
         return;
       }
 
-      await api.wipeAllData();
+      const confirmation = window.prompt(
+        "Type DELETE to confirm permanent data removal:",
+      );
+      if (confirmation !== "DELETE") {
+        await tauriMessage("Data deletion cancelled.", {
+          title: "Cancelled",
+          kind: "info",
+        });
+        return;
+      }
+
+      await api.wipeAllData(confirmation);
       await tauriMessage("All data has been successfully deleted.", {
         title: "Success",
         kind: "info",
@@ -719,11 +753,36 @@ export function Settings() {
                   ? "Checking…"
                   : "Check for Updates"}
               </button>
+              {updateState.status === "available" && (
+                <button
+                  onClick={() => installUpdate()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white border border-primary bg-primary hover:opacity-90 transition-colors rounded disabled:opacity-50"
+                >
+                  Install Update
+                </button>
+              )}
             </div>
           </div>
+          {updateState.status === "downloading" && (
+            <p className="text-sm p-3 rounded-lg bg-sky-500/10 text-sky-700 border border-sky-500/20">
+              Downloading update... {updateState.progress}%
+            </p>
+          )}
+          {updateState.status === "installing" && (
+            <p className="text-sm p-3 rounded-lg bg-sky-500/10 text-sky-700 border border-sky-500/20">
+              Installing update... the app will restart automatically.
+            </p>
+          )}
           {updateState.status === "error" && (
             <p className="text-sm p-3 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20">
               {updateState.message}
+            </p>
+          )}
+          {showLinuxUpdateHint && (
+            <p className="text-xs text-muted-foreground">
+              Note: In-app updates may not work for distro-managed installs. If
+              install fails, update via your Linux package manager. AppImage
+              builds typically support in-app updates.
             </p>
           )}
         </div>
