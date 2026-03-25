@@ -46,6 +46,48 @@ async function resolveIcon(iconName: string): Promise<string | null> {
   return request;
 }
 
+async function resolveFirstAvailable(candidates: string[]): Promise<string | null> {
+  for (const candidate of candidates) {
+    const normalized = candidate.trim();
+    if (!normalized) continue;
+    const resolved = await resolveIcon(normalized);
+    if (resolved) return resolved;
+  }
+  return null;
+}
+
+const ICON_ALIASES: Record<string, string[]> = {
+  zed: ["dev.zed.Zed", "dev.zed.zed", "zed"],
+  ghostty: ["com.mitchellh.ghostty", "ghostty"],
+  calculator: ["org.gnome.Calculator", "gnome-calculator", "qalculate"],
+  calculater: ["org.gnome.Calculator", "gnome-calculator", "qalculate"],
+  camera: ["org.gnome.Camera", "snapshot", "cheese"],
+  obs: ["com.obsproject.Studio", "obs-studio", "obs"],
+  "obs studio": ["com.obsproject.Studio", "obs-studio", "obs"],
+  telegram: ["telegram-desktop", "org.telegram.desktop", "telegram"],
+  files: ["org.gnome.Nautilus", "nautilus", "system-file-manager"],
+};
+
+function aliasCandidates(appName: string): string[] {
+  const key = appName.toLowerCase().trim();
+  return ICON_ALIASES[key] ?? [];
+}
+
+function iconCandidates(iconHint: string | null | undefined, appName: string): string[] {
+  const raw = [
+    iconHint ?? "",
+    ...aliasCandidates(appName),
+    appName,
+    appName.toLowerCase(),
+    appName.replace(/\s+/g, ""),
+    appName.toLowerCase().replace(/\s+/g, ""),
+    appName.split(/\s+/)[0] ?? "",
+    appName.split(/\s+/)[0]?.toLowerCase() ?? "",
+  ];
+
+  return Array.from(new Set(raw.map((v) => v.trim()).filter(Boolean)));
+}
+
 // Deterministic color for a given app name (same logic as the old COLORS array approach).
 function getColorForName(name: string): string {
   let hash = 0;
@@ -90,17 +132,18 @@ export const AppIcon = memo(function AppIcon({
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (!iconHint) return;
+    setFailed(false);
+    setIconUrl(null);
 
     let cancelled = false;
-    resolveIcon(iconHint).then((url) => {
+    resolveFirstAvailable(iconCandidates(iconHint, appName)).then((url) => {
       if (!cancelled) setIconUrl(url);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [iconHint]);
+  }, [iconHint, appName]);
 
   const bgColor = color ?? getColorForName(appName);
   const showIcon = iconUrl && !failed;
@@ -121,7 +164,7 @@ export const AppIcon = memo(function AppIcon({
       {showIcon ? (
         <img
           src={iconUrl}
-          alt={appName}
+          alt=""
           className="w-full h-full object-contain p-1"
           onError={() => setFailed(true)}
           loading="lazy"
