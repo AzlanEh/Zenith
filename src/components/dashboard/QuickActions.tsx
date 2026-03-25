@@ -1,6 +1,7 @@
 import { Play, Coffee, Shield, BarChart2 } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { api } from '../../services/api';
+import { toast } from 'sonner';
 
 export function QuickActions() {
   const setActiveTab = useAppStore(state => state.setActiveTab);
@@ -8,8 +9,10 @@ export function QuickActions() {
   const handleTakeBreak = async () => {
     try {
       await api.startBreak();
+      toast.success("Break started");
     } catch(e) {
       console.error('Failed to start break', e);
+      toast.error("Failed to start break");
     }
   };
 

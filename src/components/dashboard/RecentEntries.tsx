@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import type { AppUsage } from '../../types';
+import { AppIcon } from '../AppIcon';
 
 const COLORS = ['bg-chart-1', 'bg-chart-2', 'bg-chart-3', 'bg-chart-4', 'bg-chart-5'];
 
@@ -9,15 +10,20 @@ interface RecentEntriesProps {
   selectedDate?: string | null;
   customApps?: AppUsage[];
   isLoading?: boolean;
+  resolveAppIconHint?: (appName: string) => string | undefined;
   onClearDate?: () => void;
 }
 
-export function RecentEntries({ selectedDate, customApps, isLoading, onClearDate }: RecentEntriesProps) {
-  const { dailyStats, loadDailyStats } = useAppStore();
+export function RecentEntries({ selectedDate, customApps, isLoading, resolveAppIconHint, onClearDate }: RecentEntriesProps) {
+  const dailyStats = useAppStore(state => state.dailyStats);
+  const loadDailyStats = useAppStore(state => state.loadDailyStats);
+
+  const loadDailyStatsRef = useRef(loadDailyStats);
+  loadDailyStatsRef.current = loadDailyStats;
 
   useEffect(() => {
-    loadDailyStats();
-  }, [loadDailyStats]);
+    loadDailyStatsRef.current();
+  }, []);
 
   const apps = selectedDate && customApps 
     ? customApps 
@@ -35,6 +41,7 @@ export function RecentEntries({ selectedDate, customApps, isLoading, onClearDate
           {selectedDate && (
             <button 
               onClick={onClearDate}
+              aria-label="Clear date selection"
               className="p-1 hover:bg-secondary/80 rounded-full transition-colors flex items-center justify-center"
               title="Clear selection"
             >
@@ -70,9 +77,19 @@ export function RecentEntries({ selectedDate, customApps, isLoading, onClearDate
                 <div className={`absolute -left-[9px] top-1 size-4 rounded-full ${color} ring-4 ring-background`}></div>
                 <div className="bg-secondary/30 rounded-xl p-4 border border-border/50 hover:bg-secondary/50 transition-colors">
                   <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="text-sm font-semibold text-foreground">{app.app_name}</h4>
-                      <span className="text-xs text-muted-foreground mt-1 block">{app.category || 'Uncategorized'}</span>
+                    <div className="flex items-start gap-3">
+                      <div className="size-9 bg-background border border-border rounded-lg p-1 flex items-center justify-center shrink-0">
+                        <AppIcon
+                          appName={app.app_name}
+                          iconHint={resolveAppIconHint?.(app.app_name) ?? undefined}
+                          className="w-full h-full"
+                          shape="rounded-md"
+                        />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold text-foreground">{app.app_name}</h4>
+                        <span className="text-xs text-muted-foreground mt-1 block">{app.category || 'Uncategorized'}</span>
+                      </div>
                     </div>
                     <div className={`px-2 py-1 rounded-md bg-background border border-border text-xs font-medium ${color.replace('bg-', 'text-')}`}>
                       {durationStr}

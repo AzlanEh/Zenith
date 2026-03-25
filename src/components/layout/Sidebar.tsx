@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -16,7 +17,7 @@ interface SidebarProps {
   setCurrentPage: (page: Page) => void;
 }
 
-export function Sidebar({ isOpen, currentPage, setCurrentPage }: SidebarProps) {
+export const Sidebar = memo(function Sidebar({ isOpen, currentPage, setCurrentPage }: SidebarProps) {
   return (
     <aside
       className={cn(
@@ -155,4 +156,4 @@ export function Sidebar({ isOpen, currentPage, setCurrentPage }: SidebarProps) {
       </div>*/}
     </aside>
   );
-}
+});

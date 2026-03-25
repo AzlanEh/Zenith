@@ -1,18 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, MonitorOff, ShieldAlert, CheckCircle2, Search } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { api } from '../services/api';
 import type { InstalledApp } from '../types';
 import { AppIcon } from '../components/AppIcon';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { toast } from 'sonner';
 
 export function Limits() {
-  const { appLimits, loadAppLimits, setAppLimit } = useAppStore();
+  const appLimits = useAppStore(state => state.appLimits);
+  const loadAppLimits = useAppStore(state => state.loadAppLimits);
+  const setAppLimit = useAppStore(state => state.setAppLimit);
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedApps, setSelectedApps] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('All');
+
+  const loadAppLimitsRef = useRef(loadAppLimits);
+  loadAppLimitsRef.current = loadAppLimits;
 
   useEffect(() => {
     if (!isAddOpen) {
@@ -23,9 +29,12 @@ export function Limits() {
   }, [isAddOpen]);
 
   useEffect(() => {
-    loadAppLimits();
-    api.getInstalledApps().then(setInstalledApps).catch(console.error);
-  }, [loadAppLimits]);
+    loadAppLimitsRef.current();
+    api.getInstalledApps().then(setInstalledApps).catch((e) => {
+      console.error("Failed to load installed apps:", e);
+      toast.error("Failed to load installed apps");
+    });
+  }, []);
 
   const [downtimeEnabled, setDowntimeEnabled] = useState(true);
   const [strictMode, setStrictMode] = useState(false);
@@ -87,6 +96,7 @@ export function Limits() {
                     </div>
                     <button
                       onClick={() => setIsAddOpen(false)}
+                      aria-label="Close dialog"
                       className="text-muted-foreground hover:text-foreground transition-colors"
                     >
                       <Plus className="w-6 h-6 rotate-45" />

@@ -3,7 +3,8 @@ import { useAppStore } from '../../store/useAppStore';
 import { Sparkles, Brain } from 'lucide-react';
 
 export function AIInsights() {
-  const { dailyStats, weeklyStats } = useAppStore();
+  const dailyStats = useAppStore(state => state.dailyStats);
+  const weeklyStats = useAppStore(state => state.weeklyStats);
 
   const insights = useMemo(() => {
     const generated = [];

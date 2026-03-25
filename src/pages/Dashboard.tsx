@@ -1,41 +1,62 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ActivityRing } from "../components/dashboard/ActivityRing";
 import { AIInsights } from "../components/dashboard/AIInsights";
 import { DailyProgress } from "../components/dashboard/DailyProgress";
 import { RecentEntries } from "../components/dashboard/RecentEntries";
 import { WeeklyActivity } from "../components/dashboard/WeeklyActivity";
 import { api } from "../services/api";
-import type { AppUsage } from "../types";
+import type { AppUsage, InstalledApp } from "../types";
+import { createAppIconResolver } from "../lib/appIconLookup";
 
 export function Dashboard() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedDayApps, setSelectedDayApps] = useState<AppUsage[]>([]);
   const [isLoadingApps, setIsLoadingApps] = useState(false);
+  const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
+
+  useEffect(() => {
+    api
+      .getInstalledApps()
+      .then(setInstalledApps)
+      .catch((error) => {
+        console.error("Failed to load installed apps", error);
+      });
+  }, []);
+
+  const resolveAppIconHint = useMemo(
+    () => createAppIconResolver(installedApps),
+    [installedApps],
+  );
 
   useEffect(() => {
     if (!selectedDate) {
       setSelectedDayApps([]);
+      setIsLoadingApps(false);
       return;
     }
 
-    async function loadDayApps() {
-      setIsLoadingApps(true);
-      try {
-        const data = await api.getHistoricalData(selectedDate!, selectedDate!);
-        setSelectedDayApps(
-          data.app_usage
-            .sort((a, b) => b.duration_seconds - a.duration_seconds)
-            .slice(0, 6),
-        );
-      } catch (error) {
-        console.error("Failed to load historical data for day", error);
-        setSelectedDayApps([]);
-      } finally {
-        setIsLoadingApps(false);
-      }
-    }
+    let cancelled = false;
+    setIsLoadingApps(true);
 
-    loadDayApps();
+    api.getHistoricalData(selectedDate, selectedDate)
+      .then((data) => {
+        if (!cancelled) {
+          setSelectedDayApps(
+            data.app_usage
+              .sort((a, b) => b.duration_seconds - a.duration_seconds)
+              .slice(0, 6),
+          );
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load historical data for day", error);
+        if (!cancelled) setSelectedDayApps([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingApps(false);
+      });
+
+    return () => { cancelled = true; };
   }, [selectedDate]);
 
   return (
@@ -59,6 +80,7 @@ export function Dashboard() {
           selectedDate={selectedDate} 
           customApps={selectedDayApps} 
           isLoading={isLoadingApps} 
+          resolveAppIconHint={resolveAppIconHint}
           onClearDate={() => setSelectedDate(null)}
         />
       </div>

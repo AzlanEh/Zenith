@@ -1,25 +1,27 @@
 import { useAppStore } from "../../store/useAppStore";
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { formatTime } from "../../lib/utils";
 
 export function WeeklyActivity({ onDayClick }: { onDayClick?: (date: string) => void }) {
-  const { weeklyStats, loadWeeklyStats } = useAppStore();
+  const weeklyStats = useAppStore(state => state.weeklyStats);
+  const loadWeeklyStats = useAppStore(state => state.loadWeeklyStats);
+
+  const loadWeeklyStatsRef = useRef(loadWeeklyStats);
+  loadWeeklyStatsRef.current = loadWeeklyStats;
   
   useEffect(() => {
-    loadWeeklyStats();
-  }, [loadWeeklyStats]);
+    loadWeeklyStatsRef.current();
+  }, []);
   
   const chartData = useMemo(() => {
     if (!weeklyStats || !weeklyStats.days) return [];
     
-    // Create an array of the last 7 days including today
     const days = [];
     let hasAnyData = false;
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      // Format as local YYYY-MM-DD
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
@@ -36,8 +38,6 @@ export function WeeklyActivity({ onDayClick }: { onDayClick?: (date: string) => 
       });
     }
 
-    // Fallback: If local dates didn't match anything (e.g. older mock data),
-    // use the most recent up to 7 items from the provided stats.
     if (!hasAnyData && weeklyStats.days.length > 0) {
       return weeklyStats.days.slice(-7).map(stat => {
         const d = new Date(stat.date);
@@ -114,12 +114,11 @@ export function WeeklyActivity({ onDayClick }: { onDayClick?: (date: string) => 
                 return null;
               }}
             />
-            <Bar dataKey="hours" radius={[4, 4, 0, 0]} maxBarSize={40} minPointSize={4}>
-              {chartData.map((entry, index) => (
+            <Bar dataKey="hours" radius={[4, 4, 0, 0]} maxBarSize={40} minPointSize={4} onClick={(data) => onDayClick?.(data.fullDate)}>
+              {chartData.map((_, index) => (
                 <Cell 
                   key={`cell-${index}`} 
                   fill=""
-                  onClick={() => onDayClick?.(entry.fullDate)}
                   className={`fill-current transition-all duration-500 cursor-pointer ${
                     index === chartData.length - 1 
                       ? "text-primary" 

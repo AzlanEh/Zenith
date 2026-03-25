@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api } from '../../services/api';
 import type { GoalProgress } from '../../types';
 import { Target, AlertCircle } from 'lucide-react';
@@ -6,6 +6,11 @@ import { Target, AlertCircle } from 'lucide-react';
 export function DailyProgress() {
   const [progressItems, setProgressItems] = useState<GoalProgress[]>([]);
   const [loading, setLoading] = useState(true);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     loadGoals();
@@ -15,11 +20,11 @@ export function DailyProgress() {
     try {
       setLoading(true);
       const goals = await api.getGoalsProgress();
-      setProgressItems(goals);
+      if (mountedRef.current) setProgressItems(goals);
     } catch (e) {
       console.error('Failed to load goals progress', e);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   };
 
@@ -70,10 +75,9 @@ export function DailyProgress() {
               return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
             };
 
-            const isLimit = 'daily_limit' in item.goal_type || 'app_limit' in item.goal_type || 'category_limit' in item.goal_type;
-            const progress = isLimit 
+            const progress = item.target_minutes > 0
               ? Math.min(100, (item.current_minutes / item.target_minutes) * 100)
-              : Math.min(100, (item.current_minutes / item.target_minutes) * 100);
+              : 0;
 
             return (
               <div key={item.goal_id} className="space-y-2 group">

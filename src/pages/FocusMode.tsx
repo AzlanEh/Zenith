@@ -20,6 +20,7 @@ export function FocusMode() {
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [isManageOpen, setIsManageOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Local state for modal settings
   const [localFocusMin, setLocalFocusMin] = useState(25);
@@ -43,6 +44,7 @@ export function FocusMode() {
 
   const loadData = async () => {
     try {
+      setIsLoading(true);
       const [settingsData, appsData] = await Promise.all([
         api.getFocusSettings(),
         api.getInstalledApps()
@@ -50,18 +52,17 @@ export function FocusMode() {
       setSettings(settingsData);
       setInstalledApps(appsData);
 
-      // Sync the timer to the user's default duration if it's currently stopped
-      // and hasn't been manually adjusted away from the store's default initialization
       if (!useAppStore.getState().isFocusActive) {
         const storeTime = useAppStore.getState().focusTimeLeft;
-        // Optional: only overwrite if it's the exact 25 min default or previous default,
-        // but for now, just sync it when they first load the page if it's not active
         if (storeTime === 25 * 60 || storeTime === settingsData.default_duration_minutes * 60) {
            setFocusTimeLeft(settingsData.default_duration_minutes * 60);
         }
       }
     } catch (e) {
       console.error(e);
+      toast.error("Failed to load focus settings");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -69,8 +70,10 @@ export function FocusMode() {
     try {
       await api.addFocusBlockedApp(appName);
       await loadData();
+      toast.success(`${appName} added to blocklist`);
     } catch (e) {
       console.error("Failed to block app", e);
+      toast.error("Failed to add app to blocklist");
     }
   };
 
@@ -78,8 +81,10 @@ export function FocusMode() {
     try {
       await api.removeFocusBlockedApp(appName);
       await loadData();
+      toast.success(`${appName} removed from blocklist`);
     } catch (e) {
       console.error("Failed to unblock app", e);
+      toast.error("Failed to remove app from blocklist");
     }
   };
 
@@ -110,6 +115,14 @@ export function FocusMode() {
   
   // Available to block
   const availableApps = installedApps.filter(app => !blockedAppsList.includes(app.name));
+
+  if (isLoading) {
+    return (
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto h-[calc(100vh-100px)] pb-12 w-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto h-[calc(100vh-100px)] pb-12 w-full">
@@ -162,6 +175,7 @@ export function FocusMode() {
                   </button>
                   <button 
                     onClick={resetFocusTimer}
+                    aria-label="Reset timer"
                     className="size-14 border border-border bg-background hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center rounded-xl"
                   >
                     <Square className="w-5 h-5 fill-current" />
@@ -189,6 +203,7 @@ export function FocusMode() {
                           </div>
                           <button
                               onClick={() => setIsSettingsOpen(false)}
+                              aria-label="Close settings"
                               className="p-2 hover:bg-secondary transition-colors rounded-lg text-muted-foreground hover:text-foreground"
                           >
                               <span className="material-symbols-outlined text-2xl">close</span>
@@ -417,6 +432,7 @@ export function FocusMode() {
                     <button 
                       onClick={() => handleRemoveBlockedApp(appName)}
                       disabled={isFocusActive}
+                      aria-label={`Remove ${appName} from blocklist`}
                       className="text-muted-foreground hover:text-chart-4 disabled:opacity-50 transition-colors"
                     >
                       <span className="material-symbols-outlined text-sm">close</span>

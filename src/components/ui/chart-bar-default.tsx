@@ -42,7 +42,7 @@ const THEME_COLORS = {
 }
 
 function useChartColors() {
-  const { theme: systemTheme } = useAppStore()
+  const systemTheme = useAppStore(state => state.theme)
   const [colors, setColors] = useState(THEME_COLORS.dark)
 
   useEffect(() => {

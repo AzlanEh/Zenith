@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { Loader2 } from 'lucide-react';
 
@@ -7,42 +7,50 @@ const ICONS = ['bolt', 'language', 'chat', 'public', 'apps'];
 
 export function ActivityRing() {
   const [mounted, setMounted] = useState(false);
-  const { dailyStats, loadDailyStats, loading } = useAppStore();
+  const dailyStats = useAppStore(state => state.dailyStats);
+  const loadDailyStats = useAppStore(state => state.loadDailyStats);
+  const isLoadingDailyStats = useAppStore(state => state.loading.dailyStats);
+
+  const loadDailyStatsRef = useRef(loadDailyStats);
+  loadDailyStatsRef.current = loadDailyStats;
 
   useEffect(() => {
     setMounted(true);
-    loadDailyStats();
-  }, [loadDailyStats]);
+    loadDailyStatsRef.current();
+  }, []);
 
-  // Transform backend daily stats into top 3 metrics
-  const apps = dailyStats?.apps ? [...dailyStats.apps].sort((a, b) => b.duration_seconds - a.duration_seconds).slice(0, 3) : [];
+  const apps = useMemo(() => {
+    return dailyStats?.apps
+      ? [...dailyStats.apps].sort((a, b) => b.duration_seconds - a.duration_seconds).slice(0, 3)
+      : [];
+  }, [dailyStats]);
   
-  // Provide fallbacks if no data
-  const activityMetrics = apps.length > 0 ? apps.map((app, idx) => {
-    const hours = app.duration_seconds / 3600;
-    const isHours = hours >= 1;
-    const valueStr = isHours 
-      ? `${Math.floor(hours)}h ${Math.floor((app.duration_seconds % 3600) / 60)}m`
-      : `${Math.floor(app.duration_seconds / 60)}m`;
+  const activityMetrics = useMemo(() => {
+    return apps.length > 0 ? apps.map((app, idx) => {
+      const hours = app.duration_seconds / 3600;
+      const isHours = hours >= 1;
+      const valueStr = isHours 
+        ? `${Math.floor(hours)}h ${Math.floor((app.duration_seconds % 3600) / 60)}m`
+        : `${Math.floor(app.duration_seconds / 60)}m`;
 
-    return {
-      label: app.app_name,
-      value: valueStr,
-      max: Math.max(8, Math.ceil(hours + 2)), // Dynamic goal based on usage
-      current: hours,
-      color: COLORS[idx % COLORS.length],
-      icon: ICONS[idx % ICONS.length],
-    };
-  }) : [
-    { label: 'No Data Yet', value: '0m', max: 8, current: 0, color: 'text-chart-1', icon: 'hourglass_empty' }
-  ];
+      return {
+        label: app.app_name,
+        value: valueStr,
+        max: Math.max(8, Math.ceil(hours + 2)),
+        current: hours,
+        color: COLORS[idx % COLORS.length],
+        icon: ICONS[idx % ICONS.length],
+      };
+    }) : [
+      { label: 'No Data Yet', value: '0m', max: 8, current: 0, color: 'text-chart-1', icon: 'hourglass_empty' }
+    ];
+  }, [apps]);
 
   const totalSeconds = dailyStats?.total_seconds || 0;
   const totalHours = totalSeconds / 3600;
-  // Calculate percentage based on a nominal 8-hour workday target
   const overallPercentage = Math.min(100, Math.round((totalHours / 8) * 100));
 
-  if (loading.dailyStats && !dailyStats) {
+  if (isLoadingDailyStats && !dailyStats) {
     return (
       <div className="glass-panel rounded-lg p-6 lg:p-8 flex flex-col xl:flex-row gap-8 items-center justify-center min-h-[300px]">
         <Loader2 className="w-8 h-8 text-primary animate-spin" />
@@ -54,15 +62,13 @@ export function ActivityRing() {
     <div className="glass-panel rounded-lg p-6 lg:p-8 flex flex-col xl:flex-row gap-8 items-center justify-between">
       <div className="relative size-64 xl:size-72 flex-shrink-0">
         <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
-          {/* Background tracks */}
           <circle cx="50" cy="50" r="42" fill="none" className="stroke-secondary" strokeWidth="6" />
           <circle cx="50" cy="50" r="32" fill="none" className="stroke-secondary" strokeWidth="6" />
           <circle cx="50" cy="50" r="22" fill="none" className="stroke-secondary" strokeWidth="6" />
           
-          {/* Progress rings - with animation */}
           {activityMetrics.map((metric, idx) => {
             const r = 42 - (idx * 10);
-            if (r < 10) return null; // Safety check
+            if (r < 10) return null;
             const c = 2 * Math.PI * r;
             const percentage = Math.min(1, metric.current / metric.max);
             const dashoffset = c - (percentage * c);

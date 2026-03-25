@@ -1,22 +1,44 @@
 import { useAppStore } from "../store/useAppStore";
 import { formatTime } from "../lib/utils";
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useRef, useState } from "react";
+import { api } from "../services/api";
+import type { InstalledApp } from "../types";
+import { AppIcon } from "../components/AppIcon";
+import { createAppIconResolver } from "../lib/appIconLookup";
 
 export function Analytics() {
-  const {
-    weeklyStats,
-    dailyStats,
-    weeklyHourlyUsage,
-    loadWeeklyStats,
-    loadDailyStats,
-    loadWeeklyHourlyUsage,
-  } = useAppStore();
+  const weeklyStats = useAppStore(state => state.weeklyStats);
+  const dailyStats = useAppStore(state => state.dailyStats);
+  const weeklyHourlyUsage = useAppStore(state => state.weeklyHourlyUsage);
+  const loadWeeklyStats = useAppStore(state => state.loadWeeklyStats);
+  const loadDailyStats = useAppStore(state => state.loadDailyStats);
+  const loadWeeklyHourlyUsage = useAppStore(state => state.loadWeeklyHourlyUsage);
+  const [isLoading, setIsLoading] = useState(true);
+  const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
+
+  const loadWeeklyStatsRef = useRef(loadWeeklyStats);
+  const loadDailyStatsRef = useRef(loadDailyStats);
+  const loadWeeklyHourlyUsageRef = useRef(loadWeeklyHourlyUsage);
+  loadWeeklyStatsRef.current = loadWeeklyStats;
+  loadDailyStatsRef.current = loadDailyStats;
+  loadWeeklyHourlyUsageRef.current = loadWeeklyHourlyUsage;
 
   useEffect(() => {
-    loadWeeklyStats();
-    loadDailyStats();
-    loadWeeklyHourlyUsage();
-  }, [loadWeeklyStats, loadDailyStats, loadWeeklyHourlyUsage]);
+    api.getInstalledApps().then(setInstalledApps).catch((error) => {
+      console.error("Failed to load installed apps", error);
+    });
+
+    Promise.all([
+      loadWeeklyStatsRef.current(),
+      loadDailyStatsRef.current(),
+      loadWeeklyHourlyUsageRef.current(),
+    ]).finally(() => setIsLoading(false));
+  }, []);
+
+  const resolveAppIconHint = useMemo(
+    () => createAppIconResolver(installedApps),
+    [installedApps],
+  );
 
   const avgDailyUse = useMemo(() => {
     if (!weeklyStats || weeklyStats.days.length === 0) return 0;
@@ -41,6 +63,14 @@ export function Analytics() {
     return days;
   }, []);
 
+  const hourlyLookup = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const h of weeklyHourlyUsage) {
+      map.set(`${h.date}-${h.hour}`, h.total_seconds);
+    }
+    return map;
+  }, [weeklyHourlyUsage]);
+
   const sortedApps = useMemo(() => {
     if (!dailyStats) return [];
     return [...dailyStats.apps].sort(
@@ -56,6 +86,22 @@ export function Analytics() {
     if (!dailyStats) return 0;
     return dailyStats.apps.reduce((sum, app) => sum + app.session_count, 0);
   }, [dailyStats]);
+
+  const colors = useMemo(() => [
+    "bg-chart-1",
+    "bg-chart-2",
+    "bg-chart-3",
+    "bg-chart-4",
+    "bg-chart-5",
+  ], []);
+
+  if (isLoading) {
+    return (
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto flex flex-col gap-6 pb-20 w-full items-center justify-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto flex flex-col gap-6 pb-20 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -177,10 +223,7 @@ export function Analytics() {
                         }}
                       >
                         {Array.from({ length: 48 }).map((_, hIdx) => {
-                          const data = weeklyHourlyUsage.find(
-                            (h) => h.date === dateStr && h.hour === hIdx,
-                          );
-                          const seconds = data ? data.total_seconds : 0;
+                          const seconds = hourlyLookup.get(`${dateStr}-${hIdx}`) ?? 0;
 
                           let bgClass = "bg-secondary";
                           if (seconds > 0) {
@@ -191,7 +234,6 @@ export function Analytics() {
                             else bgClass = "bg-chart-1";
                           }
 
-                          // Calculate the display time
                           const hour = Math.floor(hIdx / 2);
                           const minutes = hIdx % 2 === 0 ? "00" : "30";
                           const timeStr = `${hour}:${minutes}`;
@@ -226,13 +268,6 @@ export function Analytics() {
               </div>
             ) : (
               mostDistracting.map((app, i) => {
-                const colors = [
-                  "bg-chart-1",
-                  "bg-chart-2",
-                  "bg-chart-3",
-                  "bg-chart-4",
-                  "bg-chart-5",
-                ];
                 const color = colors[i % colors.length];
                 const width = dailyStats?.total_seconds
                   ? `${(app.duration_seconds / dailyStats.total_seconds) * 100}%`
@@ -310,8 +345,13 @@ export function Analytics() {
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="size-8 bg-secondary rounded-lg flex items-center justify-center text-sm font-bold text-foreground border border-border shadow-sm">
-                            {app.app_name.charAt(0).toUpperCase()}
+                          <div className="size-8 bg-secondary rounded-lg border border-border shadow-sm p-1 flex items-center justify-center">
+                            <AppIcon
+                              appName={app.app_name}
+                              iconHint={resolveAppIconHint(app.app_name)}
+                              className="w-full h-full"
+                              shape="rounded-md"
+                            />
                           </div>
                           <span className="font-medium text-foreground">
                             {app.app_name}
