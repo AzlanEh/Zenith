@@ -36,6 +36,10 @@ Please be respectful and constructive in all interactions. We aim to create a we
 
 ## Development Workflow
 
+### Releasing
+
+For production release steps (tagging, required secrets, signed artifacts, checksums, SBOM, and rollback), see `docs/RELEASING.md`.
+
 ### Branch Naming
 
 Use descriptive branch names:

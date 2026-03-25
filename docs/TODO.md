@@ -347,12 +347,12 @@ This document tracks planned improvements for the Digital Wellbeing application.
 
 ### 39. [x] Improve Documentation
 - ✅ Comprehensive README with features, installation, usage
-- ✅ Contributing guidelines (CONTRIBUTING.md)
+- ✅ Contributing guidelines (docs/CONTRIBUTING.md)
 - ✅ Architecture documentation in README
 - ✅ API documentation (inline and service layer)
 - **Files:**
   - `README.md` - Full project documentation
-  - `CONTRIBUTING.md` - Contributor guidelines
+  - `docs/CONTRIBUTING.md` - Contributor guidelines
 
 ---
 
