@@ -4,13 +4,57 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  quality-gates:
+    name: Release Quality Gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Frontend checks
+        run: npm run lint && npm run typecheck && npm run test:run
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Frontend E2E tests
+        run: npm run test:e2e
+
+      - name: Frontend production dependency audit
+        run: npm run audit:prod
+
+      - name: Rust tests
+        working-directory: src-tauri
+        run: cargo test --all-features
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Rust dependency audit
+        working-directory: src-tauri
+        run: cargo audit
+
   create-release:
     name: Create Release
+    needs: quality-gates
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -105,6 +149,15 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Fail when signing secrets are missing
+        run: |
+          test -n "$TAURI_SIGNING_PRIVATE_KEY" || (echo "Missing TAURI_SIGNING_PRIVATE_KEY" && exit 1)
+          test -n "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" || (echo "Missing TAURI_SIGNING_PRIVATE_KEY_PASSWORD" && exit 1)
+          echo "TAURI signing secrets detected."
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
@@ -172,6 +225,34 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p release-assets
+          gh release download "v${{ needs.create-release.outputs.version }}" --dir release-assets
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd release-assets
+          sha256sum * > SHA256SUMS.txt
+
+      - name: Install Syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Generate SBOM (SPDX JSON)
+        run: syft dir:. -o spdx-json=sbom.spdx.json
+
+      - name: Upload integrity artifacts to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "v${{ needs.create-release.outputs.version }}" release-assets/SHA256SUMS.txt sbom.spdx.json --clobber
+
       - name: Publish release
         uses: actions/github-script@v7
         with:
