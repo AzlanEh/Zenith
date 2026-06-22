@@ -1,12 +1,12 @@
 [package]
-name = "wellbeing"
+name = "zenith"
 version = "0.1.5"
-description = "Digital Wellbeing desktop app"
+description = "A high-fidelity digital wellbeing platform for reclaiming cognitive sovereignty."
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "wellbeing_lib"
+name = "zenith_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

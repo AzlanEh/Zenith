@@ -265,9 +265,9 @@ static APP_MAPPINGS: Lazy<Vec<AppMapping>> = Lazy::new(|| {
         },
         // Our app
         AppMapping {
-            exact: Some("wellbeing"),
+            exact: Some("zenith"),
             contains: None,
-            display_name: "Digital Wellbeing",
+            display_name: "Zenith",
         },
         // Development Tools
         AppMapping {
@@ -508,9 +508,9 @@ pub fn extract_app_name(window_name: &str) -> Option<String> {
         return Some("Visual Studio Code".to_string());
     }
 
-    // Special case for Digital Wellbeing (check window title)
-    if window_name.contains("Digital Wellbeing") {
-        return Some("Digital Wellbeing".to_string());
+    // Special case for Zenith (check window title)
+    if window_name.contains("Zenith") {
+        return Some("Zenith".to_string());
     }
 
     // Handle Wayland reverse-DNS class names (e.g. "com.mitchellh.ghostty", "org.gnome.Nautilus")
@@ -636,17 +636,14 @@ mod tests {
     #[test]
     fn test_extract_app_name_vscode_window_title() {
         assert_eq!(
-            extract_app_name("main.rs - Wellbeing - Code"),
+            extract_app_name("main.rs - Zenith - Code"),
             Some("Visual Studio Code".to_string())
         );
     }
 
     #[test]
-    fn test_extract_app_name_digital_wellbeing() {
-        assert_eq!(
-            extract_app_name("Digital Wellbeing"),
-            Some("Digital Wellbeing".to_string())
-        );
+    fn test_extract_app_name_zenith() {
+        assert_eq!(extract_app_name("Zenith"), Some("Zenith".to_string()));
     }
 
     #[test]

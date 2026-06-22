@@ -8,8 +8,8 @@ fn main() {
 
     // Check for --background flag for headless mode
     if args.contains(&"--background".to_string()) || args.contains(&"-b".to_string()) {
-        wellbeing_lib::run_background();
+        zenith_lib::run_background();
     } else {
-        wellbeing_lib::run();
+        zenith_lib::run();
     }
 }

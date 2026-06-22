@@ -5376,34 +5376,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wellbeing"
-version = "0.1.5"
-dependencies = [
- "active-win-pos-rs",
- "chrono",
- "dirs 5.0.1",
- "once_cell",
- "rusqlite",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-notification",
- "tauri-plugin-opener",
- "tauri-plugin-process",
- "tauri-plugin-updater",
- "thiserror 2.0.17",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "urlencoding",
- "user-idle",
- "winreg",
-]
-
-[[package]]
 name = "which"
 version = "4.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6133,6 +6105,34 @@ dependencies = [
  "serde",
  "winnow 0.7.14",
  "zvariant",
+]
+
+[[package]]
+name = "zenith"
+version = "0.1.5"
+dependencies = [
+ "active-win-pos-rs",
+ "chrono",
+ "dirs 5.0.1",
+ "once_cell",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-notification",
+ "tauri-plugin-opener",
+ "tauri-plugin-process",
+ "tauri-plugin-updater",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "urlencoding",
+ "user-idle",
+ "winreg",
 ]
 
 [[package]]

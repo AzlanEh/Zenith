@@ -1,6 +1,8 @@
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 #[cfg(target_os = "linux")]
 use std::collections::VecDeque;
@@ -353,8 +355,22 @@ fn resolve_icon_path_windows(icon: &str) -> Option<String> {
     }
 }
 
-/// Get all installed applications (cross-platform)
+/// Cached installed apps — scanned once, served forever.
+static INSTALLED_APPS_CACHE: Lazy<Mutex<Option<Vec<InstalledApp>>>> =
+    Lazy::new(|| Mutex::new(None));
+
+/// Get all installed applications (cross-platform), cached after first call.
 pub fn get_installed_apps() -> Vec<InstalledApp> {
+    let mut cache = INSTALLED_APPS_CACHE.lock().unwrap();
+    if let Some(ref cached) = *cache {
+        return cached.clone();
+    }
+    let apps = scan_installed_apps();
+    *cache = Some(apps.clone());
+    apps
+}
+
+fn scan_installed_apps() -> Vec<InstalledApp> {
     #[cfg(target_os = "linux")]
     {
         get_installed_apps_linux()

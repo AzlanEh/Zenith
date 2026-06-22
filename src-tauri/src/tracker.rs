@@ -171,6 +171,18 @@ impl UsageTracker {
     }
 
     pub async fn start_tracking(self: Arc<Self>) {
+        // Clean up orphaned in-progress sessions from previous crashes
+        // Sessions stuck in (duration_seconds=0, end_time=start_time) for > 15s are orphaned
+        {
+            let db = self.db.lock().await;
+            let deleted = db
+                .cleanup_orphaned_sessions((SESSION_FLUSH_INTERVAL as i64) * 3)
+                .unwrap_or(0);
+            if deleted > 0 {
+                tracing::info!(count = deleted, "Cleaned up orphaned in-progress sessions");
+            }
+        }
+
         let mut ticker = interval(Duration::from_secs(1));
         let mut limit_check_counter: u32 = 0;
 
@@ -340,7 +352,7 @@ impl UsageTracker {
 
         // Check if the current app should be blocked
         if let Some(ref app) = app_name {
-            if app != "Digital Wellbeing" && app != "limit-popup" {
+            if app != "Zenith" && app != "limit-popup" {
                 let db = self.db.lock().await;
                 let is_blocked = db.is_app_blocked(app).unwrap_or(false);
                 drop(db); // Release lock before further operations
@@ -386,7 +398,7 @@ impl UsageTracker {
             // Start new session if we have an app
             if let Some(ref app) = app_name {
                 // Skip tracking our own app
-                if app != "Digital Wellbeing" {
+                if app != "Zenith" {
                     let db = self.db.lock().await;
                     match db.get_or_create_app(app, None) {
                         Ok(app_id) => match db.start_session(app_id, now) {

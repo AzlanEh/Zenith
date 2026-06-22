@@ -46,7 +46,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     let _tray = TrayIconBuilder::new()
         .icon(window_icon)
         .menu(&menu)
-        .tooltip("Digital Wellbeing")
+        .tooltip("Zenith")
         .on_menu_event(|app, event| match event.id.as_ref() {
             "show" => {
                 if let Some(window) = app.get_webview_window("main") {

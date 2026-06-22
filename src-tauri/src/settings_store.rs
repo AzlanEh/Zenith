@@ -9,7 +9,7 @@ use std::fs;
 use std::path::PathBuf;
 
 #[cfg(not(test))]
-const APP_DIR: &str = "wellbeing";
+const APP_DIR: &str = "zenith";
 #[cfg(not(test))]
 const SETTINGS_DIR: &str = "settings";
 #[cfg(not(test))]

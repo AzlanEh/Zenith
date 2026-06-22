@@ -19,7 +19,7 @@ pub fn send_notification_with_urgency(title: &str, body: &str, urgency: &str) ->
     {
         let result = Command::new("notify-send")
             .args([
-                "--app-name=Digital Wellbeing",
+                "--app-name=Zenith",
                 &format!("--urgency={}", urgency),
                 "--icon=dialog-information",
                 title,

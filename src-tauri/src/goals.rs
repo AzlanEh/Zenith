@@ -175,8 +175,64 @@ impl GoalsState {
             .map(|a| (a.id.clone(), a))
             .collect();
 
+        let today = Local::now().format("%Y-%m-%d").to_string();
+
         Self {
-            goals: vec![],
+            goals: vec![
+                Goal {
+                    id: "default-daily-screen".to_string(),
+                    name: "Daily Screen Time".to_string(),
+                    goal_type: GoalType::DailyLimit,
+                    target_minutes: 240,
+                    days: vec![1, 2, 3, 4, 5],
+                    enabled: true,
+                    created_at: today.clone(),
+                },
+                Goal {
+                    id: "default-deep-work".to_string(),
+                    name: "Deep Work".to_string(),
+                    goal_type: GoalType::MinimumProductive {
+                        category: "Development".to_string(),
+                    },
+                    target_minutes: 120,
+                    days: vec![1, 2, 3, 4, 5],
+                    enabled: true,
+                    created_at: today.clone(),
+                },
+                Goal {
+                    id: "default-entertainment".to_string(),
+                    name: "Entertainment Limit".to_string(),
+                    goal_type: GoalType::CategoryLimit {
+                        category: "Entertainment".to_string(),
+                    },
+                    target_minutes: 60,
+                    days: vec![1, 2, 3, 4, 5],
+                    enabled: true,
+                    created_at: today.clone(),
+                },
+                Goal {
+                    id: "default-gaming".to_string(),
+                    name: "Gaming Limit".to_string(),
+                    goal_type: GoalType::CategoryLimit {
+                        category: "Gaming".to_string(),
+                    },
+                    target_minutes: 30,
+                    days: vec![1, 2, 3, 4, 5],
+                    enabled: true,
+                    created_at: today.clone(),
+                },
+                Goal {
+                    id: "default-browsing".to_string(),
+                    name: "Browsing Limit".to_string(),
+                    goal_type: GoalType::CategoryLimit {
+                        category: "Browsing".to_string(),
+                    },
+                    target_minutes: 120,
+                    days: vec![1, 2, 3, 4, 5],
+                    enabled: true,
+                    created_at: today,
+                },
+            ],
             achievements,
             current_streak: 0,
             longest_streak: 0,
@@ -187,13 +243,11 @@ impl GoalsState {
 
     /// Add a new goal
     pub fn add_goal(&mut self, goal: Goal) {
-        // Check for first goal achievement
-        if self.goals.is_empty() {
-            if let Some(achievement) = self.achievements.get_mut("first_goal") {
+        // Check for first goal achievement (first user-added goal, after defaults)
+        if let Some(achievement) = self.achievements.get_mut("first_goal") {
+            if achievement.earned_at.is_none() {
                 achievement.progress = 1;
-                if achievement.earned_at.is_none() {
-                    achievement.earned_at = Some(Local::now().format("%Y-%m-%d").to_string());
-                }
+                achievement.earned_at = Some(Local::now().format("%Y-%m-%d").to_string());
             }
         }
         self.goals.push(goal);

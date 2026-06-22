@@ -304,7 +304,7 @@ fn resolve_app_icon(icon_name: String) -> CmdResult<Option<String>> {
 #[tauri::command]
 fn send_test_notification() -> CmdResult<()> {
     if notifications::send_notification(
-        "Digital Wellbeing",
+        "Zenith",
         "Notifications are working! You will receive alerts when approaching or exceeding app limits.",
     ) {
         Ok(())
@@ -489,6 +489,15 @@ async fn export_usage_data(
 
     let db = state.db.lock().await;
     Ok(db.export_usage_data(start_timestamp, end_timestamp)?)
+}
+
+#[tauri::command]
+async fn import_usage_data(
+    state: State<'_, AppState>,
+    records: Vec<ExportRecord>,
+) -> CmdResult<i64> {
+    let mut db = state.db.lock().await;
+    Ok(db.import_usage_data(&records)?)
 }
 
 #[tauri::command]
@@ -953,12 +962,12 @@ pub fn run_background() {
         )
         .init();
 
-    tracing::info!("Starting Digital Wellbeing in background mode...");
+    tracing::info!("Starting Zenith in background mode...");
 
     let db_path = dirs::data_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("wellbeing")
-        .join("wellbeing.db");
+        .join("zenith")
+        .join("zenith.db");
 
     if let Some(parent) = db_path.parent() {
         if let Err(e) = std::fs::create_dir_all(parent) {
@@ -1059,8 +1068,8 @@ pub fn run() {
 
     let db_path = dirs::data_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join("wellbeing")
-        .join("wellbeing.db");
+        .join("zenith")
+        .join("zenith.db");
 
     if let Some(parent) = db_path.parent() {
         if let Err(e) = std::fs::create_dir_all(parent) {
@@ -1295,6 +1304,7 @@ pub fn run() {
             save_export_file,
             get_storage_stats,
             export_usage_data,
+            import_usage_data,
             format_export_csv,
             format_export_json,
             get_historical_data,
@@ -1616,6 +1626,7 @@ mod tests {
         assert!(!emergency_access.has_active_access("Firefox").await);
 
         let goals_guard = state.goals_state.lock().await;
-        assert!(goals_guard.goals.is_empty());
+        assert_eq!(goals_guard.goals.len(), 5);
+        assert!(!goals_guard.goals.iter().any(|g| g.id == "goal-1"));
     }
 }

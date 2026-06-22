@@ -69,6 +69,35 @@ pub struct Database {
     conn: Connection,
 }
 
+fn categorize_app(name: &str) -> Option<&'static str> {
+    match name {
+        "Visual Studio Code" | "VSCodium" | "Zed" | "Cursor" | "OpenCode" | "Notepad++"
+        | "Sublime Text" => Some("Development"),
+        "Alacritty" | "kitty" | "Ghostty" | "Foot" | "WezTerm" | "Terminal"
+        | "Windows Terminal" | "Command Prompt" | "PowerShell" => Some("Development"),
+        "Firefox" | "Chrome" | "Chromium" | "Brave" | "Zen Browser" | "Microsoft Edge" => {
+            Some("Browsing")
+        }
+        "Discord" | "Slack" | "Telegram" | "Thunderbird" | "Microsoft Teams" | "Outlook" => {
+            Some("Communication")
+        }
+        "Spotify" | "VLC" => Some("Entertainment"),
+        "Steam" => Some("Gaming"),
+        "Obsidian"
+        | "LibreOffice"
+        | "Notion"
+        | "Microsoft Word"
+        | "Microsoft Excel"
+        | "Microsoft PowerPoint"
+        | "GIMP"
+        | "Inkscape"
+        | "Blender"
+        | "Photoshop" => Some("Productivity"),
+        "Files" | "Thunar" | "Dolphin" | "File Explorer" => Some("Utilities"),
+        _ => None,
+    }
+}
+
 impl Database {
     pub fn new(db_path: PathBuf) -> SqliteResult<Self> {
         let conn = Connection::open(db_path)?;
@@ -90,6 +119,7 @@ impl Database {
         db.init_schema()?;
         db.run_migrations()?;
         db.ensure_schema_columns()?;
+        db.auto_categorize_uncategorized()?;
         Ok(db)
     }
 
@@ -191,20 +221,46 @@ impl Database {
     }
 
     pub fn get_or_create_app(&self, name: &str, path: Option<String>) -> SqliteResult<i64> {
-        if let Ok(row) = self
-            .conn
-            .query_row("SELECT id FROM apps WHERE name = ?1", [name], |row| {
-                row.get(0)
-            })
-        {
-            return Ok(row);
+        if let Ok((id, category)) = self.conn.query_row(
+            "SELECT id, category FROM apps WHERE name = ?1",
+            [name],
+            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Option<String>>(1)?)),
+        ) {
+            if category.is_none() {
+                if let Some(cat) = categorize_app(name) {
+                    self.conn.execute(
+                        "UPDATE apps SET category = ?1 WHERE id = ?2",
+                        rusqlite::params![cat, id],
+                    )?;
+                }
+            }
+            return Ok(id);
         }
 
+        let category = categorize_app(name);
         self.conn.execute(
-            "INSERT INTO apps (name, path) VALUES (?1, ?2)",
-            [name, &path.unwrap_or_default()],
+            "INSERT INTO apps (name, path, category) VALUES (?1, ?2, ?3)",
+            rusqlite::params![name, &path.unwrap_or_default(), category],
         )?;
         Ok(self.conn.last_insert_rowid())
+    }
+
+    fn auto_categorize_uncategorized(&self) -> SqliteResult<()> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, name FROM apps WHERE category IS NULL")?;
+        let rows: Vec<(i64, String)> = stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<Result<Vec<_>, _>>()?;
+        for (id, name) in rows {
+            if let Some(cat) = categorize_app(&name) {
+                self.conn.execute(
+                    "UPDATE apps SET category = ?1 WHERE id = ?2",
+                    rusqlite::params![cat, id],
+                )?;
+            }
+        }
+        Ok(())
     }
 
     /// Records a usage session atomically using a transaction.
@@ -241,6 +297,14 @@ impl Database {
         )?;
 
         tx.commit()
+    }
+
+    pub fn cleanup_orphaned_sessions(&self, max_age_seconds: i64) -> SqliteResult<usize> {
+        let rows = self.conn.execute(
+            "DELETE FROM usage_sessions WHERE duration_seconds = 0 AND end_time = start_time AND start_time < strftime('%s','now') - ?1",
+            rusqlite::params![max_age_seconds],
+        )?;
+        Ok(rows)
     }
 
     pub fn start_session(&self, app_id: i64, start_time: i64) -> SqliteResult<i64> {
@@ -285,7 +349,7 @@ impl Database {
         // For in-progress sessions, compute duration dynamically
         self.conn.query_row(
             "SELECT COALESCE(SUM(
-                CASE WHEN us.duration_seconds = 0 AND us.end_time = us.start_time
+                CASE WHEN us.duration_seconds = 0 AND us.end_time = us.start_time AND us.start_time > strftime('%s','now') - 15
                      THEN MAX(strftime('%s','now') - us.start_time, 0)
                      ELSE us.duration_seconds
                 END
@@ -301,10 +365,11 @@ impl Database {
         // Use SQLite's local time calculation
         // For in-progress sessions (end_time == start_time, duration_seconds == 0),
         // compute duration dynamically so they appear immediately in the UI
+        // Only applies to sessions started within last 15s to avoid orphaned session accumulation
         let mut stmt = self.conn.prepare(
             "SELECT a.name,
                     COALESCE(SUM(
-                        CASE WHEN us.duration_seconds = 0 AND us.end_time = us.start_time
+                        CASE WHEN us.duration_seconds = 0 AND us.end_time = us.start_time AND us.start_time > strftime('%s','now') - 15
                              THEN MAX(strftime('%s','now') - us.start_time, 0)
                              ELSE us.duration_seconds
                         END
@@ -440,9 +505,9 @@ impl Database {
 
     pub fn get_hourly_usage(&self) -> SqliteResult<Vec<HourlyUsage>> {
         let mut stmt = self.conn.prepare(
-            "SELECT CAST(strftime('%H', start_time, 'unixepoch', 'localtime') AS INTEGER) as hour, 
+                    "SELECT CAST(strftime('%H', start_time, 'unixepoch', 'localtime') AS INTEGER) as hour, 
                     SUM(
-                        CASE WHEN duration_seconds = 0 AND end_time = start_time
+                        CASE WHEN duration_seconds = 0 AND end_time = start_time AND start_time > strftime('%s','now') - 15
                              THEN MAX(strftime('%s','now') - start_time, 0)
                              ELSE duration_seconds
                         END
@@ -470,11 +535,11 @@ impl Database {
     pub fn get_weekly_hourly_usage(&self) -> SqliteResult<Vec<(String, i32, i64)>> {
         let week_ago = Utc::now().timestamp() - (6 * 24 * 60 * 60); // Last 7 days including today
         let mut stmt = self.conn.prepare(
-            "SELECT date(start_time, 'unixepoch', 'localtime') as date_str,
+                    "SELECT date(start_time, 'unixepoch', 'localtime') as date_str,
                     (CAST(strftime('%H', start_time, 'unixepoch', 'localtime') AS INTEGER) * 2) + 
                     (CAST(strftime('%M', start_time, 'unixepoch', 'localtime') AS INTEGER) / 30) as half_hour, 
                     SUM(
-                        CASE WHEN duration_seconds = 0 AND end_time = start_time
+                        CASE WHEN duration_seconds = 0 AND end_time = start_time AND start_time > strftime('%s','now') - 15
                              THEN MAX(strftime('%s','now') - start_time, 0)
                              ELSE duration_seconds
                         END
@@ -504,7 +569,7 @@ impl Database {
         let mut stmt = self.conn.prepare(
             "SELECT COALESCE(a.category, 'Uncategorized') as category, 
                     SUM(
-                        CASE WHEN us.duration_seconds = 0 AND us.end_time = us.start_time
+                        CASE WHEN us.duration_seconds = 0 AND us.end_time = us.start_time AND us.start_time > strftime('%s','now') - 15
                              THEN MAX(strftime('%s','now') - us.start_time, 0)
                              ELSE us.duration_seconds
                         END
@@ -556,11 +621,11 @@ impl Database {
             .conn
             .query_row(
                 "SELECT al.daily_limit_minutes, COALESCE(SUM(
-                    CASE WHEN us.duration_seconds = 0 AND us.end_time = us.start_time
-                         THEN MAX(strftime('%s','now') - us.start_time, 0)
-                         ELSE us.duration_seconds
-                    END
-                 ), 0)
+                    CASE WHEN us.duration_seconds = 0 AND us.end_time = us.start_time AND us.start_time > strftime('%s','now') - 15
+                          THEN MAX(strftime('%s','now') - us.start_time, 0)
+                          ELSE us.duration_seconds
+                     END
+                  ), 0)
              FROM apps a
              JOIN app_limits al ON a.id = al.app_id AND al.block_when_exceeded = 1
              LEFT JOIN usage_sessions us ON a.id = us.app_id 
@@ -610,7 +675,7 @@ impl Database {
         let mut stmt = self.conn.prepare(
             "SELECT a.name, al.daily_limit_minutes,
                     COALESCE(SUM(
-                        CASE WHEN us.duration_seconds = 0 AND us.end_time = us.start_time
+                        CASE WHEN us.duration_seconds = 0 AND us.end_time = us.start_time AND us.start_time > strftime('%s','now') - 15
                              THEN MAX(strftime('%s','now') - us.start_time, 0)
                              ELSE us.duration_seconds
                         END
@@ -727,6 +792,56 @@ impl Database {
         Ok(result)
     }
 
+    pub fn import_usage_data(&mut self, records: &[ExportRecord]) -> SqliteResult<i64> {
+        let tx = self.conn.transaction()?;
+        let mut count = 0i64;
+        let mut seen = std::collections::HashSet::new();
+
+        for record in records {
+            let key = format!("{}-{}", record.date, record.app_name);
+            if seen.contains(&key) {
+                continue;
+            }
+            seen.insert(key);
+
+            let app_id: i64 = match tx.query_row(
+                "SELECT id FROM apps WHERE name = ?1",
+                [&record.app_name],
+                |row| row.get(0),
+            ) {
+                Ok(id) => id,
+                Err(_) => {
+                    tx.execute(
+                        "INSERT INTO apps (name, path, category) VALUES (?1, '', ?2)",
+                        rusqlite::params![&record.app_name, &record.category],
+                    )?;
+                    tx.last_insert_rowid()
+                }
+            };
+
+            let date_naive = chrono::NaiveDate::parse_from_str(&record.date, "%Y-%m-%d")
+                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+            let start_time = date_naive
+                .and_hms_opt(0, 0, 0)
+                .ok_or_else(|| {
+                    let err: Box<dyn std::error::Error + Send + Sync> = "invalid datetime".into();
+                    rusqlite::Error::ToSqlConversionFailure(err)
+                })?
+                .and_utc()
+                .timestamp();
+            let end_time = start_time + record.duration_seconds;
+
+            tx.execute(
+                "INSERT INTO usage_sessions (app_id, start_time, end_time, duration_seconds) VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![app_id, start_time, end_time, record.duration_seconds],
+            )?;
+            count += 1;
+        }
+
+        tx.commit()?;
+        Ok(count)
+    }
+
     /// Get daily totals within a date range for historical analysis
     /// Returns: Vec of (date_string, total_seconds)
     pub fn get_daily_totals_in_range(
@@ -836,11 +951,11 @@ impl Database {
              WHERE al.block_when_exceeded = 1
              GROUP BY a.id
              HAVING COALESCE(SUM(
-                 CASE WHEN us.duration_seconds = 0 AND us.end_time = us.start_time
-                      THEN MAX(strftime('%s','now') - us.start_time, 0)
-                      ELSE us.duration_seconds
-                 END
-             ), 0) >= (al.daily_limit_minutes * 60)",
+                  CASE WHEN us.duration_seconds = 0 AND us.end_time = us.start_time AND us.start_time > strftime('%s','now') - 15
+                       THEN MAX(strftime('%s','now') - us.start_time, 0)
+                       ELSE us.duration_seconds
+                  END
+              ), 0) >= (al.daily_limit_minutes * 60)",
         )?;
 
         let rows = stmt.query_map([], |row| row.get(0))?;

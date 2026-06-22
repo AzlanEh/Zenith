@@ -15,9 +15,9 @@ fn get_app_binary_path() -> Option<PathBuf> {
     {
         // Check common installation paths
         let possible_paths: Vec<PathBuf> = vec![
-            PathBuf::from("/usr/bin/wellbeing"),
-            PathBuf::from("/usr/local/bin/wellbeing"),
-            PathBuf::from("/app/bin/wellbeing"),
+            PathBuf::from("/usr/bin/zenith"),
+            PathBuf::from("/usr/local/bin/zenith"),
+            PathBuf::from("/app/bin/zenith"),
         ];
 
         for path in possible_paths {
@@ -54,8 +54,8 @@ mod platform {
     fn generate_systemd_service(binary_path: &str) -> String {
         format!(
             r#"[Unit]
-Description=Digital Wellbeing - Screen Time Tracker
-Documentation=https://github.com/user/wellbeing
+Description=Zenith - Digital Sanctuary
+Documentation=https://github.com/user/zenith
 After=graphical-session.target
 
 [Service]
@@ -76,10 +76,10 @@ WantedBy=default.target
         format!(
             r#"[Desktop Entry]
 Type=Application
-Name=Digital Wellbeing
-Comment=Track and manage your screen time
+Name=Zenith
+Comment=Reclaim your cognitive sovereignty
 Exec={binary_path} --background
-Icon=wellbeing
+Icon=zenith
 Terminal=false
 Categories=Utility;
 StartupNotify=false
@@ -101,7 +101,7 @@ X-GNOME-Autostart-Delay=5
             fs::create_dir_all(&systemd_dir)
                 .map_err(|e| format!("Failed to create systemd directory: {}", e))?;
 
-            let service_path = systemd_dir.join("wellbeing.service");
+            let service_path = systemd_dir.join("zenith.service");
             let service_content = generate_systemd_service(&binary_str);
 
             fs::write(&service_path, service_content)
@@ -113,10 +113,10 @@ X-GNOME-Autostart-Delay=5
 
             if output.is_ok() {
                 let _ = Command::new("systemctl")
-                    .args(["--user", "enable", "wellbeing.service"])
+                    .args(["--user", "enable", "zenith.service"])
                     .output();
                 let _ = Command::new("systemctl")
-                    .args(["--user", "start", "wellbeing.service"])
+                    .args(["--user", "start", "zenith.service"])
                     .output();
                 methods_installed.push("systemd user service");
             }
@@ -127,7 +127,7 @@ X-GNOME-Autostart-Delay=5
             fs::create_dir_all(&autostart_dir)
                 .map_err(|e| format!("Failed to create autostart directory: {}", e))?;
 
-            let desktop_path = autostart_dir.join("wellbeing.desktop");
+            let desktop_path = autostart_dir.join("zenith.desktop");
             let desktop_content = generate_autostart_desktop(&binary_str);
 
             fs::write(&desktop_path, desktop_content)
@@ -151,13 +151,13 @@ X-GNOME-Autostart-Delay=5
 
         // Remove systemd service
         if let Some(systemd_dir) = get_systemd_user_dir() {
-            let service_path = systemd_dir.join("wellbeing.service");
+            let service_path = systemd_dir.join("zenith.service");
             if service_path.exists() {
                 let _ = Command::new("systemctl")
-                    .args(["--user", "stop", "wellbeing.service"])
+                    .args(["--user", "stop", "zenith.service"])
                     .output();
                 let _ = Command::new("systemctl")
-                    .args(["--user", "disable", "wellbeing.service"])
+                    .args(["--user", "disable", "zenith.service"])
                     .output();
 
                 fs::remove_file(&service_path)
@@ -173,7 +173,7 @@ X-GNOME-Autostart-Delay=5
 
         // Remove XDG autostart entry
         if let Some(autostart_dir) = get_autostart_dir() {
-            let desktop_path = autostart_dir.join("wellbeing.desktop");
+            let desktop_path = autostart_dir.join("zenith.desktop");
             if desktop_path.exists() {
                 fs::remove_file(&desktop_path)
                     .map_err(|e| format!("Failed to remove autostart entry: {}", e))?;
@@ -198,12 +198,12 @@ X-GNOME-Autostart-Delay=5
 
         // Check systemd service
         if let Some(systemd_dir) = get_systemd_user_dir() {
-            let service_path = systemd_dir.join("wellbeing.service");
+            let service_path = systemd_dir.join("zenith.service");
             if service_path.exists() {
                 status.systemd_installed = true;
 
                 let output = Command::new("systemctl")
-                    .args(["--user", "is-enabled", "wellbeing.service"])
+                    .args(["--user", "is-enabled", "zenith.service"])
                     .output();
 
                 if let Ok(out) = output {
@@ -213,7 +213,7 @@ X-GNOME-Autostart-Delay=5
                 }
 
                 let output = Command::new("systemctl")
-                    .args(["--user", "is-active", "wellbeing.service"])
+                    .args(["--user", "is-active", "zenith.service"])
                     .output();
 
                 if let Ok(out) = output {
@@ -226,7 +226,7 @@ X-GNOME-Autostart-Delay=5
 
         // Check XDG autostart
         if let Some(autostart_dir) = get_autostart_dir() {
-            let desktop_path = autostart_dir.join("wellbeing.desktop");
+            let desktop_path = autostart_dir.join("zenith.desktop");
             if desktop_path.exists() {
                 status.xdg_installed = true;
                 status.enabled = true;
@@ -246,7 +246,7 @@ mod platform {
     use super::*;
 
     const REGISTRY_RUN_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-    const APP_REGISTRY_NAME: &str = "DigitalWellbeing";
+    const APP_REGISTRY_NAME: &str = "Zenith";
 
     pub fn install_autostart() -> Result<String, String> {
         use winreg::enums::*;

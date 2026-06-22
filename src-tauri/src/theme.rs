@@ -53,7 +53,7 @@ pub struct ThemeLoader;
 impl ThemeLoader {
     pub fn load() -> Theme {
         if let Some(config_dir) = dirs::config_dir() {
-            let theme_path = config_dir.join("wellbeing").join("theme.json");
+            let theme_path = config_dir.join("zenith").join("theme.json");
 
             if theme_path.exists() {
                 if let Ok(content) = fs::read_to_string(&theme_path) {
@@ -69,7 +69,7 @@ impl ThemeLoader {
 
     pub fn get_theme_path() -> Option<PathBuf> {
         if let Some(config_dir) = dirs::config_dir() {
-            let theme_dir = config_dir.join("wellbeing");
+            let theme_dir = config_dir.join("zenith");
             let theme_path = theme_dir.join("theme.json");
 
             if !theme_dir.exists() {
