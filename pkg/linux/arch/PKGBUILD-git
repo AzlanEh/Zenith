@@ -1,10 +1,10 @@
 # Maintainer: Azlan Ehtasham <azlanehtesham02@gmail.com>
-pkgname=wellbeing-git
+pkgname=zenith-git
 pkgver=r1.abc1234
 pkgrel=1
-pkgdesc="Desktop app for tracking screen time and app usage (git version)"
+pkgdesc="A high-fidelity digital wellbeing platform for reclaiming cognitive sovereignty (git version)"
 arch=('x86_64')
-url="https://github.com/Azlaneh/wellbeing"
+url="https://github.com/Azlaneh/zenith"
 license=('MIT')
 depends=(
     'webkit2gtk-4.1'
@@ -28,25 +28,25 @@ makedepends=(
 optdepends=(
     'libnotify: desktop notifications'
 )
-provides=('wellbeing')
-conflicts=('wellbeing' 'wellbeing-bin')
-source=("git+https://github.com/Azlaneh/wellbeing.git")
+provides=('zenith')
+conflicts=('wellbeing' 'wellbeing-git' 'wellbeing-bin')
+source=("git+https://github.com/Azlaneh/zenith.git")
 sha256sums=('SKIP')
 
 pkgver() {
-    cd "$srcdir/wellbeing"
+    cd "$srcdir/zenith"
     printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
 }
 
 prepare() {
-    cd "$srcdir/wellbeing"
+    cd "$srcdir/zenith"
 
     # Install npm dependencies
     npm install --prefer-offline
 }
 
 build() {
-    cd "$srcdir/wellbeing"
+    cd "$srcdir/zenith"
 
     # Unset makepkg flags that break Rust/C build scripts:
     # - RUSTFLAGS: injects --remap-path-prefix which corrupts bundled sqlite3/ring linking
@@ -62,19 +62,19 @@ build() {
 }
 
 package() {
-    cd "$srcdir/wellbeing"
+    cd "$srcdir/zenith"
 
     # Install binary
-    install -Dm755 "src-tauri/target/release/wellbeing" "$pkgdir/usr/bin/wellbeing"
+    install -Dm755 "src-tauri/target/release/zenith" "$pkgdir/usr/bin/zenith"
 
     # Install desktop file
-    install -Dm644 "pkg/linux/arch/wellbeing.desktop" "$pkgdir/usr/share/applications/wellbeing.desktop"
+    install -Dm644 "pkg/linux/arch/zenith.desktop" "$pkgdir/usr/share/applications/zenith.desktop"
 
     # Install icons
-    install -Dm644 "src-tauri/icons/32x32.png" "$pkgdir/usr/share/icons/hicolor/32x32/apps/wellbeing.png"
-    install -Dm644 "src-tauri/icons/128x128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/wellbeing.png"
-    install -Dm644 "src-tauri/icons/128x128@2x.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/wellbeing.png"
-    install -Dm644 "src-tauri/icons/icon.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/wellbeing.png"
+    install -Dm644 "src-tauri/icons/32x32.png" "$pkgdir/usr/share/icons/hicolor/32x32/apps/zenith.png"
+    install -Dm644 "src-tauri/icons/128x128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/zenith.png"
+    install -Dm644 "src-tauri/icons/128x128@2x.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/zenith.png"
+    install -Dm644 "src-tauri/icons/icon.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/zenith.png"
 
     # Install license
     install -Dm644 "LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2>/dev/null || true

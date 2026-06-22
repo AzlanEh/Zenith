@@ -1,6 +1,6 @@
-# Contributing to Digital Wellbeing
+# Contributing to Zenith
 
-Thank you for your interest in contributing to Digital Wellbeing! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to Zenith! This document provides guidelines and information for contributors.
 
 ## Code of Conduct
 
@@ -20,8 +20,8 @@ Please be respectful and constructive in all interactions. We aim to create a we
 
 2. **Clone your fork**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/digital-wellbeing.git
-   cd digital-wellbeing
+   git clone https://github.com/YOUR_USERNAME/zenith.git
+   cd zenith
    ```
 
 3. **Install dependencies**

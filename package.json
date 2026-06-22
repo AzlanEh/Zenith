@@ -1,5 +1,5 @@
 {
-  "name": "wellbeing",
+  "name": "zenith",
   "private": true,
   "version": "0.1.5",
   "type": "module",
@@ -22,27 +22,26 @@
     "audit:all": "npm audit",
     "cargo:audit": "cargo audit --manifest-path src-tauri/Cargo.toml",
     "security:check": "npm run audit:prod && npm run cargo:audit",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:lint": "eslint src/**/*.test.{ts,tsx} src/**/*.spec.{ts,tsx}"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [
       "eslint --fix",
       "bash -c 'npm run typecheck'"
+    ],
+    "src/**/*.{test,spec}.{ts,tsx}": [
+      "eslint --fix"
     ]
   },
   "dependencies": {
     "@fontsource/material-symbols-outlined": "^5.2.38",
-    "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-dialog": "^1.1.15",
-    "@radix-ui/react-label": "^2.1.8",
-    "@radix-ui/react-progress": "^1.1.8",
-    "@radix-ui/react-scroll-area": "^1.2.10",
     "@radix-ui/react-select": "^2.2.6",
-    "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-switch": "^1.2.6",
-    "@radix-ui/react-tabs": "^1.1.13",
-    "@radix-ui/react-tooltip": "^1.2.8",
+    "@tanstack/react-query": "^5.101.0",
+    "@tanstack/react-virtual": "^3.14.3",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.5.0",
     "@tauri-apps/plugin-notification": "^2",
@@ -73,6 +72,8 @@
     "@vitejs/plugin-react": "^4.6.0",
     "@vitest/coverage-v8": "^4.0.17",
     "eslint": "^9.39.2",
+    "eslint-plugin-jest-dom": "^5.5.0",
+    "eslint-plugin-testing-library": "^7.16.2",
     "husky": "^9.1.7",
     "jsdom": "^27.4.0",
     "lint-staged": "^16.2.7",

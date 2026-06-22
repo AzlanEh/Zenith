@@ -1,6 +1,6 @@
-# Digital Wellbeing - Improvement Roadmap
+# Zenith — Improvement Roadmap
 
-This document tracks planned improvements for the Digital Wellbeing application.
+This document tracks planned improvements for the Zenith application.
 
 ---
 
@@ -337,7 +337,7 @@ This document tracks planned improvements for the Digital Wellbeing application.
 - **Implementation:**
   - Created `pkg/arch/PKGBUILD` - release package (builds from tarball)
   - Created `pkg/arch/PKGBUILD-git` - git version (builds from repo)
-  - Created `pkg/arch/digital-wellbeing.desktop` - desktop entry
+  - Created `pkg/arch/zenith.desktop` - desktop entry
   - Created `LICENSE` (MIT)
 
 ### 38. [ ] Add Changelog

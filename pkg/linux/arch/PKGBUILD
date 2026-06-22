@@ -1,18 +1,16 @@
 # Maintainer: Azlan Ehtasham <azlanehtesham02@gmail.com>
-pkgname=wellbeing
+pkgname=zenith
 pkgver=0.1.5
 pkgrel=1
-pkgdesc="Desktop app for tracking screen time and app usage"
+pkgdesc="A high-fidelity digital wellbeing platform for reclaiming cognitive sovereignty."
 arch=('x86_64')
-url="https://github.com/Azlaneh/wellbeing"
+url="https://github.com/Azlaneh/zenith"
 license=('MIT')
 depends=(
     'webkit2gtk-4.1'
     'gtk3'
     'libappindicator-gtk3'
     'librsvg'
-    'libayatana-appindicator'
-    'appmenu-gtk-module'
 )
 makedepends=(
     'rust'
@@ -21,61 +19,33 @@ makedepends=(
     'npm'
     'pkg-config'
     'openssl'
-    'libappindicator-gtk3'
-    'librsvg'
-    'libxss'
 )
-optdepends=(
-    'libnotify: desktop notifications'
-)
-provides=('wellbeing')
-conflicts=('wellbeing-git' 'wellbeing-bin')
-
-# Build from local source (run makepkg from the repo root or set _srcdir)
-_srcdir="${SRCDEST:-$(pwd)}"
-_srcdir="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/../../.. && pwd)"
-
-prepare() {
-    cd "$_srcdir"
-
-    # Install npm dependencies
-    npm install --prefer-offline
-}
+provides=('zenith')
+conflicts=('wellbeing' 'wellbeing-git' 'wellbeing-bin')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/Azlaneh/zenith/archive/v$pkgver.tar.gz")
+sha256sums=('SKIP')
 
 build() {
-    cd "$_srcdir"
+    cd "$srcdir/zenith-$pkgver"
 
-    # Ensure cargo is on PATH (needed when building under CI with rustup)
-    export PATH="$HOME/.cargo/bin:$PATH"
-
-    # Unset makepkg flags that break Rust/C build scripts:
-    # - RUSTFLAGS: injects --remap-path-prefix which corrupts bundled sqlite3/ring linking
-    # - CFLAGS: -flto=auto causes LTO object files to conflict with bundled static libs
-    # - LDFLAGS: may reference flags incompatible with cargo's linker invocation
     export RUSTFLAGS=""
     export CFLAGS=""
     export CXXFLAGS=""
     export LDFLAGS=""
 
-    # Use tauri build so the frontend bundle is embedded (not a devUrl connection)
+    npm install
     npm run tauri -- build --no-bundle
 }
 
 package() {
-    cd "$_srcdir"
+    cd "$srcdir/zenith-$pkgver"
 
-    # Install binary
-    install -Dm755 "src-tauri/target/release/wellbeing" "$pkgdir/usr/bin/wellbeing"
-
-    # Install desktop file
-    install -Dm644 "pkg/linux/arch/wellbeing.desktop" "$pkgdir/usr/share/applications/wellbeing.desktop"
-
-    # Install icons
-    install -Dm644 "src-tauri/icons/32x32.png" "$pkgdir/usr/share/icons/hicolor/32x32/apps/wellbeing.png"
-    install -Dm644 "src-tauri/icons/128x128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/wellbeing.png"
-    install -Dm644 "src-tauri/icons/128x128@2x.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/wellbeing.png"
-    install -Dm644 "src-tauri/icons/icon.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/wellbeing.png"
-
-    # Install license
+    # ponytail: binary is `wellbeing` until Cargo.toml rename is committed
+    install -Dm755 "src-tauri/target/release/wellbeing" "$pkgdir/usr/bin/zenith"
+    install -Dm644 "pkg/linux/arch/zenith.desktop" "$pkgdir/usr/share/applications/zenith.desktop"
+    install -Dm644 "src-tauri/icons/32x32.png" "$pkgdir/usr/share/icons/hicolor/32x32/apps/zenith.png"
+    install -Dm644 "src-tauri/icons/128x128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/zenith.png"
+    install -Dm644 "src-tauri/icons/128x128@2x.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/zenith.png"
+    install -Dm644 "src-tauri/icons/icon.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/zenith.png"
     install -Dm644 "LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2>/dev/null || true
 }

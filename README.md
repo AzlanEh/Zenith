@@ -1,9 +1,9 @@
-# Digital Wellbeing
+# Zenith — Digital Sanctuary
 
-A cross-platform desktop application for tracking and managing your digital habits. Built with Tauri, React, and TypeScript.
+A high-fidelity digital wellbeing platform for reclaiming cognitive sovereignty. Built with Tauri, React, and TypeScript.
 
-![Version](https://img.shields.io/badge/version-0.1.3-blue.svg)
-![CI](https://github.com/AzlanEh/wellbeing/actions/workflows/release.yml/badge.svg)
+![Version](https://img.shields.io/badge/version-0.1.5-blue.svg)
+![CI](https://github.com/AzlanEh/zenith/actions/workflows/release.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey.svg)
 
@@ -61,10 +61,10 @@ A cross-platform desktop application for tracking and managing your digital habi
 
 ```bash
 # Using yay
-yay -S digital-wellbeing
+yay -S zenith
 
 # Or using paru
-paru -S digital-wellbeing
+paru -S zenith
 ```
 
 ### From Source
@@ -77,7 +77,7 @@ paru -S digital-wellbeing
   ```bash
   # Ubuntu/Debian
   sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-  
+
   # Arch Linux
   sudo pacman -S webkit2gtk-4.1 base-devel curl wget file xdotool openssl libayatana-appindicator librsvg
   ```
@@ -86,8 +86,8 @@ paru -S digital-wellbeing
 
 ```bash
 # Clone the repository
-git clone https://github.com/AzlanEh/wellbeing.git
-cd wellbeing
+git clone https://github.com/AzlanEh/zenith.git
+cd zenith
 
 # Install dependencies
 npm install
@@ -140,7 +140,7 @@ The built application will be in `src-tauri/target/release/bundle/`.
 ## Architecture
 
 ```
-digital-wellbeing/
+zenith/
 ├── src/                    # Frontend (React + TypeScript)
 │   ├── components/         # UI components
 │   │   ├── dashboard/      # Dashboard sub-components
