@@ -2,21 +2,15 @@ import { useEffect, useState } from "react";
 
 type Theme = "light" | "dark" | "system";
 
-const THEME_STORAGE_KEY = "wellbeing-theme";
+const THEME_STORAGE_KEY = "zenith-theme";
 
 function getSystemTheme(): "light" | "dark" {
-  if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function getStoredTheme(): Theme {
-  if (typeof window === "undefined") return "system";
   const stored = localStorage.getItem(THEME_STORAGE_KEY);
-  if (stored === "light" || stored === "dark" || stored === "system") {
-    return stored;
-  }
+  if (stored === "light" || stored === "dark" || stored === "system") return stored;
   return "system";
 }
 
@@ -26,31 +20,25 @@ export function useDarkMode() {
     getStoredTheme() === "system" ? getSystemTheme() : getStoredTheme() as "light" | "dark"
   );
 
-  // Apply theme to document
   useEffect(() => {
-    const root = window.document.documentElement;
+    const root = document.documentElement;
     const effectiveTheme = theme === "system" ? getSystemTheme() : theme;
-    
     root.classList.remove("light", "dark");
     root.classList.add(effectiveTheme);
     setResolvedTheme(effectiveTheme);
   }, [theme]);
 
-  // Listen for system theme changes
   useEffect(() => {
     if (theme !== "system") return;
-
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = () => {
-      const root = window.document.documentElement;
-      const effectiveTheme = getSystemTheme();
-      root.classList.remove("light", "dark");
-      root.classList.add(effectiveTheme);
-      setResolvedTheme(effectiveTheme);
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => {
+      const t = getSystemTheme();
+      document.documentElement.classList.remove("light", "dark");
+      document.documentElement.classList.add(t);
+      setResolvedTheme(t);
     };
-
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
   }, [theme]);
 
   const setTheme = (newTheme: Theme) => {
@@ -58,10 +46,5 @@ export function useDarkMode() {
     setThemeState(newTheme);
   };
 
-  return {
-    theme,
-    resolvedTheme,
-    setTheme,
-    isDark: resolvedTheme === "dark",
-  };
+  return { theme, resolvedTheme, setTheme, isDark: resolvedTheme === "dark" };
 }

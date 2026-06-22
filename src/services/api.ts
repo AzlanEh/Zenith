@@ -23,256 +23,134 @@ import type {
   WeeklyHourlyUsage,
 } from "../types";
 
+const invokeApi = <T,>(cmd: string, args?: Record<string, unknown>): Promise<T> =>
+  invoke<T>(cmd, args);
+
 export const api = {
-  getDailyUsage: (): Promise<DailyStats> => {
-    return invoke("get_daily_usage");
-  },
+  getDailyUsage: (): Promise<DailyStats> => invokeApi("get_daily_usage"),
 
-  getWeeklyStats: (): Promise<WeeklyStats> => {
-    return invoke("get_weekly_stats");
-  },
+  getWeeklyStats: (): Promise<WeeklyStats> => invokeApi("get_weekly_stats"),
 
-  setAppLimit: (appName: string, minutes: number, blockWhenExceeded?: boolean): Promise<void> => {
-    return invoke("set_app_limit", { appName, minutes, blockWhenExceeded });
-  },
+  setAppLimit: (appName: string, minutes: number, blockWhenExceeded?: boolean): Promise<void> =>
+    invokeApi("set_app_limit", { appName, minutes, blockWhenExceeded }),
 
-  getAppLimits: (): Promise<AppLimit[]> => {
-    return invoke("get_app_limits");
-  },
+  getAppLimits: (): Promise<AppLimit[]> => invokeApi("get_app_limits"),
 
-  removeAppLimit: (appName: string): Promise<void> => {
-    return invoke("remove_app_limit", { appName });
-  },
+  removeAppLimit: (appName: string): Promise<void> => invokeApi("remove_app_limit", { appName }),
 
-  getTheme: (): Promise<Theme> => {
-    return invoke("get_theme");
-  },
+  getTheme: (): Promise<Theme> => invokeApi("get_theme"),
 
-  getThemePath: (): Promise<string | null> => {
-    return invoke("get_theme_path");
-  },
+  getThemePath: (): Promise<string | null> => invokeApi("get_theme_path"),
 
-  getAllApps: (): Promise<App[]> => {
-    return invoke("get_all_apps");
-  },
+  getAllApps: (): Promise<App[]> => invokeApi("get_all_apps"),
 
-  recordUsage: (appName: string, durationSeconds: number): Promise<void> => {
-    return invoke("record_usage", { appName, durationSeconds });
-  },
+  recordUsage: (appName: string, durationSeconds: number): Promise<void> =>
+    invokeApi("record_usage", { appName, durationSeconds }),
 
-  getHourlyUsage: (): Promise<HourlyUsage[]> => {
-    return invoke("get_hourly_usage");
-  },
+  getHourlyUsage: (): Promise<HourlyUsage[]> => invokeApi("get_hourly_usage"),
 
-  getWeeklyHourlyUsage: (): Promise<WeeklyHourlyUsage[]> => {
-    return invoke("get_weekly_hourly_usage");
-  },
+  getWeeklyHourlyUsage: (): Promise<WeeklyHourlyUsage[]> => invokeApi("get_weekly_hourly_usage"),
 
-  getCategoryUsage: (): Promise<CategoryUsage[]> => {
-    return invoke("get_category_usage");
-  },
+  getCategoryUsage: (): Promise<CategoryUsage[]> => invokeApi("get_category_usage"),
 
-  setAppCategory: (appName: string, category: string): Promise<void> => {
-    return invoke("set_app_category", { appName, category });
-  },
+  setAppCategory: (appName: string, category: string): Promise<void> =>
+    invokeApi("set_app_category", { appName, category }),
 
-  checkAppBlocked: (appName: string): Promise<boolean> => {
-    return invoke("check_app_blocked", { appName });
-  },
+  checkAppBlocked: (appName: string): Promise<boolean> => invokeApi("check_app_blocked", { appName }),
 
-  getBlockedApps: (): Promise<string[]> => {
-    return invoke("get_blocked_apps");
-  },
+  getBlockedApps: (): Promise<string[]> => invokeApi("get_blocked_apps"),
 
-  // Emergency access for limit popup
-  grantEmergencyAccess: (appName: string): Promise<number> => {
-    return invoke("grant_emergency_access", { appName });
-  },
+  grantEmergencyAccess: (appName: string): Promise<number> => invokeApi("grant_emergency_access", { appName }),
 
-  getEmergencyAccessRemaining: (appName: string): Promise<number> => {
-    return invoke("get_emergency_access_remaining", { appName });
-  },
+  getEmergencyAccessRemaining: (appName: string): Promise<number> => invokeApi("get_emergency_access_remaining", { appName }),
 
-  hasEmergencyAccess: (appName: string): Promise<boolean> => {
-    return invoke("has_emergency_access", { appName });
-  },
+  hasEmergencyAccess: (appName: string): Promise<boolean> => invokeApi("has_emergency_access", { appName }),
 
-  quitBlockedApp: (appName: string): Promise<void> => {
-    return invoke("quit_blocked_app", { appName });
-  },
+  quitBlockedApp: (appName: string): Promise<void> => invokeApi("quit_blocked_app", { appName }),
 
-  getInstalledApps: (): Promise<InstalledApp[]> => {
-    return invoke("get_installed_apps");
-  },
+  getInstalledApps: (): Promise<InstalledApp[]> => invokeApi("get_installed_apps"),
 
-  resolveAppIcon: (iconName: string): Promise<string | null> => {
-    return invoke("resolve_app_icon", { iconName });
-  },
+  resolveAppIcon: (iconName: string): Promise<string | null> => invokeApi("resolve_app_icon", { iconName }),
 
-  sendTestNotification: (): Promise<void> => {
-    return invoke("send_test_notification");
-  },
+  sendTestNotification: (): Promise<void> => invokeApi("send_test_notification"),
 
-  enableAutostart: (): Promise<string> => {
-    return invoke("enable_autostart");
-  },
+  enableAutostart: (): Promise<string> => invokeApi("enable_autostart"),
 
-  disableAutostart: (): Promise<string> => {
-    return invoke("disable_autostart");
-  },
+  disableAutostart: (): Promise<string> => invokeApi("disable_autostart"),
 
-  getAutostartStatus: (): Promise<AutostartStatus> => {
-    return invoke("get_autostart_status");
-  },
+  getAutostartStatus: (): Promise<AutostartStatus> => invokeApi("get_autostart_status"),
 
-  // Export functionality
-  exportUsageData: (startDate: string, endDate: string): Promise<ExportRecord[]> => {
-    return invoke("export_usage_data", { startDate, endDate });
-  },
+  exportUsageData: (startDate: string, endDate: string): Promise<ExportRecord[]> => invokeApi("export_usage_data", { startDate, endDate }),
 
-  formatExportCsv: (records: ExportRecord[]): Promise<string> => {
-    return invoke("format_export_csv", { records });
-  },
+  importUsageData: (records: ExportRecord[]): Promise<number> => invokeApi("import_usage_data", { records }),
 
-  formatExportJson: (records: ExportRecord[]): Promise<string> => {
-    return invoke("format_export_json", { records });
-  },
+  formatExportCsv: (records: ExportRecord[]): Promise<string> => invokeApi("format_export_csv", { records }),
 
-  saveExportFile: (filePath: string, content: string): Promise<void> => {
-    return invoke("save_export_file", { filePath, content });
-  },
+  formatExportJson: (records: ExportRecord[]): Promise<string> => invokeApi("format_export_json", { records }),
 
-  // Window control
-  minimizeToTray: (): Promise<void> => {
-    return invoke("minimize_to_tray");
-  },
+  saveExportFile: (filePath: string, content: string): Promise<void> => invokeApi("save_export_file", { filePath, content }),
 
-  showWindow: (): Promise<void> => {
-    return invoke("show_window");
-  },
+  minimizeToTray: (): Promise<void> => invokeApi("minimize_to_tray"),
 
-  // Break reminder
-  getBreakSettings: (): Promise<BreakSettings> => {
-    return invoke("get_break_settings");
-  },
+  showWindow: (): Promise<void> => invokeApi("show_window"),
 
-  setBreakSettings: (settings: BreakSettings): Promise<void> => {
-    return invoke("set_break_settings", { settings });
-  },
+  getBreakSettings: (): Promise<BreakSettings> => invokeApi("get_break_settings"),
 
-  getBreakStatus: (): Promise<BreakStatus> => {
-    return invoke("get_break_status");
-  },
+  setBreakSettings: (settings: BreakSettings): Promise<void> => invokeApi("set_break_settings", { settings }),
 
-  startBreak: (): Promise<void> => {
-    return invoke("start_break");
-  },
+  getBreakStatus: (): Promise<BreakStatus> => invokeApi("get_break_status"),
 
-  endBreak: (): Promise<void> => {
-    return invoke("end_break");
-  },
+  startBreak: (): Promise<void> => invokeApi("start_break"),
 
-  resetBreakTimer: (): Promise<void> => {
-    return invoke("reset_break_timer");
-  },
+  endBreak: (): Promise<void> => invokeApi("end_break"),
 
-  // Historical data
-  getHistoricalData: (startDate: string, endDate: string): Promise<HistoricalData> => {
-    return invoke("get_historical_data", { startDate, endDate });
-  },
+  resetBreakTimer: (): Promise<void> => invokeApi("reset_break_timer"),
 
-  // Notification settings
-  getNotificationSettings: (): Promise<NotificationSettings> => {
-    return invoke("get_notification_settings");
-  },
+  getHistoricalData: (startDate: string, endDate: string): Promise<HistoricalData> => invokeApi("get_historical_data", { startDate, endDate }),
 
-  setNotificationSettings: (settings: NotificationSettings): Promise<void> => {
-    return invoke("set_notification_settings", { settings });
-  },
+  getNotificationSettings: (): Promise<NotificationSettings> => invokeApi("get_notification_settings"),
 
-  muteNotifications: (): Promise<void> => {
-    return invoke("mute_notifications");
-  },
+  setNotificationSettings: (settings: NotificationSettings): Promise<void> => invokeApi("set_notification_settings", { settings }),
 
-  unmuteNotifications: (): Promise<void> => {
-    return invoke("unmute_notifications");
-  },
+  muteNotifications: (): Promise<void> => invokeApi("mute_notifications"),
 
-  isNotificationsMuted: (): Promise<boolean> => {
-    return invoke("is_notifications_muted");
-  },
+  unmuteNotifications: (): Promise<void> => invokeApi("unmute_notifications"),
 
-  // Focus mode
-  getFocusSettings: (): Promise<FocusSettings> => {
-    return invoke("get_focus_settings");
-  },
+  isNotificationsMuted: (): Promise<boolean> => invokeApi("is_notifications_muted"),
 
-  setFocusSettings: (settings: FocusSettings): Promise<void> => {
-    return invoke("set_focus_settings", { settings });
-  },
+  getFocusSettings: (): Promise<FocusSettings> => invokeApi("get_focus_settings"),
 
-  getFocusSession: (): Promise<FocusSession> => {
-    return invoke("get_focus_session");
-  },
+  setFocusSettings: (settings: FocusSettings): Promise<void> => invokeApi("set_focus_settings", { settings }),
 
-  startFocusSession: (durationMinutes?: number, blockedApps?: string[]): Promise<FocusSession> => {
-    return invoke("start_focus_session", { durationMinutes, blockedApps });
-  },
+  getFocusSession: (): Promise<FocusSession> => invokeApi("get_focus_session"),
 
-  stopFocusSession: (): Promise<FocusSession> => {
-    return invoke("stop_focus_session");
-  },
+  startFocusSession: (durationMinutes?: number, blockedApps?: string[]): Promise<FocusSession> => invokeApi("start_focus_session", { durationMinutes, blockedApps }),
 
-  extendFocusSession: (additionalMinutes: number): Promise<FocusSession | null> => {
-    return invoke("extend_focus_session", { additionalMinutes });
-  },
+  stopFocusSession: (): Promise<FocusSession> => invokeApi("stop_focus_session"),
 
-  isFocusModeActive: (): Promise<boolean> => {
-    return invoke("is_focus_mode_active");
-  },
+  extendFocusSession: (additionalMinutes: number): Promise<FocusSession | null> => invokeApi("extend_focus_session", { additionalMinutes }),
 
-  shouldBlockAppFocus: (appName: string): Promise<boolean> => {
-    return invoke("should_block_app_focus", { appName });
-  },
+  isFocusModeActive: (): Promise<boolean> => invokeApi("is_focus_mode_active"),
 
-  addFocusBlockedApp: (appName: string): Promise<void> => {
-    return invoke("add_focus_blocked_app", { appName });
-  },
+  shouldBlockAppFocus: (appName: string): Promise<boolean> => invokeApi("should_block_app_focus", { appName }),
 
-  removeFocusBlockedApp: (appName: string): Promise<void> => {
-    return invoke("remove_focus_blocked_app", { appName });
-  },
+  addFocusBlockedApp: (appName: string): Promise<void> => invokeApi("add_focus_blocked_app", { appName }),
 
-  // Goals
-  getGoals: (): Promise<Goal[]> => {
-    return invoke("get_goals");
-  },
+  removeFocusBlockedApp: (appName: string): Promise<void> => invokeApi("remove_focus_blocked_app", { appName }),
 
-  addGoal: (goal: Goal): Promise<void> => {
-    return invoke("add_goal", { goal });
-  },
+  getGoals: (): Promise<Goal[]> => invokeApi("get_goals"),
 
-  updateGoal: (goal: Goal): Promise<void> => {
-    return invoke("update_goal", { goal });
-  },
+  addGoal: (goal: Goal): Promise<void> => invokeApi("add_goal", { goal }),
 
-  removeGoal: (goalId: string): Promise<void> => {
-    return invoke("remove_goal", { goalId });
-  },
+  updateGoal: (goal: Goal): Promise<void> => invokeApi("update_goal", { goal }),
 
-  getGoalsProgress: (): Promise<GoalProgress[]> => {
-    return invoke("get_goals_progress");
-  },
+  removeGoal: (goalId: string): Promise<void> => invokeApi("remove_goal", { goalId }),
 
-  getAchievements: (): Promise<Achievement[]> => {
-    return invoke("get_achievements");
-  },
+  getGoalsProgress: (): Promise<GoalProgress[]> => invokeApi("get_goals_progress"),
 
-  getGoalsStats: (): Promise<GoalsStats> => {
-    return invoke("get_goals_stats");
-  },
+  getAchievements: (): Promise<Achievement[]> => invokeApi("get_achievements"),
 
-  wipeAllData: (confirmationText: string): Promise<void> => {
-    return invoke("wipe_all_data", { confirmationText });
-  },
+  getGoalsStats: (): Promise<GoalsStats> => invokeApi("get_goals_stats"),
+
+  wipeAllData: (confirmationText: string): Promise<void> => invokeApi("wipe_all_data", { confirmationText }),
 };

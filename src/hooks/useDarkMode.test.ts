@@ -35,7 +35,7 @@ describe("useDarkMode", () => {
       result.current.setTheme("dark");
     });
     
-    expect(localStorage.setItem).toHaveBeenCalledWith("wellbeing-theme", "dark");
+    expect(localStorage.setItem).toHaveBeenCalledWith("zenith-theme", "dark");
   });
 
   it("updates theme state when setTheme is called", () => {
@@ -53,8 +53,8 @@ describe("useDarkMode", () => {
     
     renderHook(() => useDarkMode());
     
-    expect(document.documentElement.classList.contains("dark")).toBe(true);
-    expect(document.documentElement.classList.contains("light")).toBe(false);
+    expect(document.documentElement).toHaveClass("dark");
+    expect(document.documentElement).not.toHaveClass("light");
   });
 
   it("applies light class to document when theme is light", () => {
@@ -62,8 +62,8 @@ describe("useDarkMode", () => {
     
     renderHook(() => useDarkMode());
     
-    expect(document.documentElement.classList.contains("light")).toBe(true);
-    expect(document.documentElement.classList.contains("dark")).toBe(false);
+    expect(document.documentElement).toHaveClass("light");
+    expect(document.documentElement).not.toHaveClass("dark");
   });
 
   it("isDark is true when resolvedTheme is dark", () => {
