@@ -74,7 +74,7 @@ jobs:
         id: create-release
         uses: softprops/action-gh-release@v2
         with:
-          name: wellbeing v${{ steps.version.outputs.version }}
+          name: zenith v${{ steps.version.outputs.version }}
           draft: true
           prerelease: false
           generate_release_notes: true
@@ -213,7 +213,7 @@ jobs:
       - name: Upload Arch package to release
         uses: softprops/action-gh-release@v2
         with:
-          files: pkg/linux/arch/wellbeing-*.pkg.tar.zst
+          files: pkg/linux/arch/zenith-*.pkg.tar.zst
           release_id: ${{ needs.create-release.outputs.release_id }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

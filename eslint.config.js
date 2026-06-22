@@ -1,5 +1,7 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
+import testingLibrary from 'eslint-plugin-testing-library';
+import jestDom from 'eslint-plugin-jest-dom';
 
 export default tseslint.config(
   eslint.configs.recommended,
@@ -17,24 +19,27 @@ export default tseslint.config(
       },
     },
     rules: {
-      // Allow unused vars prefixed with underscore
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
-      // Allow explicit any in some cases (we can tighten this later)
       '@typescript-eslint/no-explicit-any': 'warn',
-      // Prefer const
       'prefer-const': 'error',
-      // No console.log in production (warn for now)
       'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
   {
     files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    ...testingLibrary.configs['flat/react'],
+  },
+  {
+    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    ...jestDom.configs['flat/recommended'],
+  },
+  {
+    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
     rules: {
-      // Allow any in tests
       '@typescript-eslint/no-explicit-any': 'off',
     },
-  }
+  },
 );
