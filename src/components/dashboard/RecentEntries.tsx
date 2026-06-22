@@ -1,6 +1,5 @@
-import { useEffect, useRef } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { useAppStore } from '../../store/useAppStore';
+import { useDailyStats } from '../../queries';
 import type { AppUsage } from '../../types';
 import { AppIcon } from '../AppIcon';
 
@@ -15,15 +14,7 @@ interface RecentEntriesProps {
 }
 
 export function RecentEntries({ selectedDate, customApps, isLoading, resolveAppIconHint, onClearDate }: RecentEntriesProps) {
-  const dailyStats = useAppStore(state => state.dailyStats);
-  const loadDailyStats = useAppStore(state => state.loadDailyStats);
-
-  const loadDailyStatsRef = useRef(loadDailyStats);
-  loadDailyStatsRef.current = loadDailyStats;
-
-  useEffect(() => {
-    loadDailyStatsRef.current();
-  }, []);
+  const { data: dailyStats } = useDailyStats();
 
   const apps = selectedDate && customApps 
     ? customApps 

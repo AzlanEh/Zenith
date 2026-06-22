@@ -1,16 +1,14 @@
-import { useState, useEffect, useRef } from "react";
-import { useAppStore } from "../store/useAppStore";
-import { api } from "../services/api";
 import {
   save,
   confirm as tauriConfirm,
   message as tauriMessage,
 } from "@tauri-apps/plugin-dialog";
-import type { BreakSettings, AutostartStatus } from "../types";
-import { useDarkMode } from "../hooks/useDarkMode";
-import { useUpdater } from "../hooks/useUpdater";
-import { CheckCircle2, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { DataImport } from "../components/DataImport";
+import { ErrorBoundary } from "../components/ErrorBoundary";
+import { FocusScheduleEditor } from "../components/FocusScheduleEditor";
 import {
   Select,
   SelectContent,
@@ -18,6 +16,115 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import { useDarkMode } from "../hooks/useDarkMode";
+import { useUpdater } from "../hooks/useUpdater";
+import {
+  useFocusSettings,
+  useNotificationSettings,
+  useUpdateFocusSettings,
+  useUpdateNotificationSettings,
+} from "../queries";
+import { api } from "../services/api";
+import type { AutostartStatus, BreakSettings } from "../types";
+
+function Toggle({
+  pressed,
+  onPressedChange,
+  id,
+}: {
+  pressed: boolean;
+  onPressedChange: (v: boolean) => void;
+  id?: string;
+}) {
+  return (
+    <button
+      aria-pressed={pressed}
+      onClick={() => onPressedChange(!pressed)}
+      className={`w-14 h-6 border relative flex items-center px-1 transition-colors ${
+        pressed
+          ? "border-foreground bg-foreground/20"
+          : "border-border bg-background"
+      }`}
+      {...(id ? { "aria-labelledby": id } : {})}
+    >
+      <div
+        className={`w-4 h-4 absolute transition-all ${
+          pressed ? "bg-foreground right-1" : "bg-border left-1"
+        }`}
+      />
+    </button>
+  );
+}
+
+function MiniToggle({
+  pressed,
+  onPressedChange,
+  id,
+}: {
+  pressed: boolean;
+  onPressedChange: (v: boolean) => void;
+  id?: string;
+}) {
+  return (
+    <button
+      aria-pressed={pressed}
+      onClick={() => onPressedChange(!pressed)}
+      className={`w-10 h-5 border relative flex items-center px-1 transition-colors ${
+        pressed
+          ? "border-foreground bg-foreground/20"
+          : "border-border bg-background"
+      }`}
+      {...(id ? { "aria-labelledby": id } : {})}
+    >
+      <div
+        className={`w-3 h-3 absolute transition-all ${
+          pressed ? "bg-foreground right-1" : "bg-border left-1"
+        }`}
+      />
+    </button>
+  );
+}
+
+function BrutalSlider({
+  value,
+  onChange,
+  min,
+  max,
+  label,
+  id,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min: number;
+  max: number;
+  label: string;
+  id: string;
+}) {
+  return (
+    <div>
+      <div className="flex justify-between mb-2">
+        <label
+          className="font-label text-xs uppercase tracking-widest text-muted-foreground"
+          htmlFor={id}
+        >
+          {label}
+        </label>
+        <span className="font-label text-xs text-foreground">
+          {value} MIN
+        </span>
+      </div>
+      <input
+        id={id}
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(parseInt(e.target.value))}
+        className="w-full"
+      />
+    </div>
+  );
+}
 
 export function Settings() {
   const { theme, setTheme } = useDarkMode();
@@ -25,17 +132,12 @@ export function Settings() {
   const showLinuxUpdateHint =
     updateState.status === "error" &&
     updateState.code === "system-managed-install";
-  const focusSettings = useAppStore(state => state.focusSettings);
-  const notificationSettings = useAppStore(state => state.notificationSettings);
-  const updateFocusSettings = useAppStore(state => state.updateFocusSettings);
-  const updateNotificationSettings = useAppStore(state => state.updateNotificationSettings);
-  const loadFocusSettings = useAppStore(state => state.loadFocusSettings);
-  const loadNotificationSettings = useAppStore(state => state.loadNotificationSettings);
-
-  const loadFocusRef = useRef(loadFocusSettings);
-  const loadNotifRef = useRef(loadNotificationSettings);
-  loadFocusRef.current = loadFocusSettings;
-  loadNotifRef.current = loadNotificationSettings;
+  const { data: focusSettings, isLoading: loadingFocusSettings } =
+    useFocusSettings();
+  const { data: notificationSettings, isLoading: loadingNotificationSettings } =
+    useNotificationSettings();
+  const updateFocusSettingsMutation = useUpdateFocusSettings();
+  const updateNotificationSettingsMutation = useUpdateNotificationSettings();
 
   const [autostartStatus, setAutostartStatus] =
     useState<AutostartStatus | null>(null);
@@ -54,22 +156,26 @@ export function Settings() {
   );
 
   useEffect(() => {
-    loadFocusRef.current();
-    loadNotifRef.current();
-    api.getAutostartStatus().then(setAutostartStatus).catch((e) => {
-      console.error("Failed to load autostart status:", e);
-    });
-    api.getBreakSettings().then(setBreakSettings).catch((e) => {
-      console.error("Failed to load break settings:", e);
-      setBreakSettings({
-        enabled: false,
-        work_minutes: 50,
-        break_minutes: 10,
-        show_notification: true,
-        play_sound: false,
+    api
+      .getAutostartStatus()
+      .then(setAutostartStatus)
+      .catch((e) => {
+        console.error("Failed to load autostart status:", e);
       });
-      toast.error("Using default break settings");
-    });
+    api
+      .getBreakSettings()
+      .then(setBreakSettings)
+      .catch((e) => {
+        console.error("Failed to load break settings:", e);
+        setBreakSettings({
+          enabled: false,
+          work_minutes: 50,
+          break_minutes: 10,
+          show_notification: true,
+          play_sound: false,
+        });
+        toast.error("Using default break settings");
+      });
   }, []);
 
   const handleToggleAutostart = async (enabled: boolean) => {
@@ -122,7 +228,7 @@ export function Settings() {
       }
 
       const filePath = await save({
-        defaultPath: `wellbeing-export-${startDate}-to-${endDate}.${ext}`,
+        defaultPath: `zenith-export-${startDate}-to-${endDate}.${ext}`,
         filters: [{ name: format.toUpperCase(), extensions: [ext] }],
       });
 
@@ -166,7 +272,6 @@ export function Settings() {
         title: "Success",
         kind: "info",
       });
-      // Refresh to reset the UI context
       window.location.reload();
     } catch (e) {
       console.error("Failed to wipe data", e);
@@ -177,692 +282,496 @@ export function Settings() {
     }
   };
 
-  if (!focusSettings || !notificationSettings || !breakSettings) {
+  if (loadingFocusSettings || loadingNotificationSettings || !breakSettings) {
     return (
-      <div className="p-4 lg:p-8 max-w-4xl mx-auto w-full flex justify-center items-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="flex-1 flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="p-4 lg:p-8 max-w-4xl mx-auto w-full space-y-6 lg:space-y-8 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Profile Section - Decorative */}
-      <section className="glass-panel p-8 rounded-lg">
-        <h3 className="text-xl font-serif-accent text-foreground mb-6">
-          Profile
-        </h3>
-        <div className="flex flex-col sm:flex-row items-start gap-8">
-          <div className="relative group cursor-pointer flex-shrink-0">
-            <img
-              alt="Avatar"
-              className="size-24 rounded-full object-cover border-2 border-border"
-              src="https://ui-avatars.com/api/?name=Local+User&background=random"
-            />
-          </div>
-
-          <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-6 opacity-70 pointer-events-none">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                First Name
-              </label>
-              <input
-                className="w-full bg-background border border-border rounded-lg p-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors"
-                type="text"
-                defaultValue="Local"
-                disabled
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Last Name
-              </label>
-              <input
-                className="w-full bg-background border border-border rounded-lg p-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors"
-                type="text"
-                defaultValue="User"
-                disabled
-              />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium text-foreground">
-                Account Type
-              </label>
-              <input
-                className="w-full bg-background border border-border rounded-lg p-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors"
-                type="text"
-                defaultValue="Offline Device Profile"
-                disabled
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Data is stored locally on your device.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Appearance */}
-      <section className="glass-panel p-8 rounded-lg">
-        <div className="flex items-center justify-between mb-6">
+    <ErrorBoundary>
+      <div className="flex-1 p-6 md:p-12 lg:p-16 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <header className="mb-12 border-b border-border pb-6 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <h3 className="text-xl font-serif-accent text-foreground">
-              Appearance
-            </h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              Customize how ZenFocus looks on your device.
+            <p className="font-label text-xs uppercase tracking-widest text-foreground mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 bg-foreground inline-block" />
+              System Configuration
             </p>
+            <h2 className="font-headline text-4xl md:text-5xl font-light text-foreground tracking-tighter">
+              Settings
+            </h2>
           </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <label className="cursor-pointer group">
-            <input
-              checked={theme === "light"}
-              onChange={() => setTheme("light")}
-              className="peer sr-only"
-              name="theme"
-              type="radio"
-              value="light"
-            />
-            <div className="border border-border p-4 hover:border-primary peer-checked:border-primary peer-checked:ring-1 peer-checked:ring-primary transition-all bg-secondary/20 rounded-lg">
-              <div className="space-y-2 bg-[#F6F6F6] p-3 border border-gray-200 mb-3 rounded-md">
-                <div className="space-y-1">
-                  <div className="h-2 w-3/4 bg-gray-300 rounded"></div>
-                  <div className="h-2 w-1/2 bg-gray-300 rounded"></div>
-                </div>
-                <div className="flex gap-2 mt-4">
-                  <div className="h-4 w-4 rounded-full bg-gray-300"></div>
-                  <div className="h-4 w-4 bg-gray-800 rounded"></div>
-                </div>
-              </div>
-              <span className="block text-sm font-medium text-center text-foreground">
-                Light
+          <div className="font-label text-xs text-muted-foreground uppercase tracking-widest text-right">
+            <p className="flex items-center justify-end gap-1 mb-1">
+              Status:
+              <span className="material-symbols-outlined text-[14px] text-foreground">
+                check_circle
               </span>
-            </div>
-          </label>
-
-          <label className="cursor-pointer group">
-            <input
-              checked={theme === "dark"}
-              onChange={() => setTheme("dark")}
-              className="peer sr-only"
-              name="theme"
-              type="radio"
-              value="dark"
-            />
-            <div className="border border-border p-4 hover:border-primary peer-checked:border-primary peer-checked:ring-1 peer-checked:ring-primary transition-all bg-secondary/20 rounded-lg">
-              <div className="space-y-2 bg-[#1A1A1A] p-3 border border-gray-700 mb-3 rounded-md">
-                <div className="space-y-1">
-                  <div className="h-2 w-3/4 bg-gray-600 rounded"></div>
-                  <div className="h-2 w-1/2 bg-gray-600 rounded"></div>
-                </div>
-                <div className="flex gap-2 mt-4">
-                  <div className="h-4 w-4 rounded-full bg-gray-600"></div>
-                  <div className="h-4 w-4 bg-gray-300 rounded"></div>
-                </div>
-              </div>
-              <span className="block text-sm font-medium text-center text-foreground">
-                Dark
-              </span>
-            </div>
-          </label>
-
-          <label className="cursor-pointer group">
-            <input
-              checked={theme === "system"}
-              onChange={() => setTheme("system")}
-              className="peer sr-only"
-              name="theme"
-              type="radio"
-              value="system"
-            />
-            <div className="border border-border p-4 hover:border-primary peer-checked:border-primary peer-checked:ring-1 peer-checked:ring-primary transition-all bg-secondary/20 rounded-lg">
-              <div className="relative overflow-hidden mb-3 border border-gray-300 dark:border-gray-700 rounded-md h-[78px]">
-                <div className="flex h-full">
-                  <div className="w-1/2 bg-[#F6F6F6] p-3 space-y-2 border-r border-gray-300 dark:border-gray-700">
-                    <div className="h-2 w-3/4 bg-gray-300 rounded"></div>
-                    <div className="h-2 w-1/2 bg-gray-300 rounded"></div>
-                  </div>
-                  <div className="w-1/2 bg-[#1A1A1A] p-3 space-y-2">
-                    <div className="h-2 w-3/4 bg-gray-600 rounded"></div>
-                    <div className="h-2 w-1/2 bg-gray-600 rounded"></div>
-                  </div>
-                </div>
-              </div>
-              <span className="block text-sm font-medium text-center text-foreground">
-                System
-              </span>
-            </div>
-          </label>
-        </div>
-      </section>
-
-      {/* Startup & System */}
-      <section className="glass-panel p-8 rounded-lg">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-xl font-serif-accent text-foreground">
-              System
-            </h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              Application startup and OS integrations.
+              <span className="text-foreground font-bold">Online</span>
             </p>
+            <p>Uptime: 48:12:00</p>
           </div>
-        </div>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between py-3 border-b border-border/50">
+        </header>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[1px] bg-border border border-border">
+          {/* MODULE: Appearance & System */}
+          <section className="bg-card p-6 md:p-8 flex flex-col gap-8">
             <div>
-              <h4 className="font-medium text-foreground">Start at Login</h4>
-              <p className="text-xs text-muted-foreground">
-                Launch automatically when you sign in
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={autostartStatus?.enabled || false}
-                onChange={(e) => handleToggleAutostart(e.target.checked)}
-              />
-              <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
-        </div>
-      </section>
-
-      {/* Focus Preferences */}
-      <section className="glass-panel p-8 rounded-lg">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-xl font-serif-accent text-foreground">
-              Focus Preferences
-            </h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              Customize your ideal working environment.
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3 border-b border-border/50">
-            <div>
-              <h4 className="font-medium text-foreground">
-                Default Focus Session
-              </h4>
-              <p className="text-xs text-muted-foreground">
-                Standard duration for Pomodoro timers
-              </p>
-            </div>
-            <div className="w-[140px]">
-              <Select
-                value={String(focusSettings.default_duration_minutes)}
-                onValueChange={(val) =>
-                  updateFocusSettings({
-                    default_duration_minutes: parseInt(val),
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select duration" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="15">15 minutes</SelectItem>
-                  <SelectItem value="25">25 minutes</SelectItem>
-                  <SelectItem value="45">45 minutes</SelectItem>
-                  <SelectItem value="60">60 minutes</SelectItem>
-                  <SelectItem value="90">90 minutes</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between py-3 border-b border-border/50">
-            <div>
-              <h4 className="font-medium text-foreground">
-                Mute Notifications
-              </h4>
-              <p className="text-xs text-muted-foreground">
-                Automatically silence alerts during focus
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={focusSettings.block_notifications}
-                onChange={(e) =>
-                  updateFocusSettings({ block_notifications: e.target.checked })
-                }
-              />
-              <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
-
-          <div className="flex items-center justify-between py-3 border-b border-border/50">
-            <div>
-              <h4 className="font-medium text-foreground">Session Alerts</h4>
-              <p className="text-xs text-muted-foreground">
-                Notify when sessions start or end
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={focusSettings.notify_on_end}
-                onChange={(e) =>
-                  updateFocusSettings({
-                    notify_on_start: e.target.checked,
-                    notify_on_end: e.target.checked,
-                  })
-                }
-              />
-              <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
-        </div>
-      </section>
-
-      {/* Break Reminders */}
-      <section className="glass-panel p-8 rounded-lg">
-        <h3 className="text-xl font-serif-accent text-foreground mb-6">
-          Break Reminders
-        </h3>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between border-b border-border/50 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-full bg-chart-1/10 flex items-center justify-center text-chart-1">
-                <span className="material-symbols-outlined text-xl">
-                  self_improvement
+              <div className="flex items-center gap-3 mb-5">
+                <span className="material-symbols-outlined text-foreground">
+                  palette
                 </span>
+                <h3 className="font-headline text-2xl text-foreground">
+                  Appearance
+                </h3>
               </div>
-              <div>
-                <h4 className="font-medium text-foreground text-sm">
-                  Enable Breaks
-                </h4>
-                <p className="text-xs text-muted-foreground">
-                  Periodic reminders to step away
-                </p>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  onClick={() => setTheme("light")}
+                  className={`border p-4 flex flex-col items-center gap-3 transition-colors group ${
+                    theme === "light"
+                      ? "border-foreground bg-secondary text-foreground"
+                      : "border-border bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  }`}
+                >
+                  <span className="material-symbols-outlined">light_mode</span>
+                  <span className="font-label text-xs uppercase tracking-widest">
+                    Light
+                  </span>
+                </button>
+                <button
+                  onClick={() => setTheme("dark")}
+                  className={`border p-4 flex flex-col items-center gap-3 transition-colors group ${
+                    theme === "dark"
+                      ? "border-foreground bg-secondary text-foreground"
+                      : "border-border bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  }`}
+                >
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    dark_mode
+                  </span>
+                  <span className="font-label text-xs uppercase tracking-widest">
+                    Dark
+                  </span>
+                </button>
+                <button
+                  onClick={() => setTheme("system")}
+                  className={`border p-4 flex flex-col items-center gap-3 transition-colors group ${
+                    theme === "system"
+                      ? "border-foreground bg-secondary text-foreground"
+                      : "border-border bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  }`}
+                >
+                  <span className="material-symbols-outlined">
+                    settings_brightness
+                  </span>
+                  <span className="font-label text-xs uppercase tracking-widest">
+                    System
+                  </span>
+                </button>
               </div>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={breakSettings.enabled}
-                onChange={(e) =>
-                  updateBreakSettings({ enabled: e.target.checked })
-                }
-              />
-              <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
 
-          {breakSettings.enabled && (
-            <div className="pl-14 space-y-4 pt-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">
-                  Work Duration: {breakSettings.work_minutes}m
+            <div className="pt-8 border-t border-border border-dashed">
+              <div className="flex items-center gap-3 mb-5">
+                <span className="material-symbols-outlined text-foreground">
+                  terminal
                 </span>
-                <input
-                  type="range"
-                  min="5"
-                  max="120"
-                  step="5"
-                  className="w-1/2"
-                  value={breakSettings.work_minutes}
-                  onChange={(e) =>
-                    updateBreakSettings({
-                      work_minutes: parseInt(e.target.value),
-                    })
-                  }
+                <h3 className="font-headline text-2xl text-foreground">
+                  System Logic
+                </h3>
+              </div>
+              <div className="flex items-center justify-between p-4 border border-border bg-background">
+                <div>
+                  <p
+                    className="font-label text-sm text-foreground uppercase tracking-wide"
+                    id="start-login-label"
+                  >
+                    Start at Login
+                  </p>
+                  <p className="font-body text-xs text-muted-foreground mt-1">
+                    Initialize sequence on system boot.
+                  </p>
+                </div>
+                <Toggle
+                  pressed={autostartStatus?.enabled || false}
+                  onPressedChange={handleToggleAutostart}
+                  id="start-login-label"
                 />
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">
-                  Break Duration: {breakSettings.break_minutes}m
+            </div>
+          </section>
+
+          {/* MODULE: Focus Profile */}
+          <section className="bg-card p-6 md:p-8 flex flex-col gap-8">
+            <div>
+              <div className="flex items-center gap-3 mb-5">
+                <span className="material-symbols-outlined text-foreground">
+                  center_focus_strong
                 </span>
-                <input
-                  type="range"
-                  min="1"
-                  max="30"
-                  step="1"
-                  className="w-1/2"
-                  value={breakSettings.break_minutes}
-                  onChange={(e) =>
-                    updateBreakSettings({
-                      break_minutes: parseInt(e.target.value),
-                    })
-                  }
-                />
+                <h3 className="font-headline text-2xl text-foreground">
+                  Focus Preferences
+                </h3>
               </div>
-              <div className="flex items-center gap-6 mt-4">
-                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded"
-                    checked={breakSettings.show_notification}
-                    onChange={(e) =>
-                      updateBreakSettings({
-                        show_notification: e.target.checked,
+              <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-2">
+                  <label className="font-label text-xs uppercase tracking-widest text-muted-foreground">
+                    Default Duration (Min)
+                  </label>
+                  <Select
+                    value={String(focusSettings?.default_duration_minutes ?? 25)}
+                    onValueChange={(val) =>
+                      updateFocusSettingsMutation.mutate({
+                        default_duration_minutes: parseInt(val),
                       })
                     }
-                  />
-                  Show Notification
-                </label>
-                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded"
-                    checked={breakSettings.play_sound}
-                    onChange={(e) =>
-                      updateBreakSettings({ play_sound: e.target.checked })
+                  >
+                    <SelectTrigger className="w-full bg-background border-border text-foreground font-label p-3 uppercase focus:border-foreground focus:ring-0 rounded-none h-auto">
+                      <SelectValue placeholder="Select duration" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-none border-border bg-card">
+                      <SelectItem value="15">15 Minutes</SelectItem>
+                      <SelectItem value="25">25 Minutes</SelectItem>
+                      <SelectItem value="45">45 Minutes</SelectItem>
+                      <SelectItem value="60">60 Minutes</SelectItem>
+                      <SelectItem value="90">90 Minutes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center justify-between p-4 border border-border bg-background">
+                  <span
+                    className="font-label text-sm text-foreground uppercase tracking-wide"
+                    id="mute-label"
+                  >
+                    Mute External Notifications
+                  </span>
+                  <Toggle
+                    pressed={focusSettings?.block_notifications ?? false}
+                    onPressedChange={(v) =>
+                      updateFocusSettingsMutation.mutate({
+                        block_notifications: v,
+                      })
                     }
+                    id="mute-label"
                   />
-                  Play Sound
-                </label>
+                </div>
+                <div className="flex items-center justify-between p-4 border border-border bg-background">
+                  <span
+                    className="font-label text-sm text-foreground uppercase tracking-wide"
+                    id="session-alerts-label"
+                  >
+                    Session Alerts
+                  </span>
+                  <Toggle
+                    pressed={focusSettings?.notify_on_end ?? false}
+                    onPressedChange={(v) =>
+                      updateFocusSettingsMutation.mutate({
+                        notify_on_start: v,
+                        notify_on_end: v,
+                      })
+                    }
+                    id="session-alerts-label"
+                  />
+                </div>
               </div>
             </div>
-          )}
-        </div>
-      </section>
 
-      {/* Notifications */}
-      <section className="glass-panel p-8 rounded-lg">
-        <h3 className="text-xl font-serif-accent text-foreground mb-6">
-          Notifications
-        </h3>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between border-b border-border/50 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-full bg-chart-1/10 flex items-center justify-center text-chart-1">
-                <span className="material-symbols-outlined text-xl">
+            <div className="pt-8 border-t border-border border-dashed">
+              <div className="flex justify-between items-end mb-5">
+                <h3 className="font-headline text-2xl text-foreground">
+                  Schedules
+                </h3>
+              </div>
+              <FocusScheduleEditor
+                schedules={focusSettings?.schedules ?? []}
+                onSave={async (schedules) => {
+                  const existing = focusSettings;
+                  if (!existing) return;
+                  await updateFocusSettingsMutation.mutateAsync({
+                    ...existing,
+                    schedules,
+                  });
+                }}
+              />
+            </div>
+          </section>
+
+          {/* MODULE: Break Reminders */}
+          <section className="bg-card p-6 md:p-8 flex flex-col gap-8">
+            <div>
+              <div className="flex items-center gap-3 mb-5">
+                <span className="material-symbols-outlined text-foreground">
+                  hourglass_empty
+                </span>
+                <h3 className="font-headline text-2xl text-foreground">
+                  Break Reminders
+                </h3>
+              </div>
+              <div className="flex flex-col gap-6">
+                <BrutalSlider
+                  id="work-cycle"
+                  label="Work Cycle"
+                  min={15}
+                  max={120}
+                  value={breakSettings.work_minutes}
+                  onChange={(v) => updateBreakSettings({ work_minutes: v })}
+                />
+                <BrutalSlider
+                  id="break-cycle"
+                  label="Break Cycle"
+                  min={5}
+                  max={30}
+                  value={breakSettings.break_minutes}
+                  onChange={(v) => updateBreakSettings({ break_minutes: v })}
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center justify-between p-3 border border-border bg-background">
+                    <span
+                      className="font-label text-xs text-foreground uppercase"
+                      id="notify-label"
+                    >
+                      Notify
+                    </span>
+                    <MiniToggle
+                      pressed={breakSettings.show_notification}
+                      onPressedChange={(v) =>
+                        updateBreakSettings({ show_notification: v })
+                      }
+                      id="notify-label"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between p-3 border border-border bg-background">
+                    <span
+                      className="font-label text-xs text-foreground uppercase"
+                      id="sound-label"
+                    >
+                      Sound
+                    </span>
+                    <MiniToggle
+                      pressed={breakSettings.play_sound}
+                      onPressedChange={(v) =>
+                        updateBreakSettings({ play_sound: v })
+                      }
+                      id="sound-label"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-8 border-t border-border border-dashed">
+              <div className="flex items-center gap-3 mb-5">
+                <span className="material-symbols-outlined text-foreground">
                   notifications
                 </span>
+                <h3 className="font-headline text-2xl text-foreground">
+                  Notifications
+                </h3>
               </div>
-              <div>
-                <h4 className="font-medium text-foreground text-sm">
-                  Master Toggle
-                </h4>
-                <p className="text-xs text-muted-foreground">
-                  Allow system notifications
-                </p>
-              </div>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={notificationSettings.enabled}
-                onChange={(e) =>
-                  updateNotificationSettings({ enabled: e.target.checked })
-                }
-              />
-              <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
-
-          <div className="pl-14 pb-4 border-b border-border/50">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium">
-                Limit Warning: {notificationSettings.warning_threshold}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min="50"
-              max="95"
-              step="5"
-              className="w-full"
-              value={notificationSettings.warning_threshold}
-              onChange={(e) =>
-                updateNotificationSettings({
-                  warning_threshold: parseInt(e.target.value),
-                })
-              }
-            />
-          </div>
-
-          <div className="flex items-center justify-between pb-2">
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-full bg-chart-2/10 flex items-center justify-center text-chart-2">
-                <span className="material-symbols-outlined text-xl">
-                  do_not_disturb_on
-                </span>
-              </div>
-              <div>
-                <h4 className="font-medium text-foreground text-sm">
-                  Do Not Disturb
-                </h4>
-                <p className="text-xs text-muted-foreground">
-                  Silence notifications during specific hours
-                </p>
-              </div>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={notificationSettings.dnd_enabled}
-                onChange={(e) =>
-                  updateNotificationSettings({ dnd_enabled: e.target.checked })
-                }
-              />
-              <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-            </label>
-          </div>
-
-          {notificationSettings.dnd_enabled && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-start gap-4 pl-14 pt-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">From</span>
-                <div className="w-[100px]">
-                  <Select
-                    value={String(notificationSettings.dnd_start_hour)}
-                    onValueChange={(val) =>
-                      updateNotificationSettings({
-                        dnd_start_hour: parseInt(val),
+              <div className="flex flex-col gap-5">
+                <div className="flex items-center justify-between p-4 border border-border bg-background">
+                  <div>
+                    <span
+                      className="font-label text-sm text-foreground uppercase tracking-wide"
+                      id="master-override-label"
+                    >
+                      Master Override
+                    </span>
+                    <p className="font-body text-xs text-muted-foreground mt-1">
+                      Enable all system alerts.
+                    </p>
+                  </div>
+                  <Toggle
+                    pressed={notificationSettings?.enabled ?? false}
+                    onPressedChange={(v) =>
+                      updateNotificationSettingsMutation.mutate({
+                        enabled: v,
                       })
                     }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Time" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 24 }).map((_, i) => (
-                        <SelectItem key={`start-${i}`} value={String(i)}>
-                          {`${i}:00`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    id="master-override-label"
+                  />
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">To</span>
-                <div className="w-[100px]">
-                  <Select
-                    value={String(notificationSettings.dnd_end_hour)}
-                    onValueChange={(val) =>
-                      updateNotificationSettings({
-                        dnd_end_hour: parseInt(val),
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Time" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 24 }).map((_, i) => (
-                        <SelectItem key={`end-${i}`} value={String(i)}>
-                          {`${i}:00`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Software Updates */}
-      <section className="glass-panel p-8 rounded-lg">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h3 className="text-xl font-serif-accent text-foreground">
-              Software Updates
-            </h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              Keep ZenFocus up to date.
-            </p>
-          </div>
-        </div>
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3 border-b border-border/50">
-            <div>
-              <h4 className="font-medium text-foreground">Current Version</h4>
-              <p className="text-xs text-muted-foreground font-mono">v0.1.5</p>
-            </div>
-            <div className="flex items-center gap-4">
-              {updateState.status === "available" && (
-                <span className="px-2 py-1 text-xs rounded bg-sky-500/15 text-sky-600 border border-sky-500/30">
-                  v{updateState.info.version} available
-                </span>
-              )}
-              {updateState.status === "up-to-date" && (
-                <span className="flex items-center px-2 py-1 text-xs rounded text-green-600 border border-green-500/40">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  Up to date
-                </span>
-              )}
-              <button
-                onClick={() => checkForUpdate(false)}
-                disabled={
-                  updateState.status === "checking" ||
-                  updateState.status === "downloading" ||
-                  updateState.status === "installing"
-                }
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-foreground border border-border bg-background hover:bg-secondary transition-colors rounded disabled:opacity-50"
-              >
-                <RefreshCw
-                  className={`h-3.5 w-3.5 ${updateState.status === "checking" ? "animate-spin" : ""}`}
+                <BrutalSlider
+                  id="warning-threshold"
+                  label="Limit Warning Threshold"
+                  min={50}
+                  max={95}
+                  value={notificationSettings?.warning_threshold ?? 85}
+                  onChange={(v) =>
+                    updateNotificationSettingsMutation.mutate({
+                      warning_threshold: v,
+                    })
+                  }
                 />
-                {updateState.status === "checking"
-                  ? "Checking…"
-                  : "Check for Updates"}
-              </button>
-              {updateState.status === "available" && (
+              </div>
+            </div>
+          </section>
+
+          {/* MODULE: Software & Data Management */}
+          <section className="bg-card p-6 md:p-8 flex flex-col gap-8">
+            <div>
+              <div className="flex items-center gap-3 mb-5">
+                <span className="material-symbols-outlined text-foreground">
+                  system_update_alt
+                </span>
+                <h3 className="font-headline text-2xl text-foreground">
+                  Software
+                </h3>
+              </div>
+              <div className="border border-border p-6 bg-background flex flex-col items-center justify-center text-center gap-4">
+                <span className="material-symbols-outlined text-4xl text-foreground font-light">
+                  check_circle
+                </span>
+                <div>
+                  <p className="font-label text-lg text-foreground tracking-widest">
+                    v0.1.5
+                  </p>
+                  <p className="font-label text-xs text-muted-foreground uppercase mt-1">
+                    {updateState.status === "up-to-date"
+                      ? "System is up to date"
+                      : updateState.status === "available"
+                        ? `Version ${updateState.info.version} available`
+                        : "System is up to date"}
+                  </p>
+                </div>
                 <button
-                  onClick={() => installUpdate()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white border border-primary bg-primary hover:opacity-90 transition-colors rounded disabled:opacity-50"
+                  onClick={() => checkForUpdate(false)}
+                  disabled={
+                    updateState.status === "checking" ||
+                    updateState.status === "downloading" ||
+                    updateState.status === "installing"
+                  }
+                  className="mt-2 border border-foreground px-6 py-2 font-label text-xs uppercase tracking-widest text-foreground hover:bg-foreground hover:text-background transition-colors w-full disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
                 >
-                  Install Update
+                  <RefreshCw
+                    className={`h-3.5 w-3.5 ${updateState.status === "checking" ? "animate-spin" : ""}`}
+                  />
+                  {updateState.status === "checking"
+                    ? "Checking..."
+                    : "Check for Updates"}
                 </button>
+                {updateState.status === "available" && (
+                  <button
+                    onClick={() => installUpdate()}
+                    className="border border-foreground px-6 py-2 font-label text-xs uppercase tracking-widest bg-foreground text-background hover:opacity-90 transition-opacity w-full"
+                  >
+                    Install Update
+                  </button>
+                )}
+              </div>
+              {updateState.status === "downloading" && (
+                <p className="font-label text-xs text-foreground mt-2">
+                  Downloading update... {updateState.progress}%
+                </p>
+              )}
+              {updateState.status === "installing" && (
+                <p className="font-label text-xs text-foreground mt-2">
+                  Installing update... the app will restart automatically.
+                </p>
+              )}
+              {updateState.status === "error" && (
+                <p className="font-label text-xs text-destructive mt-2">
+                  {updateState.message}
+                </p>
+              )}
+              {showLinuxUpdateHint && (
+                <p className="font-label text-xs text-muted-foreground mt-2">
+                  Note: In-app updates may not work for distro-managed installs.
+                </p>
               )}
             </div>
-          </div>
-          {updateState.status === "downloading" && (
-            <p className="text-sm p-3 rounded-lg bg-sky-500/10 text-sky-700 border border-sky-500/20">
-              Downloading update... {updateState.progress}%
-            </p>
-          )}
-          {updateState.status === "installing" && (
-            <p className="text-sm p-3 rounded-lg bg-sky-500/10 text-sky-700 border border-sky-500/20">
-              Installing update... the app will restart automatically.
-            </p>
-          )}
-          {updateState.status === "error" && (
-            <p className="text-sm p-3 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20">
-              {updateState.message}
-            </p>
-          )}
-          {showLinuxUpdateHint && (
-            <p className="text-xs text-muted-foreground">
-              Note: In-app updates may not work for distro-managed installs. If
-              install fails, update via your Linux package manager. AppImage
-              builds typically support in-app updates.
-            </p>
-          )}
-        </div>
-      </section>
 
-      {/* Privacy & Security (Export Data) */}
-      <section className="glass-panel p-8 rounded-lg">
-        <h3 className="text-xl font-serif-accent text-foreground mb-6">
-          Privacy & Security
-        </h3>
-        <div className="space-y-4">
-          <div className="flex gap-4 items-end mb-4">
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">
-                Start Date
-              </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                max={endDate}
-                className="block w-full bg-background border border-border rounded-lg p-2 text-sm"
-              />
+            <div className="pt-8 border-t border-border border-dashed">
+              <div className="flex items-center gap-3 mb-5">
+                <span className="material-symbols-outlined text-foreground">
+                  shield_lock
+                </span>
+                <h3 className="font-headline text-2xl text-foreground">
+                  Data Management
+                </h3>
+              </div>
+              <div className="flex flex-col gap-5">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-2">
+                    <label className="font-label text-xs uppercase tracking-widest text-muted-foreground">
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      max={endDate}
+                      className="bg-background border border-border text-foreground font-label p-3 text-sm focus:border-foreground focus:ring-0 outline-none"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="font-label text-xs uppercase tracking-widest text-muted-foreground">
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      min={startDate}
+                      className="bg-background border border-border text-foreground font-label p-3 text-sm focus:border-foreground focus:ring-0 outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => handleExport("csv")}
+                    className="border border-border bg-background p-3 font-label text-xs uppercase tracking-widest text-foreground hover:bg-secondary transition-colors flex justify-center items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      download
+                    </span>
+                    Export CSV
+                  </button>
+                  <button
+                    onClick={() => handleExport("json")}
+                    className="border border-border bg-background p-3 font-label text-xs uppercase tracking-widest text-foreground hover:bg-secondary transition-colors flex justify-center items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      download
+                    </span>
+                    Export JSON
+                  </button>
+                </div>
+                <div className="flex items-center justify-between p-4 border border-border bg-background">
+                  <div>
+                    <p className="font-label text-sm text-foreground uppercase tracking-wide">
+                      Import Data
+                    </p>
+                    <p className="font-body text-xs text-muted-foreground mt-1">
+                      Upload a previously exported file.
+                    </p>
+                  </div>
+                  <DataImport />
+                </div>
+                <button
+                  onClick={handleWipeData}
+                  className="border border-destructive text-destructive bg-destructive/10 p-4 font-label text-sm uppercase tracking-widest hover:bg-destructive hover:text-destructive-foreground transition-colors flex justify-center items-center gap-2"
+                >
+                  <span className="material-symbols-outlined">
+                    delete_forever
+                  </span>
+                  Delete All Data
+                </button>
+                {exportMessage && (
+                  <p className="font-label text-xs text-foreground">
+                    {exportMessage}
+                  </p>
+                )}
+              </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">End Date</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                min={startDate}
-                className="block w-full bg-background border border-border rounded-lg p-2 text-sm"
-              />
-            </div>
-          </div>
-          <div className="flex items-center justify-between p-4 border border-border bg-card rounded-lg">
-            <div>
-              <h4 className="text-sm font-medium text-foreground">
-                Export Data
-              </h4>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Download a copy of your usage data.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleExport("csv")}
-                className="text-sm font-medium text-foreground border border-border px-3 py-1.5 hover:bg-secondary transition-colors bg-background rounded"
-              >
-                Export CSV
-              </button>
-              <button
-                onClick={() => handleExport("json")}
-                className="text-sm font-medium text-foreground border border-border px-3 py-1.5 hover:bg-secondary transition-colors bg-background rounded"
-              >
-                Export JSON
-              </button>
-            </div>
-          </div>
-          <div className="flex items-center justify-between p-4 border border-red-900/20 bg-red-500/5 rounded-lg mt-4">
-            <div>
-              <h4 className="text-sm font-medium text-red-500">
-                Delete All Data
-              </h4>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Permanently delete all tracking history, limits, and settings.
-              </p>
-            </div>
-            <button
-              onClick={() => handleWipeData()}
-              className="text-sm font-medium text-white bg-red-600 px-3 py-1.5 hover:bg-red-700 transition-colors rounded"
-            >
-              Delete Data
-            </button>
-          </div>
-          {exportMessage && (
-            <p className="text-sm text-primary mt-2 px-2">{exportMessage}</p>
-          )}
+          </section>
         </div>
-      </section>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }

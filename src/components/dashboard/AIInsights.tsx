@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
-import { useAppStore } from '../../store/useAppStore';
+import { useDailyStats, useWeeklyStats } from '../../queries';
 import { Sparkles, Brain } from 'lucide-react';
 
 export function AIInsights() {
-  const dailyStats = useAppStore(state => state.dailyStats);
-  const weeklyStats = useAppStore(state => state.weeklyStats);
+  const { data: dailyStats } = useDailyStats();
+  const { data: weeklyStats } = useWeeklyStats();
 
   const insights = useMemo(() => {
     const generated = [];
@@ -14,7 +14,7 @@ export function AIInsights() {
         {
           id: '1',
           title: 'Collecting Data',
-          description: 'We are currently gathering data to provide personalized insights on your digital wellbeing.',
+          description: 'We are currently gathering data to provide personalized insights for reclaiming cognitive sovereignty.',
           icon: 'hourglass_empty',
           color: 'text-chart-1'
         }

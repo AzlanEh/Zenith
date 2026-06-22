@@ -1,42 +1,44 @@
-import { useEffect, useState, useRef } from 'react';
-import { api } from '../../services/api';
-import type { GoalProgress } from '../../types';
-import { Target, AlertCircle } from 'lucide-react';
+import { useMemo, memo } from "react";
+import { useGoalsProgress } from "../../queries";
+import { Target, AlertCircle } from "lucide-react";
 
-export function DailyProgress() {
-  const [progressItems, setProgressItems] = useState<GoalProgress[]>([]);
-  const [loading, setLoading] = useState(true);
-  const mountedRef = useRef(true);
+interface GoalProgressItem {
+  goal_id: string;
+  goal_name: string;
+  current_minutes: number;
+  target_minutes: number;
+  is_met: boolean;
+  status: string;
+}
 
-  useEffect(() => {
-    return () => { mountedRef.current = false; };
-  }, []);
+const DailyProgressInner = memo(function DailyProgressInner() {
+  const { data: progressItems = [], isLoading: loading } = useGoalsProgress();
 
-  useEffect(() => {
-    loadGoals();
-  }, []);
+  const getStatusColor = useMemo(
+    () => (status: string, is_met: boolean) => {
+      if (is_met) return "bg-chart-2";
+      switch (status) {
+        case "warning":
+          return "bg-chart-4";
+        case "exceeded":
+          return "bg-chart-5";
+        case "on_track":
+          return "bg-chart-1";
+        default:
+          return "bg-chart-3";
+      }
+    },
+    []
+  );
 
-  const loadGoals = async () => {
-    try {
-      setLoading(true);
-      const goals = await api.getGoalsProgress();
-      if (mountedRef.current) setProgressItems(goals);
-    } catch (e) {
-      console.error('Failed to load goals progress', e);
-    } finally {
-      if (mountedRef.current) setLoading(false);
-    }
-  };
-
-  const getStatusColor = (status: string, is_met: boolean) => {
-    if (is_met) return 'bg-chart-2'; // Achieved/Met (green-ish)
-    switch (status) {
-      case 'warning': return 'bg-chart-4'; // Warning (orange/red)
-      case 'exceeded': return 'bg-chart-5'; // Failed/Exceeded
-      case 'on_track': return 'bg-chart-1'; // Good (blue-ish)
-      default: return 'bg-chart-3';
-    }
-  };
+  const formatMins = useMemo(
+    () => (m: number) => {
+      const hrs = Math.floor(m / 60);
+      const mins = m % 60;
+      return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+    },
+    []
+  );
 
   return (
     <div className="glass-panel rounded-lg p-6 lg:p-8 flex flex-col">
@@ -47,11 +49,11 @@ export function DailyProgress() {
         </h3>
         <button className="text-xs text-muted-foreground hover:text-foreground transition-colors">Options</button>
       </div>
-      
+
       <div className="space-y-6 flex-1 flex flex-col">
         {loading ? (
           <div className="animate-pulse space-y-6">
-            {[1, 2, 3].map(i => (
+            {[1, 2, 3].map((i) => (
               <div key={i} className="space-y-2">
                 <div className="flex justify-between">
                   <div className="h-4 bg-secondary rounded w-24"></div>
@@ -68,16 +70,8 @@ export function DailyProgress() {
             <p className="text-xs text-muted-foreground mt-1">Set daily limits or minimum productive time in Settings.</p>
           </div>
         ) : (
-          progressItems.map(item => {
-            const formatMins = (m: number) => {
-              const hrs = Math.floor(m / 60);
-              const mins = m % 60;
-              return hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
-            };
-
-            const progress = item.target_minutes > 0
-              ? Math.min(100, (item.current_minutes / item.target_minutes) * 100)
-              : 0;
+          progressItems.map((item: GoalProgressItem) => {
+            const progress = item.target_minutes > 0 ? Math.min(100, (item.current_minutes / item.target_minutes) * 100) : 0;
 
             return (
               <div key={item.goal_id} className="space-y-2 group">
@@ -88,8 +82,8 @@ export function DailyProgress() {
                   </span>
                 </div>
                 <div className="h-2.5 w-full bg-secondary rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full ${getStatusColor(item.status, item.is_met)} rounded-full transition-all duration-1000 ease-out`} 
+                  <div
+                    className={`h-full ${getStatusColor(item.status, item.is_met)} rounded-full transition-all duration-1000 ease-out`}
                     style={{ width: `${progress}%` }}
                   ></div>
                 </div>
@@ -100,4 +94,8 @@ export function DailyProgress() {
       </div>
     </div>
   );
+});
+
+export function DailyProgress() {
+  return <DailyProgressInner />;
 }

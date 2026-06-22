@@ -1,51 +1,47 @@
-import { useAppStore } from "../../store/useAppStore";
-import { useMemo, useEffect, useRef } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { useWeeklyStats } from "../../queries";
+import { useMemo, memo } from "react";
+import { WeeklyActivityChart } from "./WeeklyActivityChart";
 import { formatTime } from "../../lib/utils";
 
-export function WeeklyActivity({ onDayClick }: { onDayClick?: (date: string) => void }) {
-  const weeklyStats = useAppStore(state => state.weeklyStats);
-  const loadWeeklyStats = useAppStore(state => state.loadWeeklyStats);
+interface WeeklyActivityProps {
+  onDayClick?: (date: string) => void;
+}
 
-  const loadWeeklyStatsRef = useRef(loadWeeklyStats);
-  loadWeeklyStatsRef.current = loadWeeklyStats;
-  
-  useEffect(() => {
-    loadWeeklyStatsRef.current();
-  }, []);
-  
+const WeeklyActivityInner = memo(function WeeklyActivityInner({ onDayClick }: WeeklyActivityProps) {
+  const { data: weeklyStats } = useWeeklyStats();
+
   const chartData = useMemo(() => {
     if (!weeklyStats || !weeklyStats.days) return [];
-    
+
     const days = [];
     let hasAnyData = false;
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
       const dateStr = `${year}-${month}-${day}`;
-      
-      const stat = weeklyStats.days.find(s => s.date === dateStr);
+
+      const stat = weeklyStats.days.find((s) => s.date === dateStr);
       if (stat) hasAnyData = true;
 
       days.push({
-        day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+        day: d.toLocaleDateString("en-US", { weekday: "short" }),
         fullDate: dateStr,
         seconds: stat ? stat.total_seconds : 0,
-        hours: stat ? Number((stat.total_seconds / 3600).toFixed(1)) : 0
+        hours: stat ? Number((stat.total_seconds / 3600).toFixed(1)) : 0,
       });
     }
 
     if (!hasAnyData && weeklyStats.days.length > 0) {
-      return weeklyStats.days.slice(-7).map(stat => {
+      return weeklyStats.days.slice(-7).map((stat) => {
         const d = new Date(stat.date);
         return {
-          day: isNaN(d.getTime()) ? stat.date.slice(-5) : d.toLocaleDateString('en-US', { weekday: 'short' }),
+          day: isNaN(d.getTime()) ? stat.date.slice(-5) : d.toLocaleDateString("en-US", { weekday: "short" }),
           fullDate: stat.date,
           seconds: stat.total_seconds,
-          hours: Number((stat.total_seconds / 3600).toFixed(1))
+          hours: Number((stat.total_seconds / 3600).toFixed(1)),
         };
       });
     }
@@ -53,7 +49,7 @@ export function WeeklyActivity({ onDayClick }: { onDayClick?: (date: string) => 
     return days;
   }, [weeklyStats]);
 
-  const maxHours = Math.max(...chartData.map(d => d.hours), 1);
+  const maxHours = Math.max(...chartData.map((d) => d.hours), 1);
 
   if (!weeklyStats) {
     return (
@@ -63,7 +59,7 @@ export function WeeklyActivity({ onDayClick }: { onDayClick?: (date: string) => 
         </div>
         <div className="flex-1 flex items-center justify-center">
           <div className="animate-pulse flex space-x-2 items-end h-32">
-            {[1, 2, 3, 4, 5, 6, 7].map(i => (
+            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
               <div key={i} className="w-8 bg-muted rounded-t-md" style={{ height: `${Math.random() * 80 + 20}%` }}></div>
             ))}
           </div>
@@ -80,56 +76,14 @@ export function WeeklyActivity({ onDayClick }: { onDayClick?: (date: string) => 
           {formatTime(weeklyStats.total_seconds)} Total
         </p>
       </div>
-      
+
       <div className="flex-1 w-full min-h-0 mt-2">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-            <XAxis 
-              dataKey="day" 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{ fontSize: 12, fill: 'var(--color-muted-foreground)' }} 
-              dy={10}
-            />
-            <YAxis 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{ fontSize: 12, fill: 'var(--color-muted-foreground)' }}
-              tickFormatter={(value) => `${value}h`}
-              domain={[0, Math.ceil(maxHours)]}
-            />
-            <Tooltip 
-              cursor={{ fill: 'var(--color-secondary)', opacity: 0.4 }}
-              content={({ active, payload }) => {
-                if (active && payload && payload.length) {
-                  return (
-                    <div className="bg-popover border border-border shadow-md rounded-lg p-3 text-sm">
-                      <p className="font-medium text-foreground mb-1">{payload[0].payload.fullDate}</p>
-                      <p className="text-primary font-bold">
-                        {formatTime(payload[0].payload.seconds)}
-                      </p>
-                    </div>
-                  );
-                }
-                return null;
-              }}
-            />
-            <Bar dataKey="hours" radius={[4, 4, 0, 0]} maxBarSize={40} minPointSize={4} onClick={(data) => onDayClick?.(data.fullDate)}>
-              {chartData.map((_, index) => (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill=""
-                  className={`fill-current transition-all duration-500 cursor-pointer ${
-                    index === chartData.length - 1 
-                      ? "text-primary" 
-                      : "text-primary/40 hover:text-primary/80"
-                  }`}
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        <WeeklyActivityChart chartData={chartData} maxHours={maxHours} onDayClick={onDayClick} />
       </div>
     </div>
   );
+});
+
+export function WeeklyActivity({ onDayClick }: WeeklyActivityProps) {
+  return <WeeklyActivityInner onDayClick={onDayClick} />;
 }

@@ -1,15 +1,7 @@
 import { memo } from "react";
 import { cn } from "@/lib/utils";
-import {
-  LayoutDashboard,
-  Focus,
-  BarChart2,
-  ShieldAlert,
-  Settings as SettingsIcon,
-  Sparkles,
-} from "lucide-react";
 
-export type Page = "dashboard" | "focus" | "analytics" | "limits" | "settings";
+export type Page = "dashboard" | "focus" | "goals" | "analytics" | "limits" | "settings";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -17,143 +9,82 @@ interface SidebarProps {
   setCurrentPage: (page: Page) => void;
 }
 
+const NAV_ITEMS: { icon: string; label: string; page: Page }[] = [
+  { icon: "dashboard", label: "Dashboard", page: "dashboard" },
+  { icon: "center_focus_strong", label: "Focus Mode", page: "focus" },
+  { icon: "analytics", label: "Analytics", page: "analytics" },
+  { icon: "timer_off", label: "Limits", page: "limits" },
+  { icon: "outlined_flag", label: "Goals", page: "goals" },
+  { icon: "settings", label: "Settings", page: "settings" },
+];
+
 export const Sidebar = memo(function Sidebar({ isOpen, currentPage, setCurrentPage }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "w-64 lg:w-72 flex-shrink-0 flex flex-col border-r border-border bg-card h-screen sticky top-0 z-50 transition-transform duration-300 absolute lg:relative",
-        !isOpen && "-translate-x-full lg:translate-x-0",
+        "flex flex-col h-screen z-50 transition-transform duration-300",
+        "fixed inset-y-0 left-0 lg:sticky lg:inset-y-auto",
+        "w-full sm:w-56 lg:w-60 xl:w-64",
+        "bg-[#1b1b1b] border-r border-[#474747]",
+        !isOpen ? "-translate-x-full lg:translate-x-0" : "translate-x-0",
       )}
     >
-      <div className="p-6 flex items-center gap-3">
-        <div className="size-10 bg-primary flex items-center justify-center rounded-lg shadow-sm">
-          <Sparkles className="text-primary-foreground w-6 h-6" />
-        </div>
-        <div>
-          <h1 className="text-xl font-serif-accent font-bold tracking-tight text-foreground">
-            ZenFocus
-          </h1>
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-            Digital Wellbeing
-          </p>
-        </div>
+      <div className="p-4 sm:p-5 lg:p-6 xl:p-8 mb-4">
+        <span
+          className="block font-serif italic text-[#e2e2e2]"
+          style={{
+            fontSize: "clamp(1.25rem, 3vw, 1.875rem)",
+          }}
+        >
+          Zenith
+        </span>
+        <span className="hidden sm:block font-sans uppercase tracking-[0.1em] text-xs text-[#c6c6c6]">
+          Digital Sanctuary
+        </span>
       </div>
 
-      <nav className="flex-1 px-4 py-4 flex flex-col gap-1 overflow-y-auto">
-        <button
-          onClick={() => setCurrentPage("dashboard")}
-          className={cn(
-            "flex items-center gap-3 px-4 py-3 group transition-all rounded-r-md border-l-2",
-            currentPage === "dashboard"
-              ? "bg-secondary text-foreground border-primary"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 border-transparent",
-          )}
-        >
-          <LayoutDashboard
+      <nav className="px-2 sm:px-3 lg:px-4 xl:px-6 flex flex-col gap-1 flex-1">
+        {NAV_ITEMS.map((item) => (
+          <button
+            key={item.label}
+            onClick={() => setCurrentPage(item.page)}
             className={cn(
-              "w-5 h-5",
-              currentPage === "dashboard"
-                ? "text-foreground"
-                : "group-hover:text-foreground transition-colors",
+              "flex items-center w-full text-left gap-3 px-3 py-2 no-underline",
+              "font-mono uppercase tracking-[0.1em] transition-all duration-200",
+              "border-t-0 border-r-0 border-b-0",
+              currentPage === item.page
+                ? "font-bold bg-white text-[#1c1b1b] border-l-4 border-[#1c1b1b]"
+                : "font-normal bg-transparent text-[#c6c6c6] border-l-4 border-transparent hover:bg-[#2a2a2a] hover:text-[#e2e2e2]",
             )}
-          />
-          <span className="font-medium text-sm">Dashboard</span>
-        </button>
-        <button
-          onClick={() => setCurrentPage("focus")}
-          className={cn(
-            "flex items-center gap-3 px-4 py-3 group transition-all rounded-r-md border-l-2",
-            currentPage === "focus"
-              ? "bg-secondary text-foreground border-primary"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 border-transparent",
-          )}
-        >
-          <Focus
-            className={cn(
-              "w-5 h-5",
-              currentPage === "focus"
-                ? "text-foreground"
-                : "group-hover:text-foreground transition-colors",
-            )}
-          />
-          <span className="font-medium text-sm">Focus Mode</span>
-        </button>
-        <button
-          onClick={() => setCurrentPage("analytics")}
-          className={cn(
-            "flex items-center gap-3 px-4 py-3 group transition-all rounded-r-md border-l-2",
-            currentPage === "analytics"
-              ? "bg-secondary text-foreground border-primary"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 border-transparent",
-          )}
-        >
-          <BarChart2
-            className={cn(
-              "w-5 h-5",
-              currentPage === "analytics"
-                ? "text-foreground"
-                : "group-hover:text-foreground transition-colors",
-            )}
-          />
-          <span className="font-medium text-sm">Analytics</span>
-        </button>
-        <button
-          onClick={() => setCurrentPage("limits")}
-          className={cn(
-            "flex items-center gap-3 px-4 py-3 group transition-all rounded-r-md border-l-2",
-            currentPage === "limits"
-              ? "bg-secondary text-foreground border-primary"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 border-transparent",
-          )}
-        >
-          <ShieldAlert
-            className={cn(
-              "w-5 h-5",
-              currentPage === "limits"
-                ? "text-foreground"
-                : "group-hover:text-foreground transition-colors",
-            )}
-          />
-          <span className="font-medium text-sm">App Limits</span>
-        </button>
-        <button
-          onClick={() => setCurrentPage("settings")}
-          className={cn(
-            "flex items-center gap-3 px-4 py-3 group transition-all rounded-r-md border-l-2",
-            currentPage === "settings"
-              ? "bg-secondary text-foreground border-primary"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 border-transparent",
-          )}
-        >
-          <SettingsIcon
-            className={cn(
-              "w-5 h-5",
-              currentPage === "settings"
-                ? "text-foreground"
-                : "group-hover:text-foreground transition-colors",
-            )}
-          />
-          <span className="font-medium text-sm">Settings</span>
-        </button>
+            style={{
+              fontSize: "clamp(0.65rem, 1.5vw, 0.75rem)",
+            }}
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{
+                fontVariationSettings: "'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24",
+                fontSize: "clamp(1.125rem, 2vw, 1.5rem)",
+              }}
+            >
+              {item.icon}
+            </span>
+            <span className="truncate">{item.label}</span>
+          </button>
+        ))}
       </nav>
 
-      {/*<div className="p-4 mt-auto">
-        <div className="bg-secondary/50 rounded-xl p-4 border border-border">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="size-10 rounded-full bg-chart-1/20 border border-chart-1/30 flex items-center justify-center overflow-hidden">
-               <img src="https://ui-avatars.com/api/?name=Azlan&background=random" alt="Avatar" className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">Azlan</p>
-              <p className="text-xs text-muted-foreground">Pro Plan</p>
-            </div>
-          </div>
-          <button className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium text-muted-foreground hover:text-foreground bg-background hover:bg-card border border-border rounded-lg transition-colors">
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Sign Out</span>
-          </button>
-        </div>
-      </div>*/}
+      <div className="p-4 sm:p-5 lg:p-6 xl:p-8 mt-auto">
+        <button
+          onClick={() => setCurrentPage("focus")}
+          className="w-full bg-[#131313] text-white border border-[#474747] p-3 font-mono uppercase tracking-[0.2em] font-bold cursor-pointer transition-all duration-200 hover:bg-white hover:text-[#1c1b1b]"
+          style={{
+            fontSize: "clamp(0.6rem, 1.5vw, 0.7rem)",
+          }}
+        >
+          Start Focus
+        </button>
+      </div>
     </aside>
   );
 });
