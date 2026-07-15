@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 #[cfg(target_os = "linux")]
@@ -56,7 +56,7 @@ fn push_unique_path(paths: &mut Vec<PathBuf>, path: PathBuf) {
 
 #[cfg(target_os = "linux")]
 fn find_icon_recursive(
-    root: &PathBuf,
+    root: &Path,
     icon_stem: &str,
     extensions: &[&str],
     max_depth: usize,
@@ -66,7 +66,7 @@ fn find_icon_recursive(
     }
 
     let mut queue: VecDeque<(PathBuf, usize)> = VecDeque::new();
-    queue.push_back((root.clone(), 0));
+    queue.push_back((root.to_path_buf(), 0));
 
     while let Some((dir, depth)) = queue.pop_front() {
         if depth > max_depth {
@@ -446,7 +446,7 @@ fn get_installed_apps_linux() -> Vec<InstalledApp> {
     }
 
     // Sort by name
-    apps.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    apps.sort_by_key(|a| a.name.to_lowercase());
     apps
 }
 
@@ -481,7 +481,7 @@ fn get_installed_apps_windows() -> Vec<InstalledApp> {
     scan_registry_apps(&mut apps);
 
     // Sort by name
-    apps.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    apps.sort_by_key(|a| a.name.to_lowercase());
 
     // Deduplicate by name
     apps.dedup_by(|a, b| a.name.to_lowercase() == b.name.to_lowercase());

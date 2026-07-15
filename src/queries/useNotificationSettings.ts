@@ -6,9 +6,6 @@ export function useNotificationSettings() {
   return useQuery<NotificationSettings>({
     queryKey: ["notificationSettings"],
     queryFn: () => api.getNotificationSettings(),
-    staleTime: 30_000,
-    retry: 1,
-    refetchOnWindowFocus: true,
   });
 }
 

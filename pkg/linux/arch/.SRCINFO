@@ -1,4 +1,4 @@
-pkgbase = zenith
+pkgbase = zenith-dw
 	pkgdesc = A high-fidelity digital wellbeing platform for reclaiming cognitive sovereignty.
 	pkgver = 0.1.5
 	pkgrel = 1
@@ -15,11 +15,11 @@ pkgbase = zenith
 	depends = gtk3
 	depends = libappindicator-gtk3
 	depends = librsvg
-	provides = zenith
+	provides = zenith-dw
 	conflicts = wellbeing
 	conflicts = wellbeing-git
 	conflicts = wellbeing-bin
 	source = zenith-0.1.5.tar.gz::https://github.com/Azlaneh/zenith/archive/v0.1.5.tar.gz
 	sha256sums = SKIP
 
-pkgname = zenith
+pkgname = zenith-dw

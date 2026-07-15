@@ -1,4 +1,4 @@
-pkgbase = zenith-git
+pkgbase = zenith-dw-git
 	pkgdesc = A high-fidelity digital wellbeing platform for reclaiming cognitive sovereignty (git version)
 	pkgver = r1.abc1234
 	pkgrel = 1
@@ -21,11 +21,11 @@ pkgbase = zenith-git
 	depends = libayatana-appindicator
 	depends = appmenu-gtk-module
 	optdepends = libnotify: desktop notifications
-	provides = zenith
+	provides = zenith-dw
 	conflicts = wellbeing
 	conflicts = wellbeing-git
 	conflicts = wellbeing-bin
 	source = git+https://github.com/Azlaneh/zenith.git
 	sha256sums = SKIP
 
-pkgname = zenith-git
+pkgname = zenith-dw-git

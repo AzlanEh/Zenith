@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { useFocusHistory } from "../hooks/useFocusHistory";
-import { formatTime } from "../lib/utils";
+import { formatDuration } from "../utils/formatters";
 import {
   useDailyStats,
   useWeeklyHourlyUsage,
@@ -94,7 +94,7 @@ function StatCards({
         </div>
         <div className="mt-auto">
           <span className="font-mono text-5xl leading-none text-white font-light">
-            {formatTime(avgDailyUse)}
+            {formatDuration(avgDailyUse)}
           </span>
           <div className="flex items-center gap-2 mt-2 font-mono text-[0.7rem] text-[#c6c6c6]">
             <Icon name="trending_down" size={16} className="text-[#c6c6c6]" />
@@ -118,7 +118,7 @@ function StatCards({
         </div>
         <div className="mt-auto">
           <span className="font-mono text-5xl leading-none text-white font-light">
-            {formatTime(todaySeconds)}
+            {formatDuration(todaySeconds)}
           </span>
           <div className="w-full h-1 bg-[#2a2a2a] mt-4">
             <div
@@ -231,7 +231,7 @@ function IntensityMatrix({
                       data-cell
                       data-row={r}
                       data-col={c}
-                      title={`${dayLabel} ${Math.floor(c / 2)}:${c % 2 === 0 ? "00" : "30"} — ${formatTime(seconds)}`}
+                      title={`${dayLabel} ${Math.floor(c / 2)}:${c % 2 === 0 ? "00" : "30"} — ${formatDuration(seconds)}`}
                       className="flex-1 min-w-[6px] aspect-square cursor-crosshair opacity-80 hover:opacity-100 transition-opacity duration-100 hover:outline hover:outline-1 hover:outline-white outline-none"
                       style={{
                         backgroundColor: cellColor(seconds),
@@ -284,7 +284,7 @@ function DistractionVectors({
   const items = useMemo(() => {
     return apps.slice(0, 5).map((a) => ({
       name: a.app_name,
-      time: formatTime(a.duration_seconds),
+      time: formatDuration(a.duration_seconds),
       pct: Math.round(
         (a.duration_seconds /
           (apps.reduce((s, x) => s + x.duration_seconds, 0) || 1)) *
@@ -417,7 +417,7 @@ function ProcessLedger({
                     {row.session_count}
                   </td>
                   <td className="font-mono text-xs text-[#e2e2e2] p-4 text-right">
-                    {formatTime(row.duration_seconds)}
+                    {formatDuration(row.duration_seconds)}
                   </td>
                   <td className="font-mono text-xs text-[#e2e2e2] p-4 pr-0 text-right">
                     {totalSeconds > 0

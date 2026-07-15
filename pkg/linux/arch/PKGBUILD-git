@@ -1,5 +1,5 @@
 # Maintainer: Azlan Ehtasham <azlanehtesham02@gmail.com>
-pkgname=zenith-git
+pkgname=zenith-dw-git
 pkgver=r1.abc1234
 pkgrel=1
 pkgdesc="A high-fidelity digital wellbeing platform for reclaiming cognitive sovereignty (git version)"
@@ -28,7 +28,7 @@ makedepends=(
 optdepends=(
     'libnotify: desktop notifications'
 )
-provides=('zenith')
+provides=('zenith-dw')
 conflicts=('wellbeing' 'wellbeing-git' 'wellbeing-bin')
 source=("git+https://github.com/Azlaneh/zenith.git")
 sha256sums=('SKIP')
@@ -65,16 +65,16 @@ package() {
     cd "$srcdir/zenith"
 
     # Install binary
-    install -Dm755 "src-tauri/target/release/zenith" "$pkgdir/usr/bin/zenith"
+    install -Dm755 "src-tauri/target/release/zenith" "$pkgdir/usr/bin/zenith-dw"
 
     # Install desktop file
-    install -Dm644 "pkg/linux/arch/zenith.desktop" "$pkgdir/usr/share/applications/zenith.desktop"
+    install -Dm644 "pkg/linux/arch/zenith-dw.desktop" "$pkgdir/usr/share/applications/zenith-dw.desktop"
 
     # Install icons
-    install -Dm644 "src-tauri/icons/32x32.png" "$pkgdir/usr/share/icons/hicolor/32x32/apps/zenith.png"
-    install -Dm644 "src-tauri/icons/128x128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/zenith.png"
-    install -Dm644 "src-tauri/icons/128x128@2x.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/zenith.png"
-    install -Dm644 "src-tauri/icons/icon.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/zenith.png"
+    install -Dm644 "src-tauri/icons/32x32.png" "$pkgdir/usr/share/icons/hicolor/32x32/apps/zenith-dw.png"
+    install -Dm644 "src-tauri/icons/128x128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/zenith-dw.png"
+    install -Dm644 "src-tauri/icons/128x128@2x.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/zenith-dw.png"
+    install -Dm644 "src-tauri/icons/icon.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/zenith-dw.png"
 
     # Install license
     install -Dm644 "LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2>/dev/null || true

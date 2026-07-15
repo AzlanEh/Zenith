@@ -4,7 +4,6 @@ import {
   formatTime,
   getPercentage,
   getDayName,
-  getDayNameFromTimestamp,
 } from "./formatters";
 
 describe("formatDuration", () => {
@@ -96,23 +95,4 @@ describe("getDayName", () => {
   });
 });
 
-describe("getDayNameFromTimestamp", () => {
-  it("converts Unix timestamp to day name", () => {
-    // January 12, 2026 at noon UTC = 1768132800
-    const timestamp = 1768132800;
-    // Note: Result depends on local timezone
-    const result = getDayNameFromTimestamp(timestamp);
-    expect(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]).toContain(result);
-  });
 
-  it("handles different timestamps", () => {
-    // Test that it returns valid day names
-    const result1 = getDayNameFromTimestamp(0); // Jan 1, 1970
-    const result2 = getDayNameFromTimestamp(86400); // Jan 2, 1970
-    
-    expect(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]).toContain(result1);
-    expect(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]).toContain(result2);
-    // They should be different days
-    expect(result1).not.toBe(result2);
-  });
-});

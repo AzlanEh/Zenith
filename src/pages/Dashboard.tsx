@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useFocusHistory } from "../hooks/useFocusHistory";
-import { cn, formatTime } from "../lib/utils";
+import { cn } from "../lib/utils";
+import { formatDuration } from "../utils/formatters";
 import {
   useAchievements,
   useDailyStats,
@@ -119,12 +120,12 @@ function CognitiveLoadDial({
         {[
           {
             value: hasCategories
-              ? formatTime(productive)
-              : formatTime(totalSeconds),
+              ? formatDuration(productive)
+              : formatDuration(totalSeconds),
             label: hasCategories ? "Deep Work" : "Total Today",
           },
           {
-            value: hasCategories ? formatTime(distracted) : "—",
+            value: hasCategories ? formatDuration(distracted) : "—",
             label: hasCategories ? "Distracted" : "Uncategorized",
           },
           {
@@ -325,8 +326,8 @@ function SystemAnalysis({
                 {new Date(insight.maxDay.date).toLocaleDateString("en", {
                   weekday: "long",
                 })}{" "}
-                with {formatTime(insight.maxDay.total_seconds)} of screen time
-                tracked. Weekly average: {formatTime(Math.round(insight.avg))}.
+                with {formatDuration(insight.maxDay.total_seconds)} of screen time
+                tracked. Weekly average: {formatDuration(Math.round(insight.avg))}.
               </span>
             </p>
             <p className="font-sans text-sm leading-relaxed text-[#e2e2e2] flex gap-2">
@@ -404,7 +405,7 @@ function ActivityLog({
       result.push({
         title: a.app_name,
         time: "today",
-        description: `Used for ${formatTime(a.duration_seconds)}`,
+        description: `Used for ${formatDuration(a.duration_seconds)}`,
       });
     }
     return result;
@@ -613,7 +614,7 @@ export function Dashboard() {
               Today's Usage
             </span>
             <div className="text-2xl font-mono font-bold text-white mt-1">
-              {dailyStats ? formatTime(dailyStats.total_seconds) : "—"}
+              {dailyStats ? formatDuration(dailyStats.total_seconds) : "—"}
             </div>
           </div>
         </div>

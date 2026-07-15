@@ -25,12 +25,6 @@ export const formatTime = (seconds: number): string => {
   return `${minutes}:${secs.toString().padStart(2, "0")}`;
 };
 
-export const formatHour = (hour: number): string => {
-  const h = hour % 12 || 12;
-  const ampm = hour < 12 ? "AM" : "PM";
-  return `${h} ${ampm}`;
-};
-
 export const getPercentage = (value: number, total: number): number => {
   if (total === 0) return 0;
   return Math.round((value / total) * 100);
@@ -43,8 +37,3 @@ export const getDayName = (dateStr: string): string => {
   return date.toLocaleDateString("en-US", { weekday: "short" });
 };
 
-export const getDayNameFromTimestamp = (timestamp: number): string => {
-  // Timestamp is in seconds, convert to milliseconds
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleDateString("en-US", { weekday: "short" });
-};

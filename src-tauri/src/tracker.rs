@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex;
 use tokio::time::interval;
 
@@ -56,10 +56,8 @@ pub struct UsageTracker {
     emergency_access: Arc<EmergencyAccessManager>,
     /// Notification manager for DND/mute-aware notifications
     notification_manager: Option<Arc<NotificationManager>>,
-    /// Tauri app handle for creating windows
+    /// Tauri app handle for emitting events
     app_handle: Option<AppHandle>,
-    /// Track if popup is currently shown for an app (to avoid multiple popups)
-    popup_shown_for: Arc<Mutex<Option<String>>>,
     /// Focus manager for focus-mode blocking rules
     focus_manager: Arc<FocusManager>,
     /// Counter for session flush interval (avoids unreliable modulo on timestamps)
@@ -87,7 +85,6 @@ impl UsageTracker {
             emergency_access,
             notification_manager: None,
             app_handle: None,
-            popup_shown_for: Arc::new(Mutex::new(None)),
             focus_manager,
             flush_counter: Arc::new(Mutex::new(0)),
             retry_buffer: Arc::new(Mutex::new(Vec::new())),
@@ -100,7 +97,6 @@ impl UsageTracker {
         *self.current_app.lock().await = None;
         *self.current_session_id.lock().await = None;
         *self.session_start.lock().await = None;
-        *self.popup_shown_for.lock().await = None;
         *self.flush_counter.lock().await = 0;
         *self.last_written_end_time.lock().await = None;
         self.sent_notifications.lock().await.clear();
@@ -117,7 +113,6 @@ impl UsageTracker {
         *self.current_app.lock().await = current_app;
         *self.current_session_id.lock().await = session_id;
         *self.session_start.lock().await = session_start;
-        *self.popup_shown_for.lock().await = Some("test-popup".to_string());
         *self.flush_counter.lock().await = 3;
         *self.last_written_end_time.lock().await = Some(12345);
         self.sent_notifications
@@ -145,7 +140,7 @@ impl UsageTracker {
         (app, session, start, notifications_len, retry_len)
     }
 
-    /// Set the Tauri app handle for creating windows
+    /// Set the Tauri app handle for emitting events
     pub fn set_app_handle(&mut self, handle: AppHandle) {
         self.app_handle = Some(handle);
     }
@@ -158,6 +153,11 @@ impl UsageTracker {
     /// Get a clone of the app handle
     pub fn app_handle_clone(&self) -> Option<AppHandle> {
         self.app_handle.clone()
+    }
+
+    /// Get the currently tracked app name (the active window)
+    pub async fn current_app(&self) -> Option<String> {
+        self.current_app.lock().await.clone()
     }
 
     /// Get a reference to the emergency access manager
@@ -365,20 +365,10 @@ impl UsageTracker {
                         // Allow the app, emergency access is active
                         tracing::debug!(app = %app, "App has emergency access, allowing");
                     } else {
-                        // Show limit popup instead of blocking immediately
-                        self.show_limit_popup(app).await;
+                        // Emit blocked event and send notification
+                        // Frontend overlay handles the popup UI
+                        self.emit_blocked_event(app).await;
                     }
-                }
-            }
-        }
-
-        // Clear popup tracking when switching away from blocked app
-        // Use a single lock acquisition to avoid potential deadlock
-        {
-            let mut popup_shown = self.popup_shown_for.lock().await;
-            if let Some(ref popup_app) = *popup_shown {
-                if app_name.as_ref() != Some(popup_app) {
-                    *popup_shown = None;
                 }
             }
         }
@@ -568,80 +558,27 @@ impl UsageTracker {
         }
     }
 
-    /// Show the limit reached popup window for a blocked app
-    async fn show_limit_popup(&self, app_name: &str) {
-        // Check if popup is already shown for this app (single lock acquisition)
-        {
-            let mut popup_shown = self.popup_shown_for.lock().await;
-            if popup_shown.as_ref() == Some(&app_name.to_string()) {
-                return; // Popup already shown for this app
-            }
-            // Mark popup as shown for this app
-            *popup_shown = Some(app_name.to_string());
-        }
-
+    /// Emit a blocked-app event and send a notification when a blocked app is detected.
+    /// The frontend overlay (LimitReached component) handles the actual popup UI.
+    async fn emit_blocked_event(&self, app_name: &str) {
         if let Some(ref handle) = self.app_handle {
-            // Check if popup window already exists
-            if handle.get_webview_window("limit-popup").is_some() {
-                // Close existing popup first
-                if let Some(window) = handle.get_webview_window("limit-popup") {
-                    let _ = window.close();
-                }
-            }
-
-            // Create URL with app name as query parameter
-            let url = format!("/limit-popup?app={}", urlencoding::encode(app_name));
-
-            // Create the popup window
-            match WebviewWindowBuilder::new(handle, "limit-popup", WebviewUrl::App(url.into()))
-                .title("App Limit Reached")
-                .inner_size(420.0, 280.0)
-                .resizable(false)
-                .decorations(false)
-                .always_on_top(true)
-                .center()
-                .focused(true)
-                .build()
-            {
-                Ok(_) => {
-                    tracing::info!(app = %app_name, "Limit popup shown");
-                }
-                Err(e) => {
-                    tracing::error!(error = %e, app = %app_name, "Failed to create limit popup");
-                    // Fallback to system notification
-                    let _ = self
-                        .send_system_notification(
-                            &format!("{} blocked", app_name),
-                            "Daily time limit exceeded. The app will be closed.",
-                        )
-                        .await;
-                    self.block_app(app_name);
-                }
-            }
-        } else {
-            // No app handle, fallback to direct blocking
-            tracing::warn!("No app handle available, falling back to direct blocking");
-            let _ = self
-                .send_system_notification(
-                    &format!("{} blocked", app_name),
-                    "Daily time limit exceeded. The app will be closed.",
-                )
-                .await;
-            self.block_app(app_name);
+            let payload = serde_json::json!({ "app": app_name });
+            let _ = handle.emit("blocked-app-detected", payload);
         }
+
+        let _ = self
+            .send_system_notification(
+                &format!("{} limit reached", app_name),
+                &format!("Daily time limit exceeded for {}.", app_name),
+            )
+            .await;
     }
 
-    /// Close the limit popup window
-    pub fn close_limit_popup(&self) {
-        if let Some(ref handle) = self.app_handle {
-            if let Some(window) = handle.get_webview_window("limit-popup") {
-                let _ = window.close();
-            }
-        }
-    }
-
-    /// Block/close an app (called when user clicks "Quit App" or emergency access expires)
+    /// Block/close an app (called when user clicks "Quit App" or emergency access expires).
+    /// Tries multiple strategies in increasing aggression order.
     pub fn block_app(&self, app_name: &str) {
+        let app_lower = app_name.to_lowercase();
+
         #[cfg(target_os = "linux")]
         {
             // Send notification before blocking (fire-and-forget, don't await)
@@ -650,23 +587,139 @@ impl UsageTracker {
                 "Daily time limit exceeded. The app will be closed.",
             );
 
-            // Try to close windows of the app using wmctrl
-            let _ = Command::new("wmctrl").args(["-c", app_name]).output();
-
-            // Also try xdotool to close active window if it matches
-            let _ = Command::new("xdotool")
-                .args(["getactivewindow", "windowclose"])
-                .output();
+            let _ = block_app_linux(&app_lower, app_name);
         }
 
         #[cfg(target_os = "windows")]
         {
-            // On Windows, use taskkill (less aggressive approach - send SIGTERM)
+            // On Windows, use taskkill
             let _ = Command::new("taskkill")
                 .args(["/IM", &format!("{}.exe", app_name), "/F"])
                 .output();
         }
     }
+}
+
+/// Linux-specific app blocking with multiple strategies.
+#[cfg(target_os = "linux")]
+fn block_app_linux(app_lower: &str, app_original: &str) -> Result<(), String> {
+    let is_wayland = std::env::var("WAYLAND_DISPLAY").is_ok()
+        || std::env::var("XDG_SESSION_TYPE").unwrap_or_default() == "wayland";
+
+    // Strategy 1: Wayland native -- Hyprland
+    if is_wayland {
+        if let Ok(true) = which_cmd("hyprctl") {
+            if let Ok(output) = Command::new("hyprctl").args(["clients", "-j"]).output() {
+                if output.status.success() {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    if let Ok(clients) = serde_json::from_str::<Vec<serde_json::Value>>(&stdout) {
+                        for client in &clients {
+                            let class = client.get("class").and_then(|v| v.as_str()).unwrap_or("");
+                            let title = client.get("title").and_then(|v| v.as_str()).unwrap_or("");
+                            if class.to_lowercase().contains(app_lower)
+                                || title.to_lowercase().contains(app_lower)
+                            {
+                                let _ = Command::new("hyprctl")
+                                    .args(["dispatch", "closewindow", class])
+                                    .output();
+                            }
+                        }
+                    }
+                }
+            }
+            // Also try pkill as fallback on Hyprland
+            let _ = Command::new("pkill")
+                .args(["-f", &format!("(?i){}", app_lower)])
+                .output();
+            return Ok(());
+        }
+
+        // Strategy 2: Wayland native -- Sway
+        if let Ok(true) = which_cmd("swaymsg") {
+            // swaymsg [class="..."] kill
+            let _ = Command::new("swaymsg")
+                .args([format!("[class=\"{}\"]", app_original).as_str(), "kill"])
+                .output();
+            // Also try by title
+            let _ = Command::new("swaymsg")
+                .args([format!("[title=\"{}\"]", app_original).as_str(), "kill"])
+                .output();
+            let _ = Command::new("pkill")
+                .args(["-f", &format!("(?i){}", app_lower)])
+                .output();
+            return Ok(());
+        }
+    }
+
+    // Strategy 3: X11 / wmctrl -- list all windows, match by class/ title, close each
+    if let Ok(output) = Command::new("wmctrl").args(["-l"]).output() {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines() {
+                // Format: <hex_id> <desktop> <hostname> <window title>
+                let parts: Vec<&str> = line.splitn(4, ' ').collect();
+                if parts.len() >= 4 {
+                    let window_id = parts[0];
+                    let title = parts[3];
+                    if title.to_lowercase().contains(app_lower) {
+                        let _ = Command::new("wmctrl")
+                            .args(["-i", "-c", window_id])
+                            .output();
+                    }
+                }
+            }
+        }
+    }
+
+    // Strategy 4: xdotool -- find windows by name, close each
+    if let Ok(output) = Command::new("xdotool")
+        .args(["search", "--name", &format!("(?i){}", app_lower)])
+        .output()
+    {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for window_id in stdout.trim().lines() {
+                if !window_id.is_empty() {
+                    let _ = Command::new("xdotool")
+                        .args(["windowclose", window_id])
+                        .output();
+                }
+            }
+        }
+    }
+
+    // Strategy 5: xdotool -- search by class name
+    if let Ok(output) = Command::new("xdotool")
+        .args(["search", "--class", &format!("(?i){}", app_lower)])
+        .output()
+    {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for window_id in stdout.trim().lines() {
+                if !window_id.is_empty() {
+                    let _ = Command::new("xdotool")
+                        .args(["windowclose", window_id])
+                        .output();
+                }
+            }
+        }
+    }
+
+    // Strategy 6: pkill -f as the nuclear option
+    let _ = Command::new("pkill")
+        .args(["-f", &format!("(?i){}", app_lower)])
+        .output();
+
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn which_cmd(cmd: &str) -> Result<bool, String> {
+    std::process::Command::new("which")
+        .arg(cmd)
+        .output()
+        .map(|o| o.status.success())
+        .map_err(|e| format!("Failed to check for {}: {}", cmd, e))
 }
 
 /// Get user idle time in seconds, cross-platform.

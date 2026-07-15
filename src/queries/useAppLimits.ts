@@ -6,9 +6,6 @@ export function useAppLimits() {
   return useQuery<AppLimit[]>({
     queryKey: ["appLimits"],
     queryFn: () => api.getAppLimits(),
-    staleTime: 30_000,
-    retry: 1,
-    refetchOnWindowFocus: true,
   });
 }
 
@@ -23,12 +20,3 @@ export function useSetAppLimit() {
   });
 }
 
-export function useRemoveAppLimit() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (appName: string) => api.removeAppLimit(appName),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["appLimits"] });
-    },
-  });
-}

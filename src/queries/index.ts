@@ -3,8 +3,8 @@ export { useWeeklyStats } from "./useWeeklyStats";
 export { useHourlyUsage } from "./useHourlyUsage";
 export { useWeeklyHourlyUsage } from "./useWeeklyHourlyUsage";
 export { useCategoryUsage } from "./useCategoryUsage";
-export { useAppLimits, useSetAppLimit, useRemoveAppLimit } from "./useAppLimits";
-export { useBlockedApps } from "./useBlockedApps";
+export { useAppLimits, useSetAppLimit } from "./useAppLimits";
+
 export { useFocusSettings, useUpdateFocusSettings } from "./useFocusSettings";
 export { useNotificationSettings, useUpdateNotificationSettings } from "./useNotificationSettings";
 export { useTheme } from "./useTheme";

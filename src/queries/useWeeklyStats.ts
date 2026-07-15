@@ -6,8 +6,5 @@ export function useWeeklyStats() {
   return useQuery<WeeklyStats>({
     queryKey: ["weeklyStats"],
     queryFn: () => api.getWeeklyStats(),
-    staleTime: 30_000,
-    retry: 1,
-    refetchOnWindowFocus: true,
   });
 }

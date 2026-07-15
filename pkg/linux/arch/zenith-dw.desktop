@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Zenith
+Comment=Reclaim your cognitive sovereignty
+GenericName=Digital Sanctuary
+Exec=zenith-dw
+Icon=zenith-dw
+Terminal=false
+Type=Application
+Categories=Utility;System;Monitor;
+Keywords=screen;time;tracker;zenith;productivity;focus;digital;wellbeing;
+StartupNotify=true
+StartupWMClass=Zenith DW

@@ -6,9 +6,6 @@ export function useGoals() {
   return useQuery<Goal[]>({
     queryKey: ["goals"],
     queryFn: () => api.getGoals(),
-    staleTime: 30_000,
-    retry: 1,
-    refetchOnWindowFocus: true,
   });
 }
 
@@ -16,9 +13,6 @@ export function useGoalsProgress() {
   return useQuery<GoalProgress[]>({
     queryKey: ["goalsProgress"],
     queryFn: () => api.getGoalsProgress(),
-    staleTime: 30_000,
-    retry: 1,
-    refetchOnWindowFocus: true,
   });
 }
 
@@ -26,9 +20,6 @@ export function useGoalsStats() {
   return useQuery<GoalsStats>({
     queryKey: ["goalsStats"],
     queryFn: () => api.getGoalsStats(),
-    staleTime: 30_000,
-    retry: 1,
-    refetchOnWindowFocus: true,
   });
 }
 
@@ -36,9 +27,6 @@ export function useAchievements() {
   return useQuery<Achievement[]>({
     queryKey: ["achievements"],
     queryFn: () => api.getAchievements(),
-    staleTime: 30_000,
-    retry: 1,
-    refetchOnWindowFocus: true,
   });
 }
 

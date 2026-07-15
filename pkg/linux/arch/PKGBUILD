@@ -1,5 +1,5 @@
 # Maintainer: Azlan Ehtasham <azlanehtesham02@gmail.com>
-pkgname=zenith
+pkgname=zenith-dw
 pkgver=0.1.5
 pkgrel=1
 pkgdesc="A high-fidelity digital wellbeing platform for reclaiming cognitive sovereignty."
@@ -20,9 +20,9 @@ makedepends=(
     'pkg-config'
     'openssl'
 )
-provides=('zenith')
+provides=('zenith-dw')
 conflicts=('wellbeing' 'wellbeing-git' 'wellbeing-bin')
-source=("$pkgname-$pkgver.tar.gz::https://github.com/Azlaneh/zenith/archive/v$pkgver.tar.gz")
+source=("$pkgname-$pkgver.tar.gz")
 sha256sums=('SKIP')
 
 build() {
@@ -40,12 +40,11 @@ build() {
 package() {
     cd "$srcdir/zenith-$pkgver"
 
-    # ponytail: binary is `wellbeing` until Cargo.toml rename is committed
-    install -Dm755 "src-tauri/target/release/wellbeing" "$pkgdir/usr/bin/zenith"
-    install -Dm644 "pkg/linux/arch/zenith.desktop" "$pkgdir/usr/share/applications/zenith.desktop"
-    install -Dm644 "src-tauri/icons/32x32.png" "$pkgdir/usr/share/icons/hicolor/32x32/apps/zenith.png"
-    install -Dm644 "src-tauri/icons/128x128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/zenith.png"
-    install -Dm644 "src-tauri/icons/128x128@2x.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/zenith.png"
-    install -Dm644 "src-tauri/icons/icon.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/zenith.png"
+install -Dm755 "src-tauri/target/release/zenith" "$pkgdir/usr/bin/zenith-dw"
+install -Dm644 "pkg/linux/arch/zenith-dw.desktop" "$pkgdir/usr/share/applications/zenith-dw.desktop"
+install -Dm644 "src-tauri/icons/32x32.png" "$pkgdir/usr/share/icons/hicolor/32x32/apps/zenith-dw.png"
+install -Dm644 "src-tauri/icons/128x128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/zenith-dw.png"
+install -Dm644 "src-tauri/icons/128x128@2x.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/zenith-dw.png"
+install -Dm644 "src-tauri/icons/icon.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/zenith-dw.png"
     install -Dm644 "LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2>/dev/null || true
 }

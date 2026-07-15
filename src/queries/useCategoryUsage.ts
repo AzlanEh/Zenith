@@ -6,8 +6,5 @@ export function useCategoryUsage() {
   return useQuery<CategoryUsage[]>({
     queryKey: ["categoryUsage"],
     queryFn: () => api.getCategoryUsage(),
-    staleTime: 30_000,
-    retry: 1,
-    refetchOnWindowFocus: true,
   });
 }

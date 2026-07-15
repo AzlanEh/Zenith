@@ -1,6 +1,6 @@
 import { memo, useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, type TooltipProps, type BarProps } from "recharts";
-import { formatTime } from "../../lib/utils";
+import { formatDuration } from "@/utils/formatters";
 
 interface ChartDataItem {
   day: string;
@@ -21,7 +21,7 @@ function TooltipContent({ active, payload }: TooltipProps<number, string>) {
     return (
       <div className="bg-popover border border-border shadow-md rounded-lg p-3 text-sm">
         <p className="font-medium text-foreground mb-1">{data.fullDate}</p>
-        <p className="text-primary font-bold">{formatTime(data.seconds)}</p>
+        <p className="text-primary font-bold">{formatDuration(data.seconds)}</p>
       </div>
     );
   }

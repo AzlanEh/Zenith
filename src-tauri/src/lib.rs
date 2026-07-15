@@ -105,7 +105,7 @@ async fn set_app_limit(
     if !is_valid_app_name(&app_name) {
         return Err(WellbeingError::InvalidAppName(app_name));
     }
-    if minutes < 1 || minutes > 1440 {
+    if !(1..=1440).contains(&minutes) {
         return Err(WellbeingError::Other(
             "Daily limit must be between 1 and 1440 minutes".to_string(),
         ));
@@ -239,8 +239,23 @@ async fn check_app_blocked(state: State<'_, AppState>, app_name: String) -> CmdR
 
 #[tauri::command]
 async fn get_blocked_apps(state: State<'_, AppState>) -> CmdResult<Vec<String>> {
-    let db = state.db.lock().await;
-    Ok(db.get_blocked_apps()?)
+    let current_app = state.tracker.lock().await.current_app().await;
+    let apps = {
+        let db = state.db.lock().await;
+        db.get_blocked_apps()?
+    };
+    // Only return the blocked app if it matches the currently active window.
+    // This prevents the popup from reappearing after the app has been closed.
+    // Also filter out apps with active emergency access.
+    let mut result = Vec::new();
+    for app in apps {
+        if let Some(ref current) = current_app {
+            if app == *current && !state.emergency_access.has_active_access(&app).await {
+                result.push(app);
+            }
+        }
+    }
+    Ok(result)
 }
 
 // Emergency access commands for limit popup
@@ -250,11 +265,6 @@ async fn grant_emergency_access(state: State<'_, AppState>, app_name: String) ->
         return Err(WellbeingError::InvalidAppName(app_name));
     }
     let expiry = state.emergency_access.grant_access(&app_name).await;
-
-    // Close the limit popup window
-    let tracker = state.tracker.lock().await;
-    tracker.close_limit_popup();
-
     Ok(expiry)
 }
 
@@ -283,9 +293,7 @@ async fn quit_blocked_app(state: State<'_, AppState>, app_name: String) -> CmdRe
         return Err(WellbeingError::InvalidAppName(app_name));
     }
 
-    // Close the limit popup window first
     let tracker = state.tracker.lock().await;
-    tracker.close_limit_popup();
     tracker.block_app(&app_name);
 
     Ok(())

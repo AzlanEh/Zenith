@@ -6,9 +6,6 @@ export function useFocusSettings() {
   return useQuery<FocusSettings>({
     queryKey: ["focusSettings"],
     queryFn: () => api.getFocusSettings(),
-    staleTime: 30_000,
-    retry: 1,
-    refetchOnWindowFocus: true,
   });
 }
 

@@ -1,7 +1,7 @@
 import { useWeeklyStats } from "../../queries";
 import { useMemo, memo } from "react";
 import { WeeklyActivityChart } from "./WeeklyActivityChart";
-import { formatTime } from "../../lib/utils";
+import { formatDuration } from "@/utils/formatters";
 
 interface WeeklyActivityProps {
   onDayClick?: (date: string) => void;
@@ -73,7 +73,7 @@ const WeeklyActivityInner = memo(function WeeklyActivityInner({ onDayClick }: We
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-xl font-serif-accent text-foreground">Weekly Activity</h3>
         <p className="text-sm font-medium text-muted-foreground bg-secondary/50 px-3 py-1 rounded-full">
-          {formatTime(weeklyStats.total_seconds)} Total
+          {formatDuration(weeklyStats.total_seconds)} Total
         </p>
       </div>
 

@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useHourlyUsage, useDailyStats } from "@/queries";
-import { formatTime } from "@/lib/utils";
+import { formatDuration } from "@/utils/formatters";
 
 interface AppTimelineProps {
   appName: string;
@@ -40,7 +40,7 @@ export function AppTimeline({ appName, open, onOpenChange }: AppTimelineProps) {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="p-4 rounded-lg border border-border bg-background">
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Today</p>
-              <p className="text-2xl font-mono font-bold">{formatTime(appUsage?.duration_seconds ?? 0)}</p>
+              <p className="text-2xl font-mono font-bold">{formatDuration(appUsage?.duration_seconds ?? 0)}</p>
             </div>
             <div className="p-4 rounded-lg border border-border bg-background">
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Sessions</p>
@@ -66,7 +66,7 @@ export function AppTimeline({ appName, open, onOpenChange }: AppTimelineProps) {
                     <div
                       className="w-full bg-foreground/80 hover:bg-foreground transition-colors rounded-t"
                       style={{ height: `${Math.max(height, 1)}%` }}
-                      title={`${h.hour}:00 - ${formatTime(h.total_seconds)}`}
+                      title={`${h.hour}:00 - ${formatDuration(h.total_seconds)}`}
                     />
                     <span className="text-[10px] text-muted-foreground">{h.hour}</span>
                   </div>
@@ -92,7 +92,7 @@ export function AppTimeline({ appName, open, onOpenChange }: AppTimelineProps) {
                       key={h.hour}
                       className="px-3 py-1 rounded-full bg-muted text-xs font-medium"
                     >
-                      {h.hour}:00 — {formatTime(h.total_seconds)}
+                      {h.hour}:00 — {formatDuration(h.total_seconds)}
                     </span>
                   ))}
               </div>
