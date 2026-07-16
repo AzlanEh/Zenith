@@ -28,6 +28,7 @@ import {
   useUpdateFocusSettings,
 } from "../queries";
 import { api } from "../services/api";
+import { logger } from "../utils/logger";
 import { useFocusTimerStore } from "../store/useFocusTimerStore";
 import type { InstalledApp } from "../types";
 
@@ -72,8 +73,6 @@ export function FocusMode() {
     }
   }, [state, totalTime, addSession]);
 
-  useEffect(() => {}, [isSettingsOpen, settings]);
-
   useEffect(() => {
     loadData();
   }, []);
@@ -92,7 +91,7 @@ export function FocusMode() {
         }
       }
     } catch (e) {
-      console.error(e);
+      logger.error(e);
       toast.error("Failed to load focus settings");
     } finally {
       setIsLoading(false);
@@ -105,7 +104,7 @@ export function FocusMode() {
       await loadData();
       toast.success(`${appName} added to blocklist`);
     } catch (e) {
-      console.error("Failed to block app", e);
+      logger.error("Failed to block app", e);
       toast.error("Failed to add app to blocklist");
     }
   };
@@ -116,7 +115,7 @@ export function FocusMode() {
       await loadData();
       toast.success(`${appName} removed from blocklist`);
     } catch (e) {
-      console.error("Failed to unblock app", e);
+      logger.error("Failed to unblock app", e);
       toast.error("Failed to remove app from blocklist");
     }
   };
@@ -139,7 +138,7 @@ export function FocusMode() {
       setIsSettingsOpen(false);
       toast.success("Timer settings saved");
     } catch (e) {
-      console.error("Failed to save settings", e);
+      logger.error("Failed to save settings", e);
       toast.error("Failed to save timer settings");
     }
   };

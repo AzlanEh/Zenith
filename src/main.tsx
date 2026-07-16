@@ -4,6 +4,9 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./index.css";
+import "@fontsource/newsreader";
+import "@fontsource/inter";
+import "@fontsource/geist-mono";
 import "@fontsource/material-symbols-outlined/400.css";
 
 const queryClient = new QueryClient({
@@ -11,6 +14,7 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 30_000,
       retry: 1,
+      refetchInterval: 30_000,
       refetchOnWindowFocus: true,
     },
   },

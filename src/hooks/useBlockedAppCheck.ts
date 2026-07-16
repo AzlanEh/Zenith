@@ -54,7 +54,7 @@ export function useBlockedAppCheck() {
     });
 
     poll();
-    const id = setInterval(poll, 3000);
+    const id = setInterval(poll, 15000);
     return () => {
       mounted = false;
       clearInterval(id);

@@ -26,7 +26,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "exclude": ["**/*.test.ts", "**/*.test.tsx"],
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

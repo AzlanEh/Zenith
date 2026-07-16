@@ -1,9 +1,33 @@
 import { useState, useRef } from "react";
+import type { ExportRecord } from "@/types";
+
+function parseCsvLine(line: string): string[] {
+  const cols: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === "," && !inQuotes) {
+      cols.push(current);
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  cols.push(current);
+  return cols;
+}
 import { Button } from "@/components/ui/button";
 import { api } from "@/services/api";
 import { Upload, FileText } from "lucide-react";
 import { toast } from "sonner";
-import type { ExportRecord } from "@/types";
 
 export function DataImport() {
   const [records, setRecords] = useState<ExportRecord[] | null>(null);
@@ -22,7 +46,7 @@ export function DataImport() {
       } else if (ext === "csv") {
         const lines = text.trim().split("\n");
         if (lines.length < 2) throw new Error("Empty CSV");
-        const headers = lines[0].split(",");
+        const headers = parseCsvLine(lines[0]);
         const dateIdx = headers.indexOf("Date");
         const appIdx = headers.indexOf("App Name");
         const catIdx = headers.indexOf("Category");
@@ -30,7 +54,7 @@ export function DataImport() {
         const sessIdx = headers.indexOf("Sessions");
         if (dateIdx === -1 || appIdx === -1) throw new Error("Missing required columns");
         parsed = lines.slice(1).map((line) => {
-          const cols = line.split(",");
+          const cols = parseCsvLine(line);
           return {
             date: cols[dateIdx]?.trim() ?? "",
             app_name: cols[appIdx]?.trim() ?? "",

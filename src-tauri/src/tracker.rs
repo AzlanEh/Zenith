@@ -577,6 +577,15 @@ impl UsageTracker {
     /// Block/close an app (called when user clicks "Quit App" or emergency access expires).
     /// Tries multiple strategies in increasing aggression order.
     pub fn block_app(&self, app_name: &str) {
+        if app_name.is_empty()
+            || app_name.len() > 256
+            || !app_name
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == ' ' || c == '-' || c == '_' || c == '.')
+        {
+            tracing::warn!(app = %app_name, "Refusing to block app with invalid name");
+            return;
+        }
         let app_lower = app_name.to_lowercase();
 
         #[cfg(target_os = "linux")]

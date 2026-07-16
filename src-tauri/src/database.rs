@@ -118,7 +118,6 @@ impl Database {
         let db = Database { conn };
         db.init_schema()?;
         db.run_migrations()?;
-        db.ensure_schema_columns()?;
         db.auto_categorize_uncategorized()?;
         Ok(db)
     }
@@ -133,7 +132,6 @@ impl Database {
         let db = Database { conn };
         db.init_schema()?;
         db.run_migrations()?;
-        db.ensure_schema_columns()?;
         Ok(db)
     }
 
@@ -183,40 +181,6 @@ impl Database {
     /// Run database migrations to update schema
     fn run_migrations(&self) -> SqliteResult<()> {
         migrations::run_migrations(&self.conn)?;
-        Ok(())
-    }
-
-    /// Ensure all expected columns exist in the schema.
-    ///
-    /// This is a safety net for cases where a migration was recorded as applied
-    /// but the ALTER TABLE statements didn't actually execute (e.g. the migration
-    /// was partially applied, or the column was missing due to a bug).
-    /// Each ALTER TABLE ADD COLUMN is idempotent: if the column already exists,
-    /// SQLite returns "duplicate column name" which we silently ignore.
-    fn ensure_schema_columns(&self) -> SqliteResult<()> {
-        let alter_statements = [
-            "ALTER TABLE apps ADD COLUMN category TEXT",
-            "ALTER TABLE apps ADD COLUMN is_blocked INTEGER DEFAULT 0",
-            "ALTER TABLE app_limits ADD COLUMN block_when_exceeded INTEGER DEFAULT 0",
-        ];
-
-        for stmt in &alter_statements {
-            match self.conn.execute(stmt, []) {
-                Ok(_) => {
-                    tracing::warn!(statement = stmt, "Schema repair: added missing column");
-                }
-                Err(e) => {
-                    let msg = e.to_string();
-                    if msg.contains("duplicate column") {
-                        // Column already exists, all good
-                    } else {
-                        tracing::error!(error = %e, statement = stmt, "Schema repair failed");
-                        return Err(e);
-                    }
-                }
-            }
-        }
-
         Ok(())
     }
 
@@ -403,7 +367,10 @@ impl Database {
         let week_ago = Utc::now().timestamp() - (7 * 24 * 60 * 60);
 
         let mut stmt = self.conn.prepare(
-            "SELECT DATE(start_time, 'unixepoch', 'localtime') as day, SUM(duration_seconds)
+            "SELECT DATE(start_time, 'unixepoch', 'localtime') as day,
+                    SUM(CASE WHEN duration_seconds = 0 AND end_time = start_time AND start_time > strftime('%s','now') - 15
+                             THEN MAX(strftime('%s','now') - start_time, 0)
+                             ELSE duration_seconds END)
              FROM usage_sessions
              WHERE start_time >= ?1
              GROUP BY day

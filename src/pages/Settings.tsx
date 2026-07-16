@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { DataImport } from "../components/DataImport";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { logger } from "../utils/logger";
 import { FocusScheduleEditor } from "../components/FocusScheduleEditor";
 import {
   Select,
@@ -160,13 +161,13 @@ export function Settings() {
       .getAutostartStatus()
       .then(setAutostartStatus)
       .catch((e) => {
-        console.error("Failed to load autostart status:", e);
+        logger.error("Failed to load autostart status:", e);
       });
     api
       .getBreakSettings()
       .then(setBreakSettings)
       .catch((e) => {
-        console.error("Failed to load break settings:", e);
+        logger.error("Failed to load break settings:", e);
         setBreakSettings({
           enabled: false,
           work_minutes: 50,
@@ -188,7 +189,7 @@ export function Settings() {
       const status = await api.getAutostartStatus();
       setAutostartStatus(status);
     } catch (e) {
-      console.error("Autostart error:", e);
+      logger.error("Autostart error:", e);
       toast.error("Failed to update autostart setting");
     }
   };
@@ -201,7 +202,7 @@ export function Settings() {
     try {
       await api.setBreakSettings(next);
     } catch (e) {
-      console.error("Break settings update error:", e);
+      logger.error("Break settings update error:", e);
       setBreakSettings(prev);
       toast.error("Failed to update break settings");
     }
@@ -239,7 +240,7 @@ export function Settings() {
         setExportMessage(null);
       }
     } catch (e) {
-      console.error("Export failed", e);
+      logger.error("Export failed", e);
       setExportMessage("Export failed.");
     }
     setTimeout(() => setExportMessage(null), 3000);
@@ -274,7 +275,7 @@ export function Settings() {
       });
       window.location.reload();
     } catch (e) {
-      console.error("Failed to wipe data", e);
+      logger.error("Failed to wipe data", e);
       await tauriMessage("Failed to delete data. Please try again.", {
         title: "Error",
         kind: "error",

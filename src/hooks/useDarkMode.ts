@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Theme = "light" | "dark" | "system";
 
@@ -16,8 +16,10 @@ function getStoredTheme(): Theme {
 
 export function useDarkMode() {
   const [theme, setThemeState] = useState<Theme>(getStoredTheme);
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(
-    getStoredTheme() === "system" ? getSystemTheme() : getStoredTheme() as "light" | "dark"
+
+  const resolvedTheme = useMemo<"light" | "dark">(
+    () => theme === "system" ? getSystemTheme() : theme,
+    [theme],
   );
 
   useEffect(() => {
@@ -25,7 +27,6 @@ export function useDarkMode() {
     const effectiveTheme = theme === "system" ? getSystemTheme() : theme;
     root.classList.remove("light", "dark");
     root.classList.add(effectiveTheme);
-    setResolvedTheme(effectiveTheme);
   }, [theme]);
 
   useEffect(() => {
@@ -35,7 +36,6 @@ export function useDarkMode() {
       const t = getSystemTheme();
       document.documentElement.classList.remove("light", "dark");
       document.documentElement.classList.add(t);
-      setResolvedTheme(t);
     };
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);

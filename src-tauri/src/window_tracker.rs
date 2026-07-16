@@ -72,8 +72,8 @@ static APP_MAPPINGS: Lazy<Vec<AppMapping>> = Lazy::new(|| {
         },
         AppMapping {
             exact: None,
-            contains: Some("notepad++"),
-            display_name: "Notepad++",
+            contains: Some("notepad"),
+            display_name: "NotepadPlusPlus",
         },
         AppMapping {
             exact: None,
@@ -500,17 +500,17 @@ pub fn extract_app_name(window_name: &str) -> Option<String> {
 
     // Fast path: try exact match first (handles X11 class names like "firefox", "discord")
     if let Some(&display_name) = EXACT_MATCH_MAP.get(name_lower.as_str()) {
-        return Some(display_name.to_string());
+        return sanitize_app_name(display_name);
     }
 
     // Special case for VS Code (check window title pattern)
     if window_name.contains("- Code") {
-        return Some("Visual Studio Code".to_string());
+        return sanitize_app_name("Visual Studio Code");
     }
 
     // Special case for Zenith (check window title)
     if window_name.contains("Zenith") {
-        return Some("Zenith".to_string());
+        return sanitize_app_name("Zenith");
     }
 
     // Handle Wayland reverse-DNS class names (e.g. "com.mitchellh.ghostty", "org.gnome.Nautilus")
@@ -522,13 +522,13 @@ pub fn extract_app_name(window_name: &str) -> Option<String> {
             }
             // Try exact match on segment
             if let Some(&display_name) = EXACT_MATCH_MAP.get(segment) {
-                return Some(display_name.to_string());
+                return sanitize_app_name(display_name);
             }
             // Try contains patterns on segment
             for mapping in APP_MAPPINGS.iter() {
                 if let Some(pattern) = mapping.contains {
                     if segment.contains(pattern) {
-                        return Some(mapping.display_name.to_string());
+                        return sanitize_app_name(mapping.display_name);
                     }
                 }
             }
@@ -539,7 +539,7 @@ pub fn extract_app_name(window_name: &str) -> Option<String> {
     for mapping in APP_MAPPINGS.iter() {
         if let Some(pattern) = mapping.contains {
             if name_lower.contains(pattern) {
-                return Some(mapping.display_name.to_string());
+                return sanitize_app_name(mapping.display_name);
             }
         }
     }
@@ -552,7 +552,7 @@ pub fn extract_app_name(window_name: &str) -> Option<String> {
         if app_name.len() < 2 {
             return None;
         }
-        return Some(app_name);
+        return sanitize_app_name(&app_name);
     }
 
     // Generic fallback: capitalize first letter
@@ -561,7 +561,20 @@ pub fn extract_app_name(window_name: &str) -> Option<String> {
     if app_name.len() < 2 {
         None
     } else {
-        Some(app_name)
+        sanitize_app_name(&app_name)
+    }
+}
+
+/// Strip characters unsafe for DB storage from an app name
+fn sanitize_app_name(name: &str) -> Option<String> {
+    let sanitized: String = name
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == ' ' || *c == '-' || *c == '_' || *c == '.')
+        .collect();
+    if sanitized.is_empty() || sanitized.len() > 256 {
+        None
+    } else {
+        Some(sanitized)
     }
 }
 
@@ -702,6 +715,41 @@ mod tests {
         assert_eq!(extract_app_name("ghostty"), Some("Ghostty".to_string()));
         assert_eq!(extract_app_name("foot"), Some("Foot".to_string()));
         assert_eq!(extract_app_name("wezterm-gui"), Some("WezTerm".to_string()));
+    }
+
+    #[test]
+    fn test_sanitize_app_name_normal() {
+        assert_eq!(sanitize_app_name("Firefox"), Some("Firefox".to_string()));
+        assert_eq!(
+            sanitize_app_name("Visual Studio Code"),
+            Some("Visual Studio Code".to_string())
+        );
+        assert_eq!(
+            sanitize_app_name("NotepadPlusPlus"),
+            Some("NotepadPlusPlus".to_string())
+        );
+    }
+
+    #[test]
+    fn test_sanitize_app_name_strips_special_chars() {
+        assert_eq!(sanitize_app_name("Notepad++"), Some("Notepad".to_string()));
+        assert_eq!(
+            sanitize_app_name("bash;rm -rf /"),
+            Some("bashrm -rf ".to_string())
+        );
+    }
+
+    #[test]
+    fn test_sanitize_app_name_empty_after_strip() {
+        assert_eq!(sanitize_app_name("+++;;;"), None);
+    }
+
+    #[test]
+    fn test_sanitize_app_name_notepad_mapping() {
+        assert_eq!(
+            extract_app_name("notepad++"),
+            Some("NotepadPlusPlus".to_string())
+        );
     }
 
     #[test]

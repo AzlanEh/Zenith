@@ -4,12 +4,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-@font-face {
-    font-family: "Geist Mono";
-    src: url("https://cdn.jsdelivr.net/npm/geist-font@1.1.0/fonts/geist-mono/GeistMono-Regular.woff2")
-        format("woff2");
-}
-
 /* Light Mode (default) */
 :root {
     --background: oklch(0.9702 0 0);
@@ -46,9 +40,9 @@
     --sidebar-border: oklch(0.8452 0 0);
     --sidebar-ring: oklch(0.2178 0 0);
 
-    --font-sans: Geist, Inter, sans-serif;
-    --font-serif: "Sorts Mill Goudy", serif;
-    --font-mono: Geist Mono, ui-monospace, monospace;
+    --font-sans: 'Inter', sans-serif;
+    --font-serif: 'Newsreader', serif;
+    --font-mono: 'Geist Mono', monospace;
 
     --radius: 0rem;
 }

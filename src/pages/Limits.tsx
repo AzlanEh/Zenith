@@ -13,6 +13,7 @@ import {
 } from "../components/ui/dialog";
 import { useAppLimits, useSetAppLimit } from "../queries";
 import { api } from "../services/api";
+import { logger } from "../utils/logger";
 import type { InstalledApp } from "../types";
 
 export function Limits() {
@@ -37,7 +38,7 @@ export function Limits() {
       .getInstalledApps()
       .then(setInstalledApps)
       .catch((e) => {
-        console.error("Failed to load installed apps:", e);
+        logger.error("Failed to load installed apps:", e);
         toast.error("Failed to load installed apps");
       });
   }, []);

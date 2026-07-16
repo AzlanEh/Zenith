@@ -27,6 +27,8 @@ use goals::{Achievement, Goal, GoalProgress, GoalsState};
 use limit_popup::EmergencyAccessManager;
 use notification_settings::{NotificationManager, NotificationSettings};
 use std::collections::HashMap;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::sync::Arc;
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_updater::UpdaterExt;
@@ -400,7 +402,7 @@ async fn wipe_all_data_internal(state: &AppState) -> CmdResult<()> {
 
     // Clear persisted settings files and reset in-memory managers
     crate::settings_store::clear_all_settings_files()?;
-    state
+    let _ = state
         .focus_manager
         .update_settings(FocusSettings::default())
         .await;
@@ -461,16 +463,21 @@ fn save_export_file(file_path: String, content: String) -> CmdResult<()> {
             .ok_or_else(|| WellbeingError::Export("Invalid export file name".into()))?,
     );
 
-    if canonical_path.exists() {
-        let metadata = std::fs::symlink_metadata(&canonical_path)?;
-        if metadata.file_type().is_symlink() {
-            return Err(WellbeingError::Export(
-                "Refusing to write export file through a symlink".into(),
-            ));
-        }
-    }
-
-    std::fs::write(canonical_path, content)?;
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&canonical_path)
+        .map_err(|e| {
+            if e.kind() == std::io::ErrorKind::AlreadyExists {
+                WellbeingError::Export(
+                    "Export file already exists. Remove it first or choose a different name."
+                        .into(),
+                )
+            } else {
+                WellbeingError::Io(e)
+            }
+        })?;
+    file.write_all(content.as_bytes())?;
     Ok(())
 }
 
@@ -726,8 +733,7 @@ async fn get_focus_settings(state: State<'_, AppState>) -> CmdResult<FocusSettin
 
 #[tauri::command]
 async fn set_focus_settings(state: State<'_, AppState>, settings: FocusSettings) -> CmdResult<()> {
-    state.focus_manager.update_settings(settings).await;
-    Ok(())
+    state.focus_manager.update_settings(settings).await
 }
 
 #[tauri::command]

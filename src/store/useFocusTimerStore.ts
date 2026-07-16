@@ -6,6 +6,7 @@ interface FocusTimerState {
   state: FocusState;
   timeLeft: number;
   totalTime: number;
+  _intervalId: ReturnType<typeof setInterval> | null;
   setState: (state: FocusState) => void;
   setTimeLeft: (time: number) => void;
   setTotalTime: (time: number) => void;
@@ -17,32 +18,33 @@ interface FocusTimerState {
 
 const defaultFocusTime = 25 * 60;
 
-let intervalId: ReturnType<typeof setInterval> | null = null;
-
-function clearTick() {
-  if (intervalId !== null) clearInterval(intervalId);
-  intervalId = null;
+function clearTick(get: () => FocusTimerState, set: (partial: Partial<FocusTimerState>) => void) {
+  const id = get()._intervalId;
+  if (id !== null) clearInterval(id);
+  set({ _intervalId: null });
 }
 
 function startTick(set: (partial: Partial<FocusTimerState>) => void, get: () => FocusTimerState) {
-  clearTick();
-  intervalId = setInterval(() => {
+  clearTick(get, set);
+  const id = setInterval(() => {
     const s = get();
     if (s.state !== "running" || s.timeLeft <= 0) return;
     const newTimeLeft = s.timeLeft - 1;
     if (newTimeLeft === 0) {
-      clearTick();
+      clearTick(get, set);
       set({ state: "completed", timeLeft: 0 });
     } else {
       set({ timeLeft: newTimeLeft });
     }
   }, 1000);
+  set({ _intervalId: id });
 }
 
 export const useFocusTimerStore = create<FocusTimerState>((set, get) => ({
   state: "idle",
   timeLeft: defaultFocusTime,
   totalTime: defaultFocusTime,
+  _intervalId: null,
 
   setState: (state) => set({ state }),
   setTimeLeft: (timeLeft) => set({ timeLeft }),
@@ -56,7 +58,7 @@ export const useFocusTimerStore = create<FocusTimerState>((set, get) => ({
   },
 
   pause: () => {
-    clearTick();
+    clearTick(get, set);
     set({ state: "paused" });
   },
 
@@ -67,7 +69,7 @@ export const useFocusTimerStore = create<FocusTimerState>((set, get) => ({
   },
 
   reset: () => {
-    clearTick();
+    clearTick(get, set);
     set({ state: "idle", timeLeft: defaultFocusTime, totalTime: defaultFocusTime });
   },
 }));

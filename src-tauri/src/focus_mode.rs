@@ -1,3 +1,4 @@
+use crate::error::WellbeingError;
 use chrono::{Datelike, Local, NaiveTime};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -93,6 +94,30 @@ impl FocusSchedule {
             self.blocked_apps.clone()
         }
     }
+
+    pub fn validate(&self) -> Result<(), String> {
+        NaiveTime::parse_from_str(&self.start_time, "%H:%M").map_err(|_| {
+            format!(
+                "Invalid start_time '{}': expected HH:MM format",
+                self.start_time
+            )
+        })?;
+        NaiveTime::parse_from_str(&self.end_time, "%H:%M").map_err(|_| {
+            format!(
+                "Invalid end_time '{}': expected HH:MM format",
+                self.end_time
+            )
+        })?;
+        for &day in &self.days {
+            if day > 6 {
+                return Err(format!(
+                    "Invalid day value {}: must be 0-6 (Sunday-Saturday)",
+                    day
+                ));
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Current focus session state
@@ -140,11 +165,17 @@ impl FocusManager {
         self.settings.lock().await.clone()
     }
 
-    pub async fn update_settings(&self, settings: FocusSettings) {
+    pub async fn update_settings(&self, settings: FocusSettings) -> Result<(), WellbeingError> {
+        for schedule in &settings.schedules {
+            schedule.validate().map_err(|e| {
+                WellbeingError::Other(format!("Schedule '{}': {}", schedule.name, e))
+            })?;
+        }
         *self.settings.lock().await = settings.clone();
         if let Err(e) = crate::settings_store::save_focus_settings(&settings) {
             tracing::warn!(error = %e, "Failed to persist focus settings");
         }
+        Ok(())
     }
 
     pub fn is_active(&self) -> bool {
@@ -508,5 +539,47 @@ mod tests {
         let blocked = schedule.get_blocked_apps(&default_apps);
 
         assert_eq!(blocked, default_apps);
+    }
+
+    #[test]
+    fn test_validate_valid_schedule() {
+        let schedule = FocusSchedule {
+            id: "test".into(),
+            name: "Test".into(),
+            days: vec![1, 2, 3, 4, 5],
+            start_time: "09:00".into(),
+            end_time: "17:00".into(),
+            blocked_apps: vec![],
+            enabled: true,
+        };
+        assert!(schedule.validate().is_ok());
+    }
+
+    #[test]
+    fn test_validate_bad_time_format() {
+        let schedule = FocusSchedule {
+            id: "test".into(),
+            name: "Test".into(),
+            days: vec![1],
+            start_time: "twenty past nine".into(),
+            end_time: "17:00".into(),
+            blocked_apps: vec![],
+            enabled: true,
+        };
+        assert!(schedule.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_bad_day_value() {
+        let schedule = FocusSchedule {
+            id: "test".into(),
+            name: "Test".into(),
+            days: vec![7],
+            start_time: "09:00".into(),
+            end_time: "17:00".into(),
+            blocked_apps: vec![],
+            enabled: true,
+        };
+        assert!(schedule.validate().is_err());
     }
 }

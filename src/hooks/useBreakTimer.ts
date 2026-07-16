@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { api } from "@/services/api";
+import { logger } from "@/utils/logger";
 import type { BreakStatus } from "@/types";
 
 interface BreakTimerState {
@@ -46,7 +47,7 @@ export function useBreakTimer(): BreakTimerState {
       }
     };
     poll();
-    const id = setInterval(poll, 1000);
+    const id = setInterval(poll, 5000);
     return () => {
       mounted = false;
       clearInterval(id);
@@ -72,7 +73,7 @@ export function useBreakTimer(): BreakTimerState {
       setIsOnBreak(false);
       setLocalSeconds(0);
     } catch (err) {
-      console.error("Failed to end break:", err);
+      logger.error("Failed to end break:", err);
     }
   };
 
