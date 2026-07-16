@@ -1,4 +1,4 @@
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, LoaderCircle, X } from 'lucide-react';
 import { useDailyStats } from '../../queries';
 import type { AppUsage } from '../../types';
 import { AppIcon } from '../AppIcon';
@@ -36,7 +36,7 @@ export function RecentEntries({ selectedDate, customApps, isLoading, resolveAppI
               className="p-1 hover:bg-secondary/80 rounded-full transition-colors flex items-center justify-center"
               title="Clear selection"
             >
-              <span className="material-symbols-outlined text-muted-foreground text-sm">close</span>
+              <X className="w-4 h-4 text-muted-foreground" />
             </button>
           )}
           <button className="text-xs text-primary flex items-center gap-1 hover:underline">
@@ -48,7 +48,7 @@ export function RecentEntries({ selectedDate, customApps, isLoading, resolveAppI
       
       {isLoading ? (
         <div className="flex justify-center py-8">
-          <span className="material-symbols-outlined animate-spin text-primary">progress_activity</span>
+          <LoaderCircle className="w-5 h-5 animate-spin text-primary" />
         </div>
       ) : (
         <div className="relative border-l-2 border-secondary ml-3 space-y-6">

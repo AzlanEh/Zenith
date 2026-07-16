@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { Plus, Trophy, Flag, Lock, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { GoalEditor } from "../components/Goals/GoalEditor";
 import { useFocusHistory } from "../hooks/useFocusHistory";
@@ -12,6 +13,13 @@ import {
 } from "../queries";
 import type { Achievement, Goal, GoalProgress } from "../types";
 
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
+  trophy: Trophy,
+  flag: Flag,
+  lock: Lock,
+  auto_awesome: Sparkles,
+};
+
 const Icon = ({
   name,
   style = {},
@@ -20,17 +28,11 @@ const Icon = ({
   name: string;
   style?: React.CSSProperties;
   className?: string;
-}) => (
-  <span
-    className={`material-symbols-outlined ${className}`}
-    style={{
-      fontVariationSettings: "'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24",
-      ...style,
-    }}
-  >
-    {name}
-  </span>
-);
+}) => {
+  const LucideIcon = ICON_MAP[name];
+  if (!LucideIcon) return null;
+  return <LucideIcon className={className} style={style} />;
+};
 
 const ProgressBar = ({ item }: { item: GoalProgress }) => (
   <div>
@@ -321,15 +323,7 @@ export function Goals() {
         onClick={handleAdd}
         className="fixed bottom-8 right-8 z-[100] w-16 h-16 rounded-full bg-[oklch(0.98_0.01_106)] text-[#131313] border-3 border-[oklch(0.98_0.01_106)] flex items-center justify-center cursor-pointer shadow-[0_8px_24px_rgba(0,0,0,0.4)] transition-all duration-200 hover:scale-110"
       >
-        <span
-          className="material-symbols-outlined text-[2rem]"
-          style={{
-            fontVariationSettings:
-              "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24",
-          }}
-        >
-          add
-        </span>
+        <Plus size={32} />
       </button>
 
       <GoalEditor

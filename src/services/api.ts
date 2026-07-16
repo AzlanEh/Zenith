@@ -12,6 +12,7 @@ import type {
   ExportRecord,
   BreakSettings,
   BreakStatus,
+  FocusNote,
   HistoricalData,
   NotificationSettings,
   FocusSettings,
@@ -151,6 +152,14 @@ export const api = {
   getAchievements: (): Promise<Achievement[]> => invokeApi("get_achievements"),
 
   getGoalsStats: (): Promise<GoalsStats> => invokeApi("get_goals_stats"),
+
+  saveFocusNote: (content: string, durationMinutes: number): Promise<number> =>
+    invokeApi("save_focus_note", { content, durationMinutes }),
+
+  getFocusNotes: (): Promise<FocusNote[]> => invokeApi("get_focus_notes"),
+
+  initOnboardingGoals: (dailyGoalMinutes: number, screenLimitHours: number): Promise<void> =>
+    invokeApi("init_onboarding_goals", { dailyGoalMinutes, screenLimitHours }),
 
   wipeAllData: (confirmationText: string): Promise<void> => invokeApi("wipe_all_data", { confirmationText }),
 };

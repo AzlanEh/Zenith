@@ -2,10 +2,12 @@ import {
   Activity,
   Music,
   Pause,
+  Pen,
   Play,
   Plus,
   Settings,
   Square,
+  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -197,9 +199,7 @@ export function FocusMode() {
                 <div className="w-full space-y-6">
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="material-symbols-outlined text-muted-foreground text-lg">
-                        edit
-                      </span>
+                      <Pen className="w-5 h-5 text-muted-foreground" />
                     </div>
                     <input
                       type="text"
@@ -278,9 +278,7 @@ export function FocusMode() {
                             aria-label="Close settings"
                             className="p-2 hover:bg-secondary transition-colors rounded-lg text-muted-foreground hover:text-foreground"
                           >
-                            <span className="material-symbols-outlined text-2xl">
-                              close
-                            </span>
+                            <X className="w-6 h-6" />
                           </button>
                         </div>
 
@@ -509,9 +507,7 @@ export function FocusMode() {
                         aria-label={`Remove ${appName} from blocklist`}
                         className="text-muted-foreground hover:text-chart-4 disabled:opacity-50 transition-colors"
                       >
-                        <span className="material-symbols-outlined text-sm">
-                          close
-                        </span>
+                        <X className="w-4 h-4" />
                       </button>
                     </div>
                   );

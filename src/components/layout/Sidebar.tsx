@@ -1,4 +1,12 @@
 import { memo } from "react";
+import {
+  BarChart3,
+  Flag,
+  LayoutDashboard,
+  Settings,
+  Target,
+  TimerOff,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type Page = "dashboard" | "focus" | "goals" | "analytics" | "limits" | "settings";
@@ -9,13 +17,13 @@ interface SidebarProps {
   setCurrentPage: (page: Page) => void;
 }
 
-const NAV_ITEMS: { icon: string; label: string; page: Page }[] = [
-  { icon: "dashboard", label: "Dashboard", page: "dashboard" },
-  { icon: "center_focus_strong", label: "Focus Mode", page: "focus" },
-  { icon: "analytics", label: "Analytics", page: "analytics" },
-  { icon: "timer_off", label: "Limits", page: "limits" },
-  { icon: "outlined_flag", label: "Goals", page: "goals" },
-  { icon: "settings", label: "Settings", page: "settings" },
+const NAV_ITEMS: { icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; label: string; page: Page }[] = [
+  { icon: LayoutDashboard, label: "Dashboard", page: "dashboard" },
+  { icon: Target, label: "Focus Mode", page: "focus" },
+  { icon: BarChart3, label: "Analytics", page: "analytics" },
+  { icon: TimerOff, label: "Limits", page: "limits" },
+  { icon: Flag, label: "Goals", page: "goals" },
+  { icon: Settings, label: "Settings", page: "settings" },
 ];
 
 export const Sidebar = memo(function Sidebar({ isOpen, currentPage, setCurrentPage }: SidebarProps) {
@@ -60,15 +68,12 @@ export const Sidebar = memo(function Sidebar({ isOpen, currentPage, setCurrentPa
               fontSize: "clamp(0.65rem, 1.5vw, 0.75rem)",
             }}
           >
-            <span
-              className="material-symbols-outlined"
+            <item.icon
               style={{
-                fontVariationSettings: "'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24",
-                fontSize: "clamp(1.125rem, 2vw, 1.5rem)",
+                width: "clamp(1.125rem, 2vw, 1.5rem)",
+                height: "clamp(1.125rem, 2vw, 1.5rem)",
               }}
-            >
-              {item.icon}
-            </span>
+            />
             <span className="truncate">{item.label}</span>
           </button>
         ))}

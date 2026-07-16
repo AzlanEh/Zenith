@@ -1,4 +1,12 @@
 import { useCallback, useMemo } from "react";
+import {
+  AlertTriangle,
+  CalendarDays,
+  Clock,
+  Cpu,
+  Hand,
+  TrendingDown,
+} from "lucide-react";
 import { useFocusHistory } from "../hooks/useFocusHistory";
 import { formatDuration } from "../utils/formatters";
 import {
@@ -7,33 +15,29 @@ import {
   useWeeklyStats,
 } from "../queries";
 
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
+  memory: Cpu,
+  schedule: Clock,
+  trending_down: TrendingDown,
+  today: CalendarDays,
+  touch_app: Hand,
+  warning: AlertTriangle,
+};
+
 function Icon({
   name,
-  size = 20,
-  fill = false,
+  size: _size,
   style,
   className = "",
 }: {
   name: string;
   size?: number;
-  fill?: boolean;
   style?: React.CSSProperties;
   className?: string;
 }) {
-  return (
-    <span
-      className={`material-symbols-outlined leading-none select-none ${className}`}
-      style={{
-        fontSize: size,
-        fontVariationSettings: fill
-          ? "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24"
-          : "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24",
-        ...style,
-      }}
-    >
-      {name}
-    </span>
-  );
+  const LucideIcon = ICON_MAP[name];
+  if (!LucideIcon) return null;
+  return <LucideIcon className={className} style={style} />;
 }
 
 function Cell({

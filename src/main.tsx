@@ -7,7 +7,6 @@ import "./index.css";
 import "@fontsource/newsreader";
 import "@fontsource/inter";
 import "@fontsource/geist-mono";
-import "@fontsource/material-symbols-outlined/400.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {

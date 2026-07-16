@@ -57,6 +57,16 @@ pub struct AppUsage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FocusNote {
+    pub id: i64,
+    pub session_start_time: i64,
+    pub session_end_time: Option<i64>,
+    pub content: String,
+    pub duration_minutes: i32,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportRecord {
     pub date: String,
     pub app_name: String,
@@ -171,6 +181,18 @@ impl Database {
                 daily_limit_minutes INTEGER NOT NULL,
                 block_when_exceeded INTEGER DEFAULT 0,
                 FOREIGN KEY (app_id) REFERENCES apps(id)
+            )",
+            [],
+        )?;
+
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS focus_notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_start_time INTEGER NOT NULL,
+                session_end_time INTEGER,
+                content TEXT NOT NULL,
+                duration_minutes INTEGER NOT NULL,
+                created_at INTEGER DEFAULT (strftime('%s', 'now'))
             )",
             [],
         )?;
@@ -896,6 +918,45 @@ impl Database {
                 category: row.get(0)?,
                 total_seconds: row.get(1)?,
                 app_count: row.get(2)?,
+            })
+        })?;
+
+        let mut result = Vec::new();
+        for row in rows {
+            result.push(row?);
+        }
+        Ok(result)
+    }
+
+    /// Save a focus session note
+    pub fn save_focus_note(
+        &self,
+        session_start_time: i64,
+        content: &str,
+        duration_minutes: i32,
+    ) -> SqliteResult<i64> {
+        self.conn.execute(
+            "INSERT INTO focus_notes (session_start_time, content, duration_minutes) VALUES (?1, ?2, ?3)",
+            rusqlite::params![session_start_time, content, duration_minutes],
+        )?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    /// Get all focus notes
+    pub fn get_focus_notes(&self) -> SqliteResult<Vec<FocusNote>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, session_start_time, session_end_time, content, duration_minutes, created_at
+             FROM focus_notes ORDER BY session_start_time DESC",
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok(FocusNote {
+                id: row.get(0)?,
+                session_start_time: row.get(1)?,
+                session_end_time: row.get(2)?,
+                content: row.get(3)?,
+                duration_minutes: row.get(4)?,
+                created_at: row.get(5)?,
             })
         })?;
 

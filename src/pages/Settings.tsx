@@ -3,7 +3,21 @@ import {
   confirm as tauriConfirm,
   message as tauriMessage,
 } from "@tauri-apps/plugin-dialog";
-import { RefreshCw } from "lucide-react";
+import {
+  Bell,
+  CheckCircle,
+  Download,
+  Hourglass,
+  Moon,
+  Palette,
+  RefreshCw,
+  ShieldCheck,
+  Sun,
+  SunMoon,
+  Target,
+  Terminal,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { DataImport } from "../components/DataImport";
@@ -307,9 +321,7 @@ export function Settings() {
           <div className="font-label text-xs text-muted-foreground uppercase tracking-widest text-right">
             <p className="flex items-center justify-end gap-1 mb-1">
               Status:
-              <span className="material-symbols-outlined text-[14px] text-foreground">
-                check_circle
-              </span>
+              <CheckCircle className="w-3.5 h-3.5 text-foreground" />
               <span className="text-foreground font-bold">Online</span>
             </p>
             <p>Uptime: 48:12:00</p>
@@ -321,9 +333,7 @@ export function Settings() {
           <section className="bg-card p-6 md:p-8 flex flex-col gap-8">
             <div>
               <div className="flex items-center gap-3 mb-5">
-                <span className="material-symbols-outlined text-foreground">
-                  palette
-                </span>
+                <Palette className="text-foreground" />
                 <h3 className="font-headline text-2xl text-foreground">
                   Appearance
                 </h3>
@@ -337,7 +347,7 @@ export function Settings() {
                       : "border-border bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
                   }`}
                 >
-                  <span className="material-symbols-outlined">light_mode</span>
+                  <Sun />
                   <span className="font-label text-xs uppercase tracking-widest">
                     Light
                   </span>
@@ -350,12 +360,7 @@ export function Settings() {
                       : "border-border bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
                   }`}
                 >
-                  <span
-                    className="material-symbols-outlined"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                  >
-                    dark_mode
-                  </span>
+                  <Moon />
                   <span className="font-label text-xs uppercase tracking-widest">
                     Dark
                   </span>
@@ -368,9 +373,7 @@ export function Settings() {
                       : "border-border bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
                   }`}
                 >
-                  <span className="material-symbols-outlined">
-                    settings_brightness
-                  </span>
+                  <SunMoon />
                   <span className="font-label text-xs uppercase tracking-widest">
                     System
                   </span>
@@ -380,9 +383,7 @@ export function Settings() {
 
             <div className="pt-8 border-t border-border border-dashed">
               <div className="flex items-center gap-3 mb-5">
-                <span className="material-symbols-outlined text-foreground">
-                  terminal
-                </span>
+                <Terminal className="text-foreground" />
                 <h3 className="font-headline text-2xl text-foreground">
                   System Logic
                 </h3>
@@ -412,9 +413,7 @@ export function Settings() {
           <section className="bg-card p-6 md:p-8 flex flex-col gap-8">
             <div>
               <div className="flex items-center gap-3 mb-5">
-                <span className="material-symbols-outlined text-foreground">
-                  center_focus_strong
-                </span>
+                <Target className="text-foreground" />
                 <h3 className="font-headline text-2xl text-foreground">
                   Focus Preferences
                 </h3>
@@ -506,9 +505,7 @@ export function Settings() {
           <section className="bg-card p-6 md:p-8 flex flex-col gap-8">
             <div>
               <div className="flex items-center gap-3 mb-5">
-                <span className="material-symbols-outlined text-foreground">
-                  hourglass_empty
-                </span>
+                <Hourglass className="text-foreground" />
                 <h3 className="font-headline text-2xl text-foreground">
                   Break Reminders
                 </h3>
@@ -567,9 +564,7 @@ export function Settings() {
 
             <div className="pt-8 border-t border-border border-dashed">
               <div className="flex items-center gap-3 mb-5">
-                <span className="material-symbols-outlined text-foreground">
-                  notifications
-                </span>
+                <Bell className="text-foreground" />
                 <h3 className="font-headline text-2xl text-foreground">
                   Notifications
                 </h3>
@@ -617,17 +612,13 @@ export function Settings() {
           <section className="bg-card p-6 md:p-8 flex flex-col gap-8">
             <div>
               <div className="flex items-center gap-3 mb-5">
-                <span className="material-symbols-outlined text-foreground">
-                  system_update_alt
-                </span>
+                <Download className="text-foreground" />
                 <h3 className="font-headline text-2xl text-foreground">
                   Software
                 </h3>
               </div>
               <div className="border border-border p-6 bg-background flex flex-col items-center justify-center text-center gap-4">
-                <span className="material-symbols-outlined text-4xl text-foreground font-light">
-                  check_circle
-                </span>
+                <CheckCircle className="w-9 h-9 text-foreground" />
                 <div>
                   <p className="font-label text-lg text-foreground tracking-widest">
                     v0.1.5
@@ -689,9 +680,7 @@ export function Settings() {
 
             <div className="pt-8 border-t border-border border-dashed">
               <div className="flex items-center gap-3 mb-5">
-                <span className="material-symbols-outlined text-foreground">
-                  shield_lock
-                </span>
+                <ShieldCheck className="text-foreground" />
                 <h3 className="font-headline text-2xl text-foreground">
                   Data Management
                 </h3>
@@ -728,18 +717,14 @@ export function Settings() {
                     onClick={() => handleExport("csv")}
                     className="border border-border bg-background p-3 font-label text-xs uppercase tracking-widest text-foreground hover:bg-secondary transition-colors flex justify-center items-center gap-2"
                   >
-                    <span className="material-symbols-outlined text-sm">
-                      download
-                    </span>
+                    <Download className="w-4 h-4" />
                     Export CSV
                   </button>
                   <button
                     onClick={() => handleExport("json")}
                     className="border border-border bg-background p-3 font-label text-xs uppercase tracking-widest text-foreground hover:bg-secondary transition-colors flex justify-center items-center gap-2"
                   >
-                    <span className="material-symbols-outlined text-sm">
-                      download
-                    </span>
+                    <Download className="w-4 h-4" />
                     Export JSON
                   </button>
                 </div>
@@ -758,9 +743,7 @@ export function Settings() {
                   onClick={handleWipeData}
                   className="border border-destructive text-destructive bg-destructive/10 p-4 font-label text-sm uppercase tracking-widest hover:bg-destructive hover:text-destructive-foreground transition-colors flex justify-center items-center gap-2"
                 >
-                  <span className="material-symbols-outlined">
-                    delete_forever
-                  </span>
+                  <Trash2 />
                   Delete All Data
                 </button>
                 {exportMessage && (

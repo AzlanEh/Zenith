@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Pen, Trash2, X } from "lucide-react";
 import type { Goal, GoalProgress } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -21,15 +22,16 @@ interface GoalEditorProps {
   progress?: GoalProgress[];
 }
 
+const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>> = {
+  edit: Pen,
+  delete: Trash2,
+  close: X,
+};
+
 function Icon({ name, size = 24, style: s }: { name: string; size?: number; style?: React.CSSProperties }) {
-  return (
-    <span
-      className="material-symbols-outlined leading-none"
-      style={{ fontSize: size, fontVariationSettings: "'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24", ...s }}
-    >
-      {name}
-    </span>
-  );
+  const LucideIcon = ICON_MAP[name];
+  if (!LucideIcon) return null;
+  return <LucideIcon size={size} style={s} />;
 }
 
 function ProgressBar({ pct, color = "#f5f5e8", height = 6 }: { pct: number; color?: string; height?: number }) {

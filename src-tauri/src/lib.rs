@@ -23,7 +23,7 @@ use commands::{DailyStats, DayStats, WeeklyStats};
 use database::{AppLimit, AppUsage, CategoryUsage, Database, ExportRecord, HourlyUsage};
 use error::WellbeingError;
 use focus_mode::{FocusManager, FocusSession, FocusSettings};
-use goals::{Achievement, Goal, GoalProgress, GoalsState};
+use goals::{Achievement, Goal, GoalProgress, GoalType, GoalsState};
 use limit_popup::EmergencyAccessManager;
 use notification_settings::{NotificationManager, NotificationSettings};
 use std::collections::HashMap;
@@ -874,6 +874,61 @@ async fn get_goals_stats(state: State<'_, AppState>) -> CmdResult<GoalsStats> {
     })
 }
 
+// Focus notes commands
+#[tauri::command]
+async fn save_focus_note(
+    state: State<'_, AppState>,
+    content: String,
+    duration_minutes: i32,
+) -> CmdResult<i64> {
+    let db = state.db.lock().await;
+    let now = chrono::Utc::now().timestamp();
+    db.save_focus_note(now, &content, duration_minutes)
+        .map_err(Into::into)
+}
+
+#[tauri::command]
+async fn get_focus_notes(state: State<'_, AppState>) -> CmdResult<Vec<database::FocusNote>> {
+    let db = state.db.lock().await;
+    db.get_focus_notes().map_err(Into::into)
+}
+
+#[tauri::command]
+async fn init_onboarding_goals(
+    state: State<'_, AppState>,
+    daily_goal_minutes: i32,
+    screen_limit_hours: i32,
+    _mindfulness_sessions: i32,
+) -> CmdResult<()> {
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let mut goals_state = state.goals_state.lock().await;
+
+    goals_state.goals = vec![
+        Goal {
+            id: "onboarding-daily-screen".to_string(),
+            name: "Daily Screen Time".to_string(),
+            goal_type: GoalType::DailyLimit,
+            target_minutes: screen_limit_hours * 60,
+            days: vec![1, 2, 3, 4, 5, 6, 0],
+            enabled: true,
+            created_at: today.clone(),
+        },
+        Goal {
+            id: "onboarding-deep-work".to_string(),
+            name: "Deep Work".to_string(),
+            goal_type: GoalType::MinimumProductive {
+                category: "Development".to_string(),
+            },
+            target_minutes: daily_goal_minutes,
+            days: vec![1, 2, 3, 4, 5, 6, 0],
+            enabled: true,
+            created_at: today,
+        },
+    ];
+
+    Ok(())
+}
+
 #[derive(serde::Serialize)]
 struct GoalsStats {
     current_streak: i32,
@@ -1352,6 +1407,9 @@ pub fn run() {
             get_goals_progress,
             get_achievements,
             get_goals_stats,
+            save_focus_note,
+            get_focus_notes,
+            init_onboarding_goals,
             check_for_update,
             install_update
         ])

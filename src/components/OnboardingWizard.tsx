@@ -1,4 +1,16 @@
 import { useEffect, useState } from "react";
+import {
+  ArrowRight,
+  BarChart3,
+  CircleDot,
+  Clock,
+  Crosshair,
+  Heart,
+  Hourglass,
+  Minus,
+  Plus,
+} from "lucide-react";
+import { api } from "@/services/api";
 
 interface OnboardingWizardProps {
   onComplete: () => void;
@@ -22,17 +34,8 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const updateMind = (change: number) =>
     setMind((prev) => Math.max(0, Math.min(10, prev + change)));
 
-  const finish = () => {
-    const prefs = {
-      dailyGoal: focus * 60,
-      selectedApps: [] as string[],
-      breakEnabled: true,
-      breakInterval: 60,
-      focusGoal: focus,
-      screenLimit: screen,
-      mindfulnessSessions: mind,
-    };
-    localStorage.setItem("onboarding_prefs", JSON.stringify(prefs));
+  const finish = async () => {
+    await api.initOnboardingGoals(focus * 60, screen);
     localStorage.setItem("onboarding_completed", "true");
     onComplete();
   };
@@ -135,12 +138,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             <div className="bg-card p-8 flex flex-col justify-between min-h-[300px] border border-transparent hover:border-border/30 transition-colors duration-500">
               <div className="mb-12">
                 <div className="flex justify-between items-start mb-4">
-                  <span
-                    className="material-symbols-outlined text-muted-foreground"
-                    style={{ fontVariationSettings: "'FILL' 0, 'wght' 200" }}
-                  >
-                    target
-                  </span>
+                  <Crosshair className="text-muted-foreground" />
                 </div>
                 <h2 className="font-label text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">
                   Daily Focus Goal
@@ -161,23 +159,13 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                     className="w-12 h-12 bg-muted hover:bg-accent flex items-center justify-center text-foreground transition-colors focus:outline-none"
                     onClick={() => updateFocus(-1)}
                   >
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontVariationSettings: "'wght' 300" }}
-                    >
-                      remove
-                    </span>
+                    <Minus />
                   </button>
                   <button
                     className="w-12 h-12 bg-muted hover:bg-accent flex items-center justify-center text-foreground transition-colors focus:outline-none"
                     onClick={() => updateFocus(1)}
                   >
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontVariationSettings: "'wght' 300" }}
-                    >
-                      add
-                    </span>
+                    <Plus />
                   </button>
                 </div>
               </div>
@@ -187,12 +175,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               <div className="absolute inset-0 bg-primary/5 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
               <div className="mb-12 relative z-10">
                 <div className="flex justify-between items-start mb-4">
-                  <span
-                    className="material-symbols-outlined text-muted-foreground"
-                    style={{ fontVariationSettings: "'FILL' 0, 'wght' 200" }}
-                  >
-                    hourglass_empty
-                  </span>
+                  <Hourglass className="text-muted-foreground" />
                 </div>
                 <h2 className="font-label text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">
                   Screen Time Limit
@@ -213,23 +196,13 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                     className="w-12 h-12 bg-muted hover:bg-accent flex items-center justify-center text-foreground transition-colors focus:outline-none"
                     onClick={() => updateScreen(-1)}
                   >
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontVariationSettings: "'wght' 300" }}
-                    >
-                      remove
-                    </span>
+                    <Minus />
                   </button>
                   <button
                     className="w-12 h-12 bg-muted hover:bg-accent flex items-center justify-center text-foreground transition-colors focus:outline-none"
                     onClick={() => updateScreen(1)}
                   >
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontVariationSettings: "'wght' 300" }}
-                    >
-                      add
-                    </span>
+                    <Plus />
                   </button>
                 </div>
               </div>
@@ -238,12 +211,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             <div className="bg-card p-8 flex flex-col justify-between min-h-[300px] border border-transparent hover:border-border/30 transition-colors duration-500">
               <div className="mb-12">
                 <div className="flex justify-between items-start mb-4">
-                  <span
-                    className="material-symbols-outlined text-muted-foreground"
-                    style={{ fontVariationSettings: "'FILL' 0, 'wght' 200" }}
-                  >
-                    self_improvement
-                  </span>
+                  <Heart className="text-muted-foreground" />
                 </div>
                 <h2 className="font-label text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">
                   Mindfulness Sessions
@@ -264,23 +232,13 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                     className="w-12 h-12 bg-muted hover:bg-accent flex items-center justify-center text-foreground transition-colors focus:outline-none"
                     onClick={() => updateMind(-1)}
                   >
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontVariationSettings: "'wght' 300" }}
-                    >
-                      remove
-                    </span>
+                    <Minus />
                   </button>
                   <button
                     className="w-12 h-12 bg-muted hover:bg-accent flex items-center justify-center text-foreground transition-colors focus:outline-none"
                     onClick={() => updateMind(1)}
                   >
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontVariationSettings: "'wght' 300" }}
-                    >
-                      add
-                    </span>
+                    <Plus />
                   </button>
                 </div>
               </div>
@@ -292,12 +250,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               className="bg-foreground text-background font-label text-sm uppercase tracking-[0.2em] py-6 px-16 hover:bg-accent hover:text-foreground transition-all duration-300 focus:outline-none border border-transparent hover:border-foreground flex items-center gap-4 group"
             >
               Set Intentions
-              <span
-                className="material-symbols-outlined transform group-hover:translate-x-2 transition-transform duration-300"
-                style={{ fontVariationSettings: "'wght' 300" }}
-              >
-                arrow_forward
-              </span>
+              <ArrowRight className="transform group-hover:translate-x-2 transition-transform duration-300" />
             </button>
           </div>
         </main>
@@ -335,12 +288,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-1 bg-muted border border-border p-1">
             <div className="bg-card p-8 flex flex-col items-center justify-center space-y-4 hover:bg-muted transition-colors duration-500 group">
-              <span
-                className="material-symbols-outlined text-3xl text-muted-foreground group-hover:text-foreground transition-colors"
-                style={{ fontVariationSettings: "'FILL' 0, 'wght' 200" }}
-              >
-                schedule
-              </span>
+              <Clock className="w-8 h-8 text-muted-foreground group-hover:text-foreground transition-colors" />
               <div className="text-center">
                 <div className="font-mono text-sm text-muted-foreground uppercase tracking-widest mb-1">
                   Duration
@@ -356,12 +304,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
             <div className="bg-card p-8 flex flex-col items-center justify-center space-y-4 hover:bg-muted transition-colors duration-500 group relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-card/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-              <span
-                className="material-symbols-outlined text-3xl text-muted-foreground group-hover:text-foreground transition-colors relative z-10"
-                style={{ fontVariationSettings: "'FILL' 0, 'wght' 200" }}
-              >
-                lens_blur
-              </span>
+              <CircleDot className="w-8 h-8 text-muted-foreground group-hover:text-foreground transition-colors relative z-10" />
               <div className="text-center relative z-10">
                 <div className="font-mono text-sm text-muted-foreground uppercase tracking-widest mb-1">
                   Mode
@@ -373,12 +316,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             </div>
 
             <div className="bg-card p-8 flex flex-col items-center justify-center space-y-4 hover:bg-muted transition-colors duration-500 group">
-              <span
-                className="material-symbols-outlined text-3xl text-muted-foreground group-hover:text-foreground transition-colors"
-                style={{ fontVariationSettings: "'FILL' 0, 'wght' 200" }}
-              >
-                graphic_eq
-              </span>
+              <BarChart3 className="w-8 h-8 text-muted-foreground group-hover:text-foreground transition-colors" />
               <div className="text-center">
                 <div className="font-mono text-sm text-muted-foreground uppercase tracking-widest mb-1">
                   Acoustics
@@ -398,12 +336,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               <div className="absolute inset-0 bg-background w-0 group-hover:w-full transition-all duration-500 ease-out z-0" />
               <span className="relative z-10 group-hover:text-foreground transition-colors duration-500 flex items-center space-x-3">
                 <span>Enter Sanctuary</span>
-                <span
-                  className="material-symbols-outlined text-lg transform group-hover:translate-x-1 transition-transform duration-300"
-                  style={{ fontVariationSettings: "'wght' 300" }}
-                >
-                  arrow_forward
-                </span>
+                <ArrowRight className="w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-300" />
               </span>
             </button>
           </div>

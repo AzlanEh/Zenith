@@ -1,10 +1,17 @@
 import { useEffect, useState, useMemo, memo } from "react";
 import { useDailyStats } from "../../queries";
-import { Loader2 } from "lucide-react";
+import { AppWindow, Globe, Hourglass, Loader2, MessageCircle, Zap } from "lucide-react";
 import { ActivityRingChart } from "./ActivityRingChart";
 
 const COLORS = ["text-chart-1", "text-chart-2", "text-chart-3", "text-chart-4", "text-chart-5"];
-const ICONS = ["bolt", "language", "chat", "public", "apps"];
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  bolt: Zap,
+  language: Globe,
+  chat: MessageCircle,
+  public: Globe,
+  apps: AppWindow,
+  hourglass_empty: Hourglass,
+};
 
 const ActivityRingInner = memo(function ActivityRingInner() {
   const [mounted, setMounted] = useState(false);
@@ -35,7 +42,7 @@ const ActivityRingInner = memo(function ActivityRingInner() {
             max: Math.max(8, Math.ceil(hours + 2)),
             current: hours,
             color: COLORS[idx % COLORS.length],
-            icon: ICONS[idx % ICONS.length],
+            icon: ["bolt", "language", "chat", "public", "apps"][idx % 5],
           };
         })
       : [{ label: "No Data Yet", value: "0m", max: 8, current: 0, color: "text-chart-1", icon: "hourglass_empty" }];
@@ -81,7 +88,10 @@ const ActivityRingInner = memo(function ActivityRingInner() {
             <div key={metric.label + idx} className="flex items-center justify-between group">
               <div className="flex items-center gap-3">
                 <div className={`size-8 rounded-full ${metric.color.replace("text-", "bg-")}/20 flex items-center justify-center text-current ${metric.color}`}>
-                  <span className="material-symbols-outlined text-sm">{metric.icon}</span>
+                  {(() => {
+                    const LucideIcon = ICON_MAP[metric.icon];
+                    return LucideIcon ? <LucideIcon className="w-4 h-4" /> : null;
+                  })()}
                 </div>
                 <div>
                   <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors max-w-[150px] truncate">{metric.label}</p>

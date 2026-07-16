@@ -1,4 +1,14 @@
 import { useMemo, useState } from "react";
+import {
+  BarChart3,
+  CircleDot,
+  Cpu,
+  List,
+  Lock,
+  Medal,
+  SlidersHorizontal,
+  Sparkles,
+} from "lucide-react";
 import { useFocusHistory } from "../hooks/useFocusHistory";
 import { cn } from "../lib/utils";
 import { formatDuration } from "../utils/formatters";
@@ -9,12 +19,16 @@ import {
   useWeeklyStats,
 } from "../queries";
 
-interface Achievement {
-  icon: string;
-  label: string;
-  unlocked: boolean;
-  active?: boolean;
-}
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
+  donut_large: CircleDot,
+  tune: SlidersHorizontal,
+  bar_chart: BarChart3,
+  memory: Cpu,
+  list_alt: List,
+  military_tech: Medal,
+  lock: Lock,
+  auto_awesome: Sparkles,
+};
 
 function Icon({
   name,
@@ -25,17 +39,9 @@ function Icon({
   className?: string;
   style?: React.CSSProperties;
 }) {
-  return (
-    <span
-      className={`material-symbols-outlined ${className}`}
-      style={{
-        fontVariationSettings: "'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24",
-        ...style,
-      }}
-    >
-      {name}
-    </span>
-  );
+  const LucideIcon = ICON_MAP[name];
+  if (!LucideIcon) return null;
+  return <LucideIcon className={className} style={style} />;
 }
 
 function SectionHeader({ title, icon }: { title: string; icon: string }) {
@@ -47,6 +53,13 @@ function SectionHeader({ title, icon }: { title: string; icon: string }) {
       <Icon name={icon} />
     </div>
   );
+}
+
+interface Achievement {
+  icon: string;
+  label: string;
+  unlocked: boolean;
+  active?: boolean;
 }
 
 function CognitiveLoadDial({

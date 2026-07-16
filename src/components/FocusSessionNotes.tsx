@@ -8,6 +8,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { api } from "@/services/api";
 
 interface FocusSessionNotesProps {
   open: boolean;
@@ -18,11 +19,8 @@ interface FocusSessionNotesProps {
 export function FocusSessionNotes({ open, onClose, durationMinutes }: FocusSessionNotesProps) {
   const [note, setNote] = useState("");
 
-  const handleSave = () => {
-    const today = new Date().toISOString().split("T")[0];
-    const existing = JSON.parse(localStorage.getItem("focus_notes") || "{}");
-    existing[today] = { note: note.trim(), duration_minutes: durationMinutes };
-    localStorage.setItem("focus_notes", JSON.stringify(existing));
+  const handleSave = async () => {
+    await api.saveFocusNote(note.trim(), durationMinutes);
     setNote("");
     onClose();
   };

@@ -276,43 +276,78 @@ impl UsageTracker {
             return;
         }
 
-        let db = self.db.lock().await;
-        let mut still_pending = Vec::new();
+        let writes: Vec<PendingWrite> = buffer.drain(..).collect();
+        drop(buffer);
 
-        for write in buffer.drain(..) {
-            match &write {
+        // Phase 1: retry UpdateSession writes (need &Database)
+        let db = self.db.lock().await;
+        let mut remaining = Vec::new();
+
+        for write in writes {
+            match write {
                 PendingWrite::UpdateSession {
                     session_id,
                     end_time,
-                } => {
-                    if let Err(e) = db.update_session_duration(*session_id, *end_time) {
+                } => match db.update_session_duration(session_id, end_time) {
+                    Ok(_) => {
+                        tracing::info!(session_id = session_id, "Retried session update succeeded");
+                    }
+                    Err(e) => {
                         tracing::warn!(
                             error = %e,
                             session_id = session_id,
                             "Retry failed for session update"
                         );
-                        still_pending.push(write);
-                    } else {
-                        tracing::info!(session_id = session_id, "Retried session update succeeded");
+                        remaining.push(PendingWrite::UpdateSession {
+                            session_id,
+                            end_time,
+                        });
                     }
-                }
-                PendingWrite::RecordSession {
-                    app_name,
-                    duration_seconds,
-                } => {
-                    // We need a &mut Database for record_usage_atomic, but we only have &Database
-                    // through the lock. Instead, use update_session_duration pattern.
-                    // For now, log and drop - this path is less common.
-                    tracing::warn!(
-                        app = %app_name,
-                        duration = duration_seconds,
-                        "Cannot retry atomic record (requires mut db), dropping"
-                    );
+                },
+                PendingWrite::RecordSession { .. } => {
+                    remaining.push(write);
                 }
             }
         }
 
-        *buffer = still_pending;
+        drop(db);
+
+        // Phase 2: retry RecordSession writes (need &mut Database)
+        if !remaining.is_empty() {
+            let mut update_sessions = Vec::new();
+            let mut db = self.db.lock().await;
+
+            for write in remaining {
+                match write {
+                    PendingWrite::RecordSession {
+                        app_name,
+                        duration_seconds,
+                    } => {
+                        if let Err(e) = db.record_usage_atomic(&app_name, duration_seconds) {
+                            tracing::warn!(
+                                error = %e,
+                                app = %app_name,
+                                "Retry failed for atomic session record"
+                            );
+                            let mut buffer = self.retry_buffer.lock().await;
+                            buffer.push(PendingWrite::RecordSession {
+                                app_name,
+                                duration_seconds,
+                            });
+                        } else {
+                            tracing::info!(app = %app_name, "Retried atomic session record succeeded");
+                        }
+                    }
+                    other => update_sessions.push(other),
+                }
+            }
+
+            // Re-buffer any UpdateSession writes that still failed
+            if !update_sessions.is_empty() {
+                let mut buffer = self.retry_buffer.lock().await;
+                buffer.extend(update_sessions);
+            }
+        }
     }
 
     async fn track_window(&self) -> Result<(), String> {

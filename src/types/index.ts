@@ -209,6 +209,15 @@ export interface GoalsStats {
   focus_sessions_completed: number;
 }
 
+export interface FocusNote {
+  id: number;
+  session_start_time: number;
+  session_end_time: number | null;
+  content: string;
+  duration_minutes: number;
+  created_at: number;
+}
+
 export const APP_CATEGORIES = [
   "Productivity",
   "Development",

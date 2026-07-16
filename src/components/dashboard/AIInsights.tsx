@@ -1,6 +1,19 @@
 import { useMemo } from 'react';
 import { useDailyStats, useWeeklyStats } from '../../queries';
-import { Sparkles, Brain } from 'lucide-react';
+import { ArrowRight, BatteryCharging, Brain, Hourglass, Lightbulb, Smile, Sparkles } from 'lucide-react';
+
+const INSIGHT_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  hourglass: Hourglass,
+  lightbulb: Lightbulb,
+  battery: BatteryCharging,
+  smile: Smile,
+};
+
+function InsightIcon({ icon, className }: { icon: string; className?: string }) {
+  const LucideIcon = INSIGHT_ICONS[icon];
+  if (!LucideIcon) return null;
+  return <LucideIcon className={className} />;
+}
 
 export function AIInsights() {
   const { data: dailyStats } = useDailyStats();
@@ -15,7 +28,7 @@ export function AIInsights() {
           id: '1',
           title: 'Collecting Data',
           description: 'We are currently gathering data to provide personalized insights for reclaiming cognitive sovereignty.',
-          icon: 'hourglass_empty',
+          icon: 'hourglass',
           color: 'text-chart-1'
         }
       ];
@@ -31,7 +44,7 @@ export function AIInsights() {
         id: '2',
         title: 'App Usage Trend',
         description: `You've spent ${hours > 0 ? `${hours}h ` : ''}${mins}m on ${topApp.app_name} today. Consider setting a daily limit if this exceeds your goals.`,
-        icon: 'insights',
+        icon: 'lightbulb',
         color: 'text-chart-3'
       });
     }
@@ -42,7 +55,7 @@ export function AIInsights() {
         id: '3',
         title: 'High Screen Time',
         description: `You've been active for over 4 hours today. Remember to take a 5-minute break to rest your eyes.`,
-        icon: 'battery_charging_50',
+        icon: 'battery',
         color: 'text-chart-4'
       });
     } else if (dailyStats) {
@@ -50,7 +63,7 @@ export function AIInsights() {
         id: '4',
         title: 'Healthy Balance',
         description: `Your screen time is looking balanced today. Great job maintaining focus while limiting overall usage!`,
-        icon: 'sentiment_satisfied',
+        icon: 'smile',
         color: 'text-chart-2'
       });
     }
@@ -76,7 +89,7 @@ export function AIInsights() {
           {insights.map(insight => (
             <div key={insight.id} className="flex gap-4 p-4 rounded-xl bg-background/50 border border-border backdrop-blur-sm hover:border-primary/30 transition-colors">
               <div className={`mt-0.5 ${insight.color}`}>
-                <span className="material-symbols-outlined">{insight.icon}</span>
+                <InsightIcon icon={insight.icon} />
               </div>
               <div>
                 <h4 className="text-sm font-semibold text-foreground">{insight.title}</h4>
@@ -88,7 +101,7 @@ export function AIInsights() {
         
         <button className="mt-6 text-xs font-medium text-primary flex items-center gap-1 hover:underline">
           View all recommendations
-          <span className="material-symbols-outlined text-sm">arrow_forward</span>
+          <ArrowRight className="w-4 h-4" />
         </button>
       </div>
     </div>
