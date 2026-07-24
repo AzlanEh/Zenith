@@ -1,6 +1,5 @@
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { CheckCircle2, Plus, Search } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AppIcon } from "../components/AppIcon";
 import { CategoryManager } from "../components/CategoryManager";
@@ -98,14 +97,6 @@ export function Limits() {
     );
   }, [filteredInstalledApps, activeCategory]);
 
-  const pickerListRef = useRef<HTMLDivElement>(null);
-  const pickerVirtualizer = useVirtualizer({
-    count: appsForCategory.length,
-    getScrollElement: () => pickerListRef.current,
-    estimateSize: () => 64,
-    overscan: 5,
-  });
-
   return (
     <ErrorBoundary>
       <div className="p-4 lg:p-8 max-w-5xl mx-auto flex flex-col gap-8 pb-20 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -179,79 +170,60 @@ export function Limits() {
                     ))}
                   </div>
 
-                  <div className="relative" style={{ height: "400px" }}>
-                    <div
-                      ref={pickerListRef}
-                      className="absolute top-0 left-0 right-0"
-                      style={{
-                        height: `${pickerVirtualizer.getTotalSize()}px`,
-                      }}
-                    >
-                      {appsForCategory.length === 0 ? (
-                        <div className="text-center py-12 text-muted-foreground text-sm font-mono uppercase tracking-widest">
-                          No applications found
-                        </div>
-                      ) : (
-                        pickerVirtualizer
-                          .getVirtualItems()
-                          .map((virtualRow) => {
-                            const app = appsForCategory[virtualRow.index];
-                            const isSelected = selectedApps.includes(app.name);
-                            return (
+                  <div className="space-y-2">
+                    {appsForCategory.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground text-sm font-mono uppercase tracking-widest">
+                        No applications found
+                      </div>
+                    ) : (
+                      appsForCategory.map((app) => {
+                        const isSelected = selectedApps.includes(app.name);
+                        return (
+                          <div
+                            key={app.name}
+                            onClick={() => {
+                              setSelectedApps((prev) =>
+                                prev.includes(app.name)
+                                  ? prev.filter((n) => n !== app.name)
+                                  : [...prev, app.name],
+                              );
+                            }}
+                            className={`flex items-center justify-between p-4 transition-colors group cursor-pointer ${
+                              isSelected
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-secondary/10 hover:bg-secondary/30 text-foreground"
+                            }`}
+                          >
+                            <div className="flex items-center gap-4">
                               <div
-                                key={app.name}
-                                onClick={() => {
-                                  setSelectedApps((prev) =>
-                                    prev.includes(app.name)
-                                      ? prev.filter((n) => n !== app.name)
-                                      : [...prev, app.name],
-                                  );
-                                }}
-                                className={`flex items-center justify-between p-4 transition-colors group cursor-pointer ${
-                                  isSelected
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-secondary/10 hover:bg-secondary/30 text-foreground"
-                                }`}
-                                style={{
-                                  position: "absolute",
-                                  top: 0,
-                                  left: 0,
-                                  width: "100%",
-                                  height: `${virtualRow.size}px`,
-                                  transform: `translateY(${virtualRow.start}px)`,
-                                }}
+                                className={`w-10 h-10 flex items-center justify-center p-1 ${isSelected ? "bg-primary-foreground/20" : "bg-background border border-border"}`}
                               >
-                                <div className="flex items-center gap-4">
-                                  <div
-                                    className={`w-10 h-10 flex items-center justify-center p-1 ${isSelected ? "bg-primary-foreground/20" : "bg-background border border-border"}`}
-                                  >
-                                    <AppIcon
-                                      appName={app.name}
-                                      iconHint={app.icon ?? undefined}
-                                      className="w-full h-full object-contain"
-                                    />
-                                  </div>
-                                  <div>
-                                    <span className="text-sm font-medium block">
-                                      {app.name}
-                                    </span>
-                                    <span
-                                      className={`text-[0.6rem] font-mono uppercase tracking-wider opacity-60 ${!isSelected && "text-muted-foreground"}`}
-                                    >
-                                      {app.categories?.[0] || "Uncategorized"}
-                                    </span>
-                                  </div>
-                                </div>
-                                {isSelected ? (
-                                  <CheckCircle2 className="w-5 h-5 fill-current" />
-                                ) : (
-                                  <div className="w-5 h-5 border-2 border-muted-foreground group-hover:border-primary transition-colors"></div>
-                                )}
+                                <AppIcon
+                                  appName={app.name}
+                                  iconHint={app.icon ?? undefined}
+                                  className="w-full h-full object-contain"
+                                />
                               </div>
-                            );
-                          })
-                      )}
-                    </div>
+                              <div>
+                                <span className="text-sm font-medium block">
+                                  {app.name}
+                                </span>
+                                <span
+                                  className={`text-[0.6rem] font-mono uppercase tracking-wider opacity-60 ${!isSelected && "text-muted-foreground"}`}
+                                >
+                                  {app.categories?.[0] || "Uncategorized"}
+                                </span>
+                              </div>
+                            </div>
+                            {isSelected ? (
+                              <CheckCircle2 className="w-5 h-5 fill-current" />
+                            ) : (
+                              <div className="w-5 h-5 border-2 border-muted-foreground group-hover:border-primary transition-colors"></div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
 

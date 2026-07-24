@@ -16,6 +16,9 @@ const WARNING_THRESHOLD: f64 = 0.8; // 80% - send warning
 const EXCEEDED_THRESHOLD: f64 = 1.0; // 100% - limit exceeded
 const IDLE_THRESHOLD_SECONDS: u64 = 300; // 5 minutes
 
+/// How often (in seconds) to re-check if an app is blocked
+const BLOCKED_CHECK_CACHE_SECONDS: i64 = 10;
+
 /// How often (in seconds) to flush session duration to DB
 const SESSION_FLUSH_INTERVAL: u32 = 5;
 
@@ -66,6 +69,8 @@ pub struct UsageTracker {
     retry_buffer: Arc<Mutex<Vec<PendingWrite>>>,
     /// Track the last successfully written end_time to detect data gaps
     last_written_end_time: Arc<Mutex<Option<i64>>>,
+    /// Cache for is_app_blocked results to avoid DB queries every tick.
+    cached_blocked: Arc<Mutex<HashMap<String, (bool, i64)>>>,
 }
 
 impl UsageTracker {
@@ -89,6 +94,7 @@ impl UsageTracker {
             flush_counter: Arc::new(Mutex::new(0)),
             retry_buffer: Arc::new(Mutex::new(Vec::new())),
             last_written_end_time: Arc::new(Mutex::new(None)),
+            cached_blocked: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -101,6 +107,7 @@ impl UsageTracker {
         *self.last_written_end_time.lock().await = None;
         self.sent_notifications.lock().await.clear();
         self.retry_buffer.lock().await.clear();
+        self.cached_blocked.lock().await.clear();
     }
 
     #[cfg(test)]
@@ -388,9 +395,27 @@ impl UsageTracker {
         // Check if the current app should be blocked
         if let Some(ref app) = app_name {
             if app != "Zenith" && app != "limit-popup" {
-                let db = self.db.lock().await;
-                let is_blocked = db.is_app_blocked(app).unwrap_or(false);
-                drop(db); // Release lock before further operations
+                let now = chrono::Utc::now().timestamp();
+                let is_blocked = {
+                    let mut cache = self.cached_blocked.lock().await;
+                    if let Some(&(blocked, checked_at)) = cache.get(app) {
+                        if now - checked_at < BLOCKED_CHECK_CACHE_SECONDS {
+                            blocked
+                        } else {
+                            let db = self.db.lock().await;
+                            let result = db.is_app_blocked(app).unwrap_or(false);
+                            drop(db);
+                            cache.insert(app.to_string(), (result, now));
+                            result
+                        }
+                    } else {
+                        let db = self.db.lock().await;
+                        let result = db.is_app_blocked(app).unwrap_or(false);
+                        drop(db);
+                        cache.insert(app.to_string(), (result, now));
+                        result
+                    }
+                };
 
                 let focus_blocked = self.focus_manager.should_block_app(app).await;
 

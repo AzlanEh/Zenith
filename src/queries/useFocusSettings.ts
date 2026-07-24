@@ -12,8 +12,11 @@ export function useFocusSettings() {
 export function useUpdateFocusSettings() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (updates: Partial<FocusSettings>) =>
-      api.setFocusSettings({ ...queryClient.getQueryData<FocusSettings>(["focusSettings"]) ?? {}, ...updates } as FocusSettings),
+    mutationFn: (updates: Partial<FocusSettings>) => {
+      const current = queryClient.getQueryData<FocusSettings>(["focusSettings"]);
+      if (!current) return Promise.reject(new Error("Focus settings not loaded yet"));
+      return api.setFocusSettings({ ...current, ...updates });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["focusSettings"] });
     },

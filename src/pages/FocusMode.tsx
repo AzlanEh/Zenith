@@ -9,7 +9,7 @@ import {
   Square,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AppIcon } from "../components/AppIcon";
 import { ErrorBoundary } from "../components/ErrorBoundary";
@@ -59,12 +59,17 @@ export function FocusMode() {
   const [localAutoStartBreaks, setLocalAutoStartBreaks] = useState(false);
   const [localAutoStartSession, setLocalAutoStartSession] = useState(false);
 
+  const hasReportedCompletion = useRef(false);
+
   useEffect(() => {
     if (isSettingsOpen && settings) {
       setLocalFocusMin(settings.default_duration_minutes);
-      // Initialize other local settings here if added to backend later
     }
-    if (state === "completed") {
+  }, [isSettingsOpen, settings]);
+
+  useEffect(() => {
+    if (state === "completed" && !hasReportedCompletion.current) {
+      hasReportedCompletion.current = true;
       addSession({
         date: new Date().toISOString().split("T")[0],
         duration_minutes: Math.floor(totalTime / 60),
@@ -72,6 +77,9 @@ export function FocusMode() {
         scheduled: false,
       });
       setNotesOpen(true);
+    }
+    if (state !== "completed") {
+      hasReportedCompletion.current = false;
     }
   }, [state, totalTime, addSession]);
 

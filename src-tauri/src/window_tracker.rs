@@ -41,7 +41,7 @@ static APP_MAPPINGS: Lazy<Vec<AppMapping>> = Lazy::new(|| {
         },
         AppMapping {
             exact: Some("zen-alpha"),
-            contains: Some("zen"),
+            contains: Some("zen-"),
             display_name: "Zen Browser",
         },
         AppMapping {
@@ -72,7 +72,7 @@ static APP_MAPPINGS: Lazy<Vec<AppMapping>> = Lazy::new(|| {
         },
         AppMapping {
             exact: None,
-            contains: Some("notepad"),
+            contains: Some("notepad+"),
             display_name: "NotepadPlusPlus",
         },
         AppMapping {
