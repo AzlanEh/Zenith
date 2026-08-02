@@ -2,6 +2,9 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Accessibility", () => {
   test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem("onboarding_completed", "true");
+    });
     await page.goto("/");
   });
 
@@ -13,8 +16,8 @@ test.describe("Accessibility", () => {
 
   test("should have proper heading hierarchy", async ({ page }) => {
     const mainHeading = page.getByRole("heading", {
-      level: 2,
-      name: "Today's Overview",
+      level: 1,
+      name: "System Status",
     });
     await expect(mainHeading).toBeVisible();
   });
@@ -33,7 +36,7 @@ test.describe("Accessibility", () => {
     // Tab through sidebar buttons
     await page.keyboard.press("Tab"); // Skip link
     await page.keyboard.press("Tab"); // Dashboard
-    
+
     // Verify focus is on a sidebar button
     const focusedElement = page.locator(":focus");
     await expect(focusedElement).toBeVisible();
@@ -42,13 +45,13 @@ test.describe("Accessibility", () => {
   test("should have proper ARIA labels on buttons", async ({ page }) => {
     await expect(page.getByRole("button", { name: /dashboard/i })).toBeVisible();
 
-    await page.getByRole("button", { name: /app limits/i }).click();
+    await page.getByRole("button", { name: /limits/i }).click();
     await expect(page.getByRole("button", { name: /add app/i })).toBeVisible();
   });
 
   test("should announce content changes", async ({ page }) => {
     await page.getByRole("button", { name: /analytics/i }).click();
-    await expect(page.getByRole("heading", { name: "Detailed Analytics" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Analytics" })).toBeVisible();
 
     const main = page.getByRole("main");
     await expect(main).toHaveAttribute("aria-label", /Detailed Analytics view/i);

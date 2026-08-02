@@ -2,9 +2,12 @@ import { test, expect } from "@playwright/test";
 
 test.describe("App Limits", () => {
   test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem("onboarding_completed", "true");
+    });
     await page.goto("/");
     await page.getByRole("button", { name: /limits/i }).click();
-    await expect(page.getByRole("heading", { name: "Limits & Blocking" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Daily App Limits" })).toBeVisible();
   });
 
   test("should display add limit button", async ({ page }) => {
@@ -18,7 +21,9 @@ test.describe("App Limits", () => {
     await expect(
       page.getByRole("heading", { name: /add application/i })
     ).toBeVisible();
-    await expect(page.getByPlaceholder(/search apps\.\.\./i)).toBeVisible();
+    await expect(
+      page.getByRole("dialog").getByPlaceholder(/search apps\.\.\./i)
+    ).toBeVisible();
   });
 
   test("should close add limit dialog on cancel", async ({ page }) => {
@@ -35,11 +40,13 @@ test.describe("App Limits", () => {
 
   test("should show app search in add dialog", async ({ page }) => {
     await page.getByRole("button", { name: /add app/i }).click();
-    await expect(page.getByPlaceholder(/search apps\.\.\./i)).toBeVisible();
+    await expect(
+      page.getByRole("dialog").getByPlaceholder(/search apps\.\.\./i)
+    ).toBeVisible();
   });
 
-  test("should allow selecting installed app entries", async ({ page }) => {
+  test("should show selected apps counter", async ({ page }) => {
     await page.getByRole("button", { name: /add app/i }).click();
-    await expect(page.getByText(/selected/i).first()).toBeVisible();
+    await expect(page.getByText(/application.*selected/i)).toBeVisible();
   });
 });

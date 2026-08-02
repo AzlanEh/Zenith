@@ -2,27 +2,30 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Navigation", () => {
   test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem("onboarding_completed", "true");
+    });
     await page.goto("/");
   });
 
   test("should display Dashboard by default", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: "Today's Overview" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "System Status" })).toBeVisible();
     await expect(page.getByRole("main")).toHaveAttribute("aria-label", /Today's Overview view/i);
   });
 
   test("should navigate to Focus Mode via sidebar", async ({ page }) => {
     await page.getByRole("button", { name: /focus mode/i }).click();
-    await expect(page.getByRole("heading", { name: "Focus Session" })).toBeVisible();
+    await expect(page.getByText("Deep Work")).toBeVisible();
   });
 
   test("should navigate to Analytics via sidebar", async ({ page }) => {
     await page.getByRole("button", { name: /analytics/i }).click();
-    await expect(page.getByRole("heading", { name: "Detailed Analytics" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Analytics" })).toBeVisible();
   });
 
   test("should navigate to App Limits via sidebar", async ({ page }) => {
     await page.getByRole("button", { name: /limits/i }).click();
-    await expect(page.getByRole("heading", { name: "Limits & Blocking" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Daily App Limits" })).toBeVisible();
   });
 
   test("should navigate to Settings via sidebar", async ({ page }) => {

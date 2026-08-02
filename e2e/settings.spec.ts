@@ -2,6 +2,9 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Settings", () => {
   test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem("onboarding_completed", "true");
+    });
     await page.goto("/");
     await page.getByRole("button", { name: /settings/i }).click();
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
@@ -9,16 +12,16 @@ test.describe("Settings", () => {
 
   test("should display theme settings", async ({ page }) => {
     await expect(page.getByText("Appearance").first()).toBeVisible();
-    await expect(page.locator('input[name="theme"][value="light"]')).toBeAttached();
-    await expect(page.locator('input[name="theme"][value="dark"]')).toBeAttached();
-    await expect(page.locator('input[name="theme"][value="system"]')).toBeAttached();
+    await expect(page.getByRole("button", { name: /^light$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^dark$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^system$/i })).toBeVisible();
   });
 
   test("should switch themes", async ({ page }) => {
-    await page.locator('input[name="theme"][value="dark"]').check({ force: true });
+    await page.getByRole("button", { name: /^dark$/i }).click();
     await expect(page.locator("html")).toHaveClass(/dark/);
 
-    await page.locator('input[name="theme"][value="light"]').check({ force: true });
+    await page.getByRole("button", { name: /^light$/i }).click();
     await expect(page.locator("html")).not.toHaveClass(/dark/);
   });
 
@@ -31,10 +34,12 @@ test.describe("Settings", () => {
   });
 
   test("should display data export section", async ({ page }) => {
-    await expect(page.getByText(/export data/i)).toBeVisible();
+    await expect(page.getByText(/data management/i).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /export csv/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /export json/i })).toBeVisible();
   });
 
   test("should display data management section", async ({ page }) => {
-    await expect(page.getByText(/delete all data/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /delete all data/i })).toBeVisible();
   });
 });
