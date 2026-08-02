@@ -13,12 +13,11 @@ pub struct AutostartStatus {
 fn get_app_binary_path() -> Option<PathBuf> {
     #[cfg(target_os = "linux")]
     {
-        // Check common installation paths
-        let possible_paths: Vec<PathBuf> = vec![
-            PathBuf::from("/usr/bin/zenith"),
-            PathBuf::from("/usr/local/bin/zenith"),
-            PathBuf::from("/app/bin/zenith"),
-        ];
+        // Check common installation paths (binary may be named zenith or zenith-dw)
+        let possible_paths: Vec<PathBuf> = ["/usr/bin", "/usr/local/bin", "/app/bin"]
+            .iter()
+            .flat_map(|dir| ["zenith", "zenith-dw"].map(|name| PathBuf::from(dir).join(name)))
+            .collect();
 
         for path in possible_paths {
             if path.exists() {
@@ -122,18 +121,20 @@ X-GNOME-Autostart-Delay=5
             }
         }
 
-        // Method 2: XDG Autostart (works with most desktop environments)
-        if let Some(autostart_dir) = get_autostart_dir() {
-            fs::create_dir_all(&autostart_dir)
-                .map_err(|e| format!("Failed to create autostart directory: {}", e))?;
+        // Method 2: XDG Autostart — only when systemd is unavailable, to avoid two trackers
+        if methods_installed.is_empty() {
+            if let Some(autostart_dir) = get_autostart_dir() {
+                fs::create_dir_all(&autostart_dir)
+                    .map_err(|e| format!("Failed to create autostart directory: {}", e))?;
 
-            let desktop_path = autostart_dir.join("zenith.desktop");
-            let desktop_content = generate_autostart_desktop(&binary_str);
+                let desktop_path = autostart_dir.join("zenith.desktop");
+                let desktop_content = generate_autostart_desktop(&binary_str);
 
-            fs::write(&desktop_path, desktop_content)
-                .map_err(|e| format!("Failed to write autostart entry: {}", e))?;
+                fs::write(&desktop_path, desktop_content)
+                    .map_err(|e| format!("Failed to write autostart entry: {}", e))?;
 
-            methods_installed.push("XDG autostart");
+                methods_installed.push("XDG autostart");
+            }
         }
 
         if methods_installed.is_empty() {
