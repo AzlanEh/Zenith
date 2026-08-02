@@ -22,11 +22,11 @@ makedepends=(
 )
 provides=('zenith-dw')
 conflicts=('wellbeing' 'wellbeing-git' 'wellbeing-bin')
-source=("$pkgname-$pkgver.tar.gz")
+source=("zenith-$pkgver.tar.gz::https://github.com/AzlanEh/Zenith/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('SKIP')
 
 build() {
-    cd "$srcdir/zenith-$pkgver"
+    cd "$srcdir/Zenith-$pkgver"
 
     export RUSTFLAGS=""
     export CFLAGS=""

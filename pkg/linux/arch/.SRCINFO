@@ -1,6 +1,6 @@
 pkgbase = zenith-dw
 	pkgdesc = A high-fidelity digital wellbeing platform for reclaiming cognitive sovereignty.
-	pkgver = 0.1.5
+	pkgver = 0.2.0
 	pkgrel = 1
 	url = https://github.com/Azlaneh/zenith
 	arch = x86_64
@@ -19,7 +19,7 @@ pkgbase = zenith-dw
 	conflicts = wellbeing
 	conflicts = wellbeing-git
 	conflicts = wellbeing-bin
-	source = zenith-0.1.5.tar.gz::https://github.com/Azlaneh/zenith/archive/v0.1.5.tar.gz
+	source = zenith-0.2.0.tar.gz::https://github.com/AzlanEh/Zenith/archive/refs/tags/v0.2.0.tar.gz
 	sha256sums = SKIP
 
 pkgname = zenith-dw
