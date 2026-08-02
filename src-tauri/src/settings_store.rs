@@ -112,15 +112,21 @@ pub fn load_notification_settings() -> io::Result<NotificationSettings> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex as TestMutex;
+
+    static STORE_LOCK: TestMutex<()> = TestMutex::new(());
 
     #[test]
     fn test_testmode_load_returns_not_found() {
+        let _guard = STORE_LOCK.lock().unwrap();
+        clear_all_settings_files().unwrap();
         let err = load_focus_settings().expect_err("test mode should not read disk");
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
     }
 
     #[test]
     fn test_testmode_save_roundtrip() {
+        let _guard = STORE_LOCK.lock().unwrap();
         let settings = FocusSettings::default();
         save_focus_settings(&settings).unwrap();
         let loaded = load_focus_settings().unwrap();
@@ -137,6 +143,7 @@ mod tests {
 
     #[test]
     fn test_clear_all_settings() {
+        let _guard = STORE_LOCK.lock().unwrap();
         save_focus_settings(&FocusSettings::default()).unwrap();
         clear_all_settings_files().unwrap();
         let err = load_focus_settings().expect_err("should be gone after clear");
