@@ -47,10 +47,10 @@ function Icon({
 function SectionHeader({ title, icon }: { title: string; icon: string }) {
   return (
     <div className="flex justify-between items-center mb-6">
-      <h2 className="font-mono text-xs tracking-[0.1em] uppercase text-white border-b border-white pb-1">
+      <h2 className="font-mono text-xs tracking-[0.1em] uppercase text-foreground border-b border-border pb-1 font-bold">
         {title}
       </h2>
-      <Icon name={icon} />
+      <Icon name={icon} className="text-muted-foreground" />
     </div>
   );
 }
@@ -97,21 +97,21 @@ function CognitiveLoadDial({
   const hasCategories = apps.some((a) => a.category);
 
   return (
-    <section className="p-8 bg-[#1b1b1b] border-b border-[#474747]">
+    <section className="p-6 md:p-8 bg-card border-b border-border">
       <SectionHeader title="Cognitive Load" icon="donut_large" />
-      <div className="flex justify-center items-center py-8 relative">
-        <div className="relative w-48 h-48 border-4 border-[#474747] rounded-full flex items-center justify-center">
+      <div className="flex justify-center items-center py-6 relative">
+        <div className="relative w-44 h-44 sm:w-48 sm:h-48 border-4 border-border rounded-full flex items-center justify-center">
           <div
-            className="absolute inset-0 border-4 border-white rounded-full"
+            className="absolute inset-0 border-4 border-primary rounded-full"
             style={{
               clipPath: `polygon(50% 50%, 50% 0, 100% 0, 100% ${focusScore}%, 50% 50%)`,
             }}
           />
-          <div className="text-center bg-[#1b1b1b] p-6 rounded-full w-36 h-36 flex flex-col items-center justify-center border border-[#474747] z-10">
-            <span className="font-mono text-4xl font-bold text-white">
+          <div className="text-center bg-card p-6 rounded-full w-32 h-32 sm:w-36 sm:h-36 flex flex-col items-center justify-center border border-border z-10">
+            <span className="font-mono text-3xl sm:text-4xl font-bold text-foreground">
               {totalSeconds === 0 ? "—" : `${focusScore}%`}
             </span>
-            <span className="font-mono text-[0.625rem] uppercase tracking-[0.1em] text-[#c6c6c6] mt-2">
+            <span className="font-mono text-[0.625rem] uppercase tracking-[0.1em] text-muted-foreground mt-1">
               {totalSeconds === 0
                 ? "No Data"
                 : focusScore >= 70
@@ -123,13 +123,13 @@ function CognitiveLoadDial({
                       : "—"}
             </span>
           </div>
-          <div className="absolute top-0 left-1/2 w-1 h-2 bg-white -translate-x-1/2 -translate-y-full" />
-          <div className="absolute bottom-0 left-1/2 w-1 h-2 bg-[#474747] -translate-x-1/2 translate-y-full" />
-          <div className="absolute left-0 top-1/2 h-1 w-2 bg-[#474747] -translate-y-1/2 -translate-x-full" />
-          <div className="absolute right-0 top-1/2 h-1 w-2 bg-white -translate-y-1/2 translate-x-full" />
+          <div className="absolute top-0 left-1/2 w-1 h-2 bg-primary -translate-x-1/2 -translate-y-full" />
+          <div className="absolute bottom-0 left-1/2 w-1 h-2 bg-border -translate-x-1/2 translate-y-full" />
+          <div className="absolute left-0 top-1/2 h-1 w-2 bg-border -translate-y-1/2 -translate-x-full" />
+          <div className="absolute right-0 top-1/2 h-1 w-2 bg-primary -translate-y-1/2 translate-x-full" />
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-4 mt-8 pt-6 border-t border-dashed border-[#474747]">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-6 pt-6 border-t border-dashed border-border">
         {[
           {
             value: hasCategories
@@ -148,16 +148,16 @@ function CognitiveLoadDial({
         ].map((stat, i) => (
           <div
             key={stat.label}
-            className="text-center"
+            className="text-center px-1"
             style={{
-              borderLeft: i > 0 ? "1px solid #474747" : undefined,
-              borderRight: i < 2 ? "1px solid #474747" : undefined,
+              borderLeft: i > 0 ? "1px solid var(--border)" : undefined,
+              borderRight: i < 2 ? "1px solid var(--border)" : undefined,
             }}
           >
-            <div className="font-mono text-lg text-white">
+            <div className="font-mono text-base sm:text-lg text-foreground font-bold truncate">
               {stat.value}
             </div>
-            <div className="font-mono text-[0.5625rem] uppercase tracking-[0.1em] text-[#c6c6c6] mt-1">
+            <div className="font-mono text-[0.5625rem] uppercase tracking-[0.1em] text-muted-foreground mt-1 truncate">
               {stat.label}
             </div>
           </div>
@@ -180,33 +180,33 @@ function SubroutineStatus({
   }[];
 }) {
   return (
-    <section className="p-8 bg-[#1b1b1b] flex-1">
+    <section className="p-6 md:p-8 bg-card flex-1">
       <SectionHeader title="Today's Goals" icon="tune" />
       {progress.length === 0 ? (
-        <p className="font-sans text-sm text-[#c6c6c6] text-center py-8">
+        <p className="font-sans text-sm text-muted-foreground text-center py-8">
           No goals set for today
         </p>
       ) : (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-6">
           {progress.slice(0, 4).map((bar) => (
             <div key={bar.goal_id}>
               <div className="flex justify-between font-mono text-xs uppercase tracking-[0.1em] mb-2">
-                <span className="text-[#e2e2e2]">{bar.goal_name}</span>
-                <span className="text-white">{bar.progress_percent}%</span>
+                <span className="text-foreground font-bold">{bar.goal_name}</span>
+                <span className="text-foreground">{bar.progress_percent}%</span>
               </div>
-              <div className="h-2 w-full bg-[#131313] border border-[#474747] relative">
+              <div className="h-2 w-full bg-muted border border-border relative">
                 <div
-                  className="h-full bg-white relative"
+                  className="h-full bg-primary relative transition-all duration-300"
                   style={{
                     width: `${Math.min(bar.progress_percent, 100)}%`,
                   }}
                 >
                   {bar.progress_percent < 100 && (
-                    <div className="absolute right-0 top-0 h-full w-1 bg-[#131313]" />
+                    <div className="absolute right-0 top-0 h-full w-1 bg-card" />
                   )}
                 </div>
               </div>
-              <div className="font-mono text-[0.625rem] text-[#c6c6c6] mt-1 text-right">
+              <div className="font-mono text-[0.625rem] text-muted-foreground mt-1 text-right">
                 {bar.is_met
                   ? `Target: ${bar.target_minutes}m | Done`
                   : `Target: ${bar.target_minutes}m | Cur: ${bar.current_minutes}m`}
@@ -245,22 +245,22 @@ function WeeklyTelemetry({
   const maxHours = Math.max(...bars.map((b) => b.hours), 1);
 
   return (
-    <section className="p-8 bg-[#1b1b1b] border-b border-[#474747]">
+    <section className="p-6 md:p-8 bg-card border-b border-border">
       <SectionHeader title="Weekly Activity" icon="bar_chart" />
       {days.length === 0 ? (
-        <p className="font-sans text-sm text-[#c6c6c6] text-center py-16">
+        <p className="font-sans text-sm text-muted-foreground text-center py-16">
           No data this week
         </p>
       ) : (
         <>
-          <div className="h-64 flex items-end justify-between gap-2 border-b border-[#474747] pb-2 relative">
+          <div className="h-56 sm:h-64 flex items-end justify-between gap-2 border-b border-border pb-2 relative">
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
                 className="absolute left-0 right-0 pointer-events-none"
                 style={{
                   top: `${(i / 4) * 100}%`,
-                  borderTop: "1px dashed rgba(71,71,71,0.3)",
+                  borderTop: "1px dashed var(--border)",
                 }}
               />
             ))}
@@ -275,19 +275,19 @@ function WeeklyTelemetry({
                     height: `${heightPct}%`,
                     backgroundColor: bar.filled
                       ? isHovered
-                        ? "rgba(255,255,255,0.8)"
-                        : "#ffffff"
+                        ? "var(--primary)"
+                        : "var(--foreground)"
                       : "transparent",
-                    border: bar.filled ? "none" : "1px solid #474747",
+                    border: bar.filled ? "none" : "1px solid var(--border)",
                     ...(!bar.filled && isHovered
-                      ? { backgroundColor: "#474747" }
+                      ? { backgroundColor: "var(--muted)" }
                       : {}),
                   }}
                   onMouseEnter={() => setHoveredBar(i)}
                   onMouseLeave={() => setHoveredBar(null)}
                 >
                   {isHovered && (
-                    <span className="absolute left-1/2 -translate-x-1/2 font-mono text-[0.625rem] bg-[#131313] border border-[#474747] px-1 whitespace-nowrap text-[#e2e2e2] top-[-1.5rem]">
+                    <span className="absolute left-1/2 -translate-x-1/2 font-mono text-[0.625rem] bg-popover text-popover-foreground border border-border px-1.5 py-0.5 whitespace-nowrap top-[-1.75rem] z-20">
                       {bar.hours.toFixed(1)}h
                     </span>
                   )}
@@ -295,7 +295,7 @@ function WeeklyTelemetry({
               );
             })}
           </div>
-          <div className="flex justify-between font-mono text-[0.625rem] text-[#c6c6c6] uppercase tracking-[0.1em] mt-2">
+          <div className="flex justify-between font-mono text-[0.625rem] text-muted-foreground uppercase tracking-[0.1em] mt-2">
             {bars.map((b) => (
               <span key={b.day}>{b.day}</span>
             ))}
@@ -323,15 +323,15 @@ function SystemAnalysis({
   }, [days]);
 
   return (
-    <section className="p-8 bg-[#1b1b1b] flex-1">
+    <section className="p-6 md:p-8 bg-card flex-1">
       <SectionHeader title="System Analysis" icon="memory" />
-      <div className="bg-[#131313] border border-[#474747] p-6 relative">
-        <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-white" />
-        <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-white" />
+      <div className="bg-background border border-border p-6 relative">
+        <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-foreground" />
+        <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-foreground" />
         {insight ? (
           <>
-            <p className="font-sans text-sm leading-relaxed text-[#e2e2e2] mb-4 flex gap-2">
-              <span className="font-mono text-white shrink-0">
+            <p className="font-sans text-sm leading-relaxed text-foreground mb-4 flex gap-2">
+              <span className="font-mono text-primary font-bold shrink-0">
                 &gt;
               </span>
               <span>
@@ -343,8 +343,8 @@ function SystemAnalysis({
                 tracked. Weekly average: {formatDuration(Math.round(insight.avg))}.
               </span>
             </p>
-            <p className="font-sans text-sm leading-relaxed text-[#e2e2e2] flex gap-2">
-              <span className="font-mono text-white shrink-0">
+            <p className="font-sans text-sm leading-relaxed text-foreground flex gap-2">
+              <span className="font-mono text-primary font-bold shrink-0">
                 &gt;
               </span>
               <span>
@@ -358,8 +358,8 @@ function SystemAnalysis({
             </p>
           </>
         ) : (
-          <p className="font-sans text-sm leading-relaxed text-[#c6c6c6] flex gap-2">
-            <span className="font-mono text-white shrink-0">
+          <p className="font-sans text-sm leading-relaxed text-muted-foreground flex gap-2">
+            <span className="font-mono text-primary font-bold shrink-0">
               &gt;
             </span>
             <span>
@@ -426,35 +426,35 @@ function ActivityLog({
 
   return (
     <section
-      className="p-8 bg-[#1b1b1b] border-b border-[#474747] h-[60%] overflow-y-auto"
+      className="p-6 md:p-8 bg-card border-b border-border max-h-96 lg:max-h-full overflow-y-auto"
       style={{ scrollbarWidth: "none" }}
     >
-      <div className="flex justify-between items-center mb-6 sticky top-0 bg-[#1b1b1b] pt-2 pb-2 z-10">
-        <h2 className="font-mono text-xs uppercase tracking-[0.1em] text-white border-b border-white pb-1">
+      <div className="flex justify-between items-center mb-6 sticky top-0 bg-card pt-1 pb-2 z-10">
+        <h2 className="font-mono text-xs uppercase tracking-[0.1em] text-foreground border-b border-border pb-1 font-bold">
           Activity Log
         </h2>
-        <Icon name="list_alt" />
+        <Icon name="list_alt" className="text-muted-foreground" />
       </div>
       {entries.length === 0 ? (
-        <p className="font-sans text-sm text-[#c6c6c6] text-center py-8">
+        <p className="font-sans text-sm text-muted-foreground text-center py-8">
           No activity recorded today
         </p>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
           {entries.map((entry, i) => (
             <div
               key={i}
-              className="pl-4 pt-2 pb-2 cursor-pointer transition-colors duration-200 hover:bg-[#131313]"
+              className="pl-4 pt-2 pb-2 cursor-pointer transition-colors duration-200 hover:bg-muted/50"
               style={{
-                borderLeft: `2px solid ${entry.isError ? "#ffb4ab" : entry.xp ? "#ffffff" : "#474747"}`,
+                borderLeft: `2px solid ${entry.isError ? "var(--destructive)" : entry.xp ? "var(--primary)" : "var(--border)"}`,
                 opacity: entry.isError ? 0.7 : 1,
               }}
             >
               <div className="flex justify-between items-start mb-1">
                 <span
                   className={cn(
-                    "font-mono text-xs font-bold text-[#e2e2e2] uppercase",
-                    entry.isError && "line-through",
+                    "font-mono text-xs font-bold text-foreground uppercase",
+                    entry.isError && "line-through text-destructive",
                   )}
                 >
                   {entry.title}
@@ -462,19 +462,18 @@ function ActivityLog({
                 <span
                   className={cn(
                     "font-mono text-[0.625rem]",
-                    entry.isError ? "text-[#ffb4ab]" : "text-[#c6c6c6]",
+                    entry.isError ? "text-destructive" : "text-muted-foreground",
                   )}
                 >
                   {entry.time}
                 </span>
               </div>
-              <div className="font-sans text-xs text-[#c6c6c6] overflow-hidden truncate whitespace-nowrap">
+              <div className="font-sans text-xs text-muted-foreground overflow-hidden truncate whitespace-nowrap">
                 {entry.description}
               </div>
               {entry.xp && (
                 <div
-                  className="mt-2 font-mono text-[0.5625rem] text-white inline-block px-1"
-                  style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
+                  className="mt-2 font-mono text-[0.5625rem] text-foreground inline-block px-1.5 py-0.5 bg-primary/10 border border-primary/20"
                 >
                   +{entry.xp} XP
                 </div>
@@ -491,52 +490,35 @@ function AchievementBadge({ achievement }: { achievement: Achievement }) {
   const [hovered, setHovered] = useState(false);
   const { icon, label, unlocked, active } = achievement;
 
-  const borderColor = !unlocked
-    ? "rgba(71,71,71,0.5)"
-    : active
-      ? "#ffffff"
-      : hovered
-        ? "#ffffff"
-        : "#474747";
-  const iconColor = !unlocked
-    ? "#474747"
-    : active
-      ? "#ffffff"
-      : hovered
-        ? "#ffffff"
-        : "#474747";
-  const labelColor = !unlocked
-    ? "#c6c6c6"
-    : active
-      ? hovered
-        ? "#1c1b1b"
-        : "#e2e2e2"
-      : hovered
-        ? "#e2e2e2"
-        : "#c6c6c6";
-  const bgColor = active && hovered ? "#ffffff" : "transparent";
-
   return (
     <div
-      className="p-4 flex flex-col items-center justify-center text-center transition-all duration-200"
-      style={{
-        border: `1px solid ${!unlocked ? "rgba(71,71,71,0.5)" : borderColor}`,
-        borderStyle: !unlocked ? "dashed" : "solid",
-        backgroundColor: bgColor,
-        cursor: unlocked ? "pointer" : "default",
-        opacity: !unlocked ? 0.5 : 1,
-      }}
+      className={cn(
+        "p-4 flex flex-col items-center justify-center text-center transition-all duration-200 border",
+        !unlocked
+          ? "border-dashed border-border opacity-40 cursor-default"
+          : active || hovered
+            ? "border-primary bg-primary/10 cursor-pointer"
+            : "border-border bg-background cursor-pointer",
+      )}
       onMouseEnter={() => unlocked && setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <Icon
         name={icon}
-        className="text-2xl mb-2"
-        style={{ color: iconColor }}
+        className={cn(
+          "text-2xl mb-2",
+          !unlocked
+            ? "text-muted-foreground"
+            : active || hovered
+              ? "text-primary"
+              : "text-foreground",
+        )}
       />
       <span
-        className="font-mono text-[0.5625rem] uppercase tracking-[0.1em]"
-        style={{ color: labelColor }}
+        className={cn(
+          "font-mono text-[0.5625rem] uppercase tracking-[0.1em] font-bold",
+          !unlocked ? "text-muted-foreground" : "text-foreground",
+        )}
       >
         {label}
       </span>
@@ -572,11 +554,11 @@ function Milestones({
   }, [raw]);
 
   return (
-    <section className="p-8 bg-[#1b1b1b] flex-1">
+    <section className="p-6 md:p-8 bg-card flex-1">
       <SectionHeader title="Achievements" icon="military_tech" />
       <div className="grid grid-cols-2 gap-4">
         {items.length === 0 ? (
-          <p className="font-sans text-xs text-[#c6c6c6] col-span-full text-center">
+          <p className="font-sans text-xs text-muted-foreground col-span-full text-center">
             No achievements yet
           </p>
         ) : (
@@ -597,21 +579,22 @@ export function Dashboard() {
   const { sessions } = useFocusHistory();
 
   return (
-    <div className="p-4 md:p-8 lg:p-12 xl:p-20 relative overflow-hidden">
-      <header className="mb-16 border-b border-[#474747] pb-8">
-        <div className="flex flex-col sm:flex-row justify-between items-end gap-4">
+    <div className="p-4 md:p-8 lg:p-12 xl:p-16 relative overflow-hidden flex-1">
+      <header className="mb-12 border-b border-border pb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
           <div>
-            <h1 className="font-serif tracking-tight text-white leading-none uppercase m-0"
+            <h1
+              className="font-serif tracking-tight text-foreground leading-none uppercase m-0"
               style={{ fontSize: "clamp(2rem, 5vw, 3.75rem)" }}
             >
               System Status
             </h1>
-            <div className="flex items-center gap-4 text-[#c6c6c6] font-mono text-xs uppercase tracking-[0.1em] flex-wrap">
+            <div className="flex items-center gap-4 text-muted-foreground font-mono text-xs uppercase tracking-[0.1em] flex-wrap mt-3">
               <span className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-white rounded-full" />
+                <span className="w-2 h-2 bg-primary inline-block" />
                 Live Telemetry
               </span>
-              <span className="text-[#474747]">|</span>
+              <span className="text-border">|</span>
               <span>
                 {
                   sessions.filter(
@@ -622,32 +605,30 @@ export function Dashboard() {
               </span>
             </div>
           </div>
-          <div className="text-right border border-[#474747] p-4 bg-[#1b1b1b]">
-            <span className="font-mono text-xs uppercase tracking-[0.1em] text-[#c6c6c6] block">
+          <div className="text-right border border-border p-4 bg-card w-full sm:w-auto">
+            <span className="font-mono text-xs uppercase tracking-[0.1em] text-muted-foreground block">
               Today's Usage
             </span>
-            <div className="text-2xl font-mono font-bold text-white mt-1">
+            <div className="text-2xl font-mono font-bold text-foreground mt-1">
               {dailyStats ? formatDuration(dailyStats.total_seconds) : "—"}
             </div>
           </div>
         </div>
       </header>
 
-      <div
-        className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-[4fr_5fr_3fr] gap-px bg-[#474747] border border-[#474747] relative z-10"
-      >
-        <div className="bg-[#131313] flex flex-col gap-px">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-[4fr_5fr_3fr] gap-px bg-border border border-border relative z-10">
+        <div className="bg-card flex flex-col gap-px">
           <CognitiveLoadDial
             totalSeconds={dailyStats?.total_seconds ?? 0}
             apps={dailyStats?.apps ?? []}
           />
           <SubroutineStatus progress={goalProgress} />
         </div>
-        <div className="bg-[#131313] flex flex-col gap-px">
+        <div className="bg-card flex flex-col gap-px">
           <WeeklyTelemetry days={weeklyStats?.days ?? []} />
           <SystemAnalysis days={weeklyStats?.days ?? []} />
         </div>
-        <div className="bg-[#131313] flex flex-col gap-px">
+        <div className="bg-card flex flex-col gap-px">
           <ActivityLog sessions={sessions} apps={dailyStats?.apps ?? []} />
           <Milestones achievements={achievements} />
         </div>
