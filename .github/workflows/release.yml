@@ -155,6 +155,7 @@ jobs:
         run: npm ci
 
       - name: Fail when signing secrets are missing
+        shell: bash
         run: |
           test -n "$TAURI_SIGNING_PRIVATE_KEY" || (echo "Missing TAURI_SIGNING_PRIVATE_KEY" && exit 1)
           test -n "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" || (echo "Missing TAURI_SIGNING_PRIVATE_KEY_PASSWORD" && exit 1)
@@ -200,6 +201,16 @@ jobs:
           useradd -m builder
           echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
           chown -R builder:builder .
+
+      - name: Create source tarball for PKGBUILD
+        run: |
+          VERSION=${{ needs.create-release.outputs.version }}
+          rm -rf /tmp/srcroot
+          mkdir -p /tmp/srcroot/zenith-$VERSION
+          cp -a . /tmp/srcroot/zenith-$VERSION/
+          rm -rf /tmp/srcroot/zenith-$VERSION/.git /tmp/srcroot/zenith-$VERSION/pkg/linux/arch/*.tar.gz /tmp/srcroot/zenith-$VERSION/pkg/linux/arch/*.pkg.tar.zst
+          tar -czf pkg/linux/arch/zenith-dw-$VERSION.tar.gz -C /tmp/srcroot zenith-$VERSION
+          chown builder:builder pkg/linux/arch/zenith-dw-$VERSION.tar.gz
 
       - name: Setup Rust as builder user
         run: |
