@@ -42,7 +42,7 @@ import {
   useUpdateNotificationSettings,
 } from "../queries";
 import { api } from "../services/api";
-import type { AutostartStatus, BreakSettings } from "../types";
+import type { AutostartStatus, BreakSettings, ExportRecord } from "../types";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +55,29 @@ import {
 
 const REPORT_ISSUE_URL =
   "https://github.com/AzlanEh/Zenith/issues/new?template=bug_report.yml";
+
+function escapeCsvField(field: string): string {
+  return field.includes(",") || field.includes('"') || field.includes("\n")
+    ? `"${field.split('"').join('""')}"`
+    : field;
+}
+
+function formatExportCsv(records: ExportRecord[]): string {
+  const lines = ["Date,App Name,Category,Duration (seconds),Duration (formatted),Sessions"];
+  for (const r of records) {
+    const hours = Math.floor(r.duration_seconds / 3600);
+    const minutes = Math.floor((r.duration_seconds % 3600) / 60);
+    const formatted = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+    lines.push(
+      [r.date, escapeCsvField(r.app_name), escapeCsvField(r.category), r.duration_seconds, formatted, r.session_count].join(","),
+    );
+  }
+  return lines.join("\n");
+}
+
+function formatExportJson(records: ExportRecord[]): string {
+  return JSON.stringify(records, null, 2);
+}
 
 function Toggle({
   pressed,
@@ -348,10 +371,10 @@ export function Settings() {
       let content = "";
       let ext = "";
       if (format === "csv") {
-        content = await api.formatExportCsv(records);
+        content = formatExportCsv(records);
         ext = "csv";
       } else {
-        content = await api.formatExportJson(records);
+        content = formatExportJson(records);
         ext = "json";
       }
 

@@ -480,44 +480,6 @@ async fn import_usage_data(
     Ok(db.import_usage_data(&records)?)
 }
 
-#[tauri::command]
-fn format_export_csv(records: Vec<ExportRecord>) -> String {
-    let mut csv =
-        String::from("Date,App Name,Category,Duration (seconds),Duration (formatted),Sessions\n");
-
-    for record in records {
-        let hours = record.duration_seconds / 3600;
-        let minutes = (record.duration_seconds % 3600) / 60;
-        let formatted_duration = if hours > 0 {
-            format!("{}h {}m", hours, minutes)
-        } else {
-            format!("{}m", minutes)
-        };
-
-        // Escape CSV fields that might contain commas or quotes
-        let app_name = escape_csv_field(&record.app_name);
-        let category = escape_csv_field(&record.category);
-
-        csv.push_str(&format!(
-            "{},{},{},{},{},{}\n",
-            record.date,
-            app_name,
-            category,
-            record.duration_seconds,
-            formatted_duration,
-            record.session_count
-        ));
-    }
-
-    csv
-}
-
-#[tauri::command]
-fn format_export_json(records: Vec<ExportRecord>) -> CmdResult<String> {
-    serde_json::to_string_pretty(&records)
-        .map_err(|e| WellbeingError::Export(format!("JSON serialization error: {}", e)))
-}
-
 /// Historical data response containing daily totals and app breakdown
 #[derive(serde::Serialize)]
 struct HistoricalData {
@@ -584,15 +546,6 @@ async fn get_historical_data(
         category_usage,
         total_seconds,
     })
-}
-
-/// Escape a CSV field by wrapping in quotes if it contains special characters
-fn escape_csv_field(field: &str) -> String {
-    if field.contains(',') || field.contains('"') || field.contains('\n') {
-        format!("\"{}\"", field.replace('"', "\"\""))
-    } else {
-        field.to_string()
-    }
 }
 
 #[tauri::command]
@@ -1335,8 +1288,6 @@ pub fn run() {
             save_export_file,
             export_usage_data,
             import_usage_data,
-            format_export_csv,
-            format_export_json,
             get_historical_data,
             minimize_to_tray,
             show_window,

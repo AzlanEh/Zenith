@@ -77,10 +77,6 @@ export const api = {
 
   importUsageData: (records: ExportRecord[]): Promise<number> => invokeApi("import_usage_data", { records }),
 
-  formatExportCsv: (records: ExportRecord[]): Promise<string> => invokeApi("format_export_csv", { records }),
-
-  formatExportJson: (records: ExportRecord[]): Promise<string> => invokeApi("format_export_json", { records }),
-
   saveExportFile: (filePath: string, content: string): Promise<void> => invokeApi("save_export_file", { filePath, content }),
 
   minimizeToTray: (): Promise<void> => invokeApi("minimize_to_tray"),
