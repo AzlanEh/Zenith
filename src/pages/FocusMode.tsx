@@ -4,7 +4,6 @@ import {
   Pause,
   Pen,
   Play,
-  Plus,
   Settings,
   Square,
   X,
@@ -14,11 +13,10 @@ import { toast } from "sonner";
 import { AppIcon } from "../components/AppIcon";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { FocusSessionNotes } from "../components/FocusSessionNotes";
+import { ManageBlocklistDialog } from "../components/ManageBlocklistDialog";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
 } from "../components/ui/dialog";
 import { Switch } from "../components/ui/switch";
@@ -158,11 +156,6 @@ export function FocusMode() {
 
   // Apps currently blocked
   const blockedAppsList = settings?.blocked_apps || [];
-
-  // Available to block
-  const availableApps = installedApps.filter(
-    (app) => !blockedAppsList.includes(app.name),
-  );
 
   if (isLoading) {
     return (
@@ -523,55 +516,22 @@ export function FocusMode() {
                 })}
               </div>
 
-              <Dialog open={isManageOpen} onOpenChange={setIsManageOpen}>
-                <DialogTrigger asChild>
-                  <button
-                    disabled={isFocusActive}
-                    className="w-full mt-4 py-2.5 text-sm font-medium bg-secondary hover:bg-secondary/80 text-foreground transition-colors border border-border rounded-none disabled:opacity-50"
-                  >
-                    Manage Blocklist
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md max-h-[80vh] flex flex-col p-6 bg-background rounded-none">
-                  <DialogHeader className="mb-4">
-                    <DialogTitle className="text-xl font-serif-accent">
-                      Add App to Blocklist
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="flex-1 overflow-y-auto space-y-2">
-                    {availableApps.map((app) => (
-                      <button
-                        key={app.name}
-                        onClick={() => {
-                          handleAddBlockedApp(app.name);
-                          setIsManageOpen(false);
-                        }}
-                        className="w-full flex items-center justify-between p-3 rounded-none hover:bg-secondary/50 transition-colors text-left border border-transparent hover:border-border"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="size-8 bg-background border border-border flex items-center justify-center rounded-none p-1">
-                            <AppIcon
-                              appName={app.name}
-                              iconHint={app.icon ?? undefined}
-                              className="w-full h-full object-contain"
-                              shape="rounded-none"
-                            />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-foreground">
-                              {app.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {app.categories?.[0] || "App"}
-                            </p>
-                          </div>
-                        </div>
-                        <Plus className="w-4 h-4 text-muted-foreground" />
-                      </button>
-                    ))}
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <button
+                onClick={() => setIsManageOpen(true)}
+                disabled={isFocusActive}
+                className="w-full mt-4 py-2.5 text-sm font-medium bg-secondary hover:bg-secondary/80 text-foreground transition-colors border border-border rounded-none disabled:opacity-50"
+              >
+                Manage Blocklist
+              </button>
+
+              <ManageBlocklistDialog
+                open={isManageOpen}
+                onOpenChange={setIsManageOpen}
+                isFocusActive={isFocusActive}
+                installedApps={installedApps}
+                blockedAppsList={blockedAppsList}
+                onAddBlockedApp={handleAddBlockedApp}
+              />
             </div>
           </div>
         </div>
