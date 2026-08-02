@@ -58,11 +58,11 @@ function Cell({
 
 function PageHeader() {
   return (
-    <header className="flex flex-col gap-2 mb-4">
-      <h2 className="font-serif text-4xl text-[#e2e2e2] leading-none font-normal">
+    <header className="flex flex-col gap-2 mb-6">
+      <h2 className="font-serif text-4xl text-foreground leading-none font-normal">
         Analytics
       </h2>
-      <div className="flex items-center gap-3 text-[#c6c6c6]">
+      <div className="flex items-center gap-3 text-muted-foreground">
         <Icon name="memory" size={16} />
         <p className="font-mono text-xs uppercase tracking-[0.15em]">
           Technical Blueprint Variant // Vol. 4
@@ -84,49 +84,49 @@ function StatCards({
   return (
     <>
       <Cell
-        className="lg:col-span-4 bg-[#131313] p-8 flex flex-col gap-8 min-h-40"
+        className="lg:col-span-4 bg-card p-6 sm:p-8 flex flex-col gap-8 min-h-40 border border-border"
       >
         <div className="flex justify-between items-start">
-          <h3 className="font-sans text-[0.7rem] uppercase tracking-[0.15em] text-[#c6c6c6]">
+          <h3 className="font-sans text-[0.7rem] uppercase tracking-[0.15em] text-muted-foreground font-bold">
             Avg. Daily Use (7D)
           </h3>
           <Icon
             name="schedule"
             size={18}
-            className="text-[#c6c6c6] opacity-50"
+            className="text-muted-foreground opacity-50"
           />
         </div>
         <div className="mt-auto">
-          <span className="font-mono text-5xl leading-none text-white font-light">
+          <span className="font-mono text-4xl sm:text-5xl leading-none text-foreground font-light">
             {formatDuration(avgDailyUse)}
           </span>
-          <div className="flex items-center gap-2 mt-2 font-mono text-[0.7rem] text-[#c6c6c6]">
-            <Icon name="trending_down" size={16} className="text-[#c6c6c6]" />
+          <div className="flex items-center gap-2 mt-3 font-mono text-[0.7rem] text-muted-foreground">
+            <Icon name="trending_down" size={16} className="text-muted-foreground" />
             <span>Based on weekly activity</span>
           </div>
         </div>
       </Cell>
 
       <Cell
-        className="lg:col-span-4 bg-[#131313] p-8 flex flex-col gap-8 min-h-40"
+        className="lg:col-span-4 bg-card p-6 sm:p-8 flex flex-col gap-8 min-h-40 border border-border"
       >
         <div className="flex justify-between items-start">
-          <h3 className="font-sans text-[0.7rem] uppercase tracking-[0.15em] text-[#c6c6c6]">
+          <h3 className="font-sans text-[0.7rem] uppercase tracking-[0.15em] text-muted-foreground font-bold">
             Today's Usage
           </h3>
           <Icon
             name="today"
             size={18}
-            className="text-[#c6c6c6] opacity-50"
+            className="text-muted-foreground opacity-50"
           />
         </div>
         <div className="mt-auto">
-          <span className="font-mono text-5xl leading-none text-white font-light">
+          <span className="font-mono text-4xl sm:text-5xl leading-none text-foreground font-light">
             {formatDuration(todaySeconds)}
           </span>
-          <div className="w-full h-1 bg-[#2a2a2a] mt-4">
+          <div className="w-full h-1.5 bg-muted mt-4">
             <div
-              className="h-full bg-[#474747]"
+              className="h-full bg-primary"
               style={{
                 width: `${Math.min((todaySeconds / (avgDailyUse || 1)) * 100, 100)}%`,
               }}
@@ -136,23 +136,23 @@ function StatCards({
       </Cell>
 
       <Cell
-        className="lg:col-span-4 bg-[#131313] p-8 flex flex-col gap-8 min-h-40"
+        className="lg:col-span-4 bg-card p-6 sm:p-8 flex flex-col gap-8 min-h-40 border border-border"
       >
         <div className="flex justify-between items-start">
-          <h3 className="font-sans text-[0.7rem] uppercase tracking-[0.15em] text-[#c6c6c6]">
+          <h3 className="font-sans text-[0.7rem] uppercase tracking-[0.15em] text-muted-foreground font-bold">
             Total Sessions
           </h3>
           <Icon
             name="touch_app"
             size={18}
-            className="text-[#c6c6c6] opacity-50"
+            className="text-muted-foreground opacity-50"
           />
         </div>
         <div className="mt-auto">
-          <span className="font-mono text-5xl leading-none text-white font-light">
+          <span className="font-mono text-4xl sm:text-5xl leading-none text-foreground font-light">
             {totalPickups}
           </span>
-          <div className="font-mono text-[0.7rem] text-[#c6c6c6] mt-2">
+          <div className="font-mono text-[0.7rem] text-muted-foreground mt-3">
             App launches today
           </div>
         </div>
@@ -163,10 +163,10 @@ function StatCards({
 
 const COLS = 48;
 const LEGEND_COLORS = [
-  "#1b1b1b",
-  "#2a2a2a",
-  "#474747",
-  "#ffffff",
+  "var(--muted)",
+  "var(--secondary)",
+  "var(--border)",
+  "var(--primary)",
 ];
 
 function IntensityMatrix({
@@ -198,32 +198,32 @@ function IntensityMatrix({
 
   const cellColor = useCallback((v: number): string => {
     const pct = maxWeeklyHourlySeconds > 0 ? v / maxWeeklyHourlySeconds : 0;
-    if (pct > 0.8) return "#ffffff";
-    if (pct > 0.5) return "#474747";
-    if (pct > 0.2) return "#2a2a2a";
-    return "#1b1b1b";
+    if (pct > 0.8) return "var(--primary)";
+    if (pct > 0.5) return "var(--ring)";
+    if (pct > 0.2) return "var(--border)";
+    return "var(--muted)";
   }, [maxWeeklyHourlySeconds]);
 
   return (
     <Cell
-      className="lg:col-span-8 bg-[#131313] p-8 flex flex-col gap-6"
+      className="lg:col-span-8 bg-card p-6 sm:p-8 flex flex-col gap-6 border border-border"
     >
       <header
-        className="flex flex-col sm:flex-row justify-between items-center pb-4 gap-1 border-b border-[#2a2a2a]"
+        className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 gap-1 border-b border-border"
       >
-        <h3 className="font-serif text-lg text-[#e2e2e2] font-normal">
+        <h3 className="font-serif text-lg text-foreground font-normal">
           Intensity Matrix
         </h3>
-        <span className="font-mono text-[0.65rem] uppercase tracking-[0.15em] text-[#c6c6c6]">
+        <span className="font-mono text-[0.65rem] uppercase tracking-[0.15em] text-muted-foreground">
           Past 7 Days
         </span>
       </header>
 
       <div className="flex-1 flex flex-col justify-center overflow-x-auto">
-        <div className="flex flex-col gap-0.5 min-w-[320px]">
+        <div className="flex flex-col gap-1 min-w-[320px]">
           {days.map(({ date: dateStr, label: dayLabel }, r) => (
-            <div key={dateStr} className="flex gap-0.5 items-center">
-              <span className="font-mono text-[0.55rem] text-[#c6c6c6] w-7 shrink-0 uppercase tracking-[0.05em]">
+            <div key={dateStr} className="flex gap-1 items-center">
+              <span className="font-mono text-[0.55rem] text-muted-foreground w-8 shrink-0 uppercase tracking-[0.05em]">
                 {dayLabel}
               </span>
               <div className="flex gap-0.5 flex-1">
@@ -236,7 +236,7 @@ function IntensityMatrix({
                       data-row={r}
                       data-col={c}
                       title={`${dayLabel} ${Math.floor(c / 2)}:${c % 2 === 0 ? "00" : "30"} — ${formatDuration(seconds)}`}
-                      className="flex-1 min-w-[6px] aspect-square cursor-crosshair opacity-80 hover:opacity-100 transition-opacity duration-100 hover:outline hover:outline-1 hover:outline-white outline-none"
+                      className="flex-1 min-w-[6px] aspect-square cursor-crosshair opacity-90 hover:opacity-100 transition-opacity duration-100 hover:outline hover:outline-1 hover:outline-primary outline-none"
                       style={{
                         backgroundColor: cellColor(seconds),
                       }}
@@ -248,7 +248,7 @@ function IntensityMatrix({
           ))}
         </div>
 
-        <div className="flex justify-between mt-3 pl-7 font-mono text-[0.6rem] text-[#c6c6c6] min-w-[320px]">
+        <div className="flex justify-between mt-3 pl-8 font-mono text-[0.6rem] text-muted-foreground min-w-[320px]">
           <span>00:00</span>
           <span>06:00</span>
           <span>12:00</span>
@@ -256,18 +256,18 @@ function IntensityMatrix({
           <span>24:00</span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 mt-4 pl-7">
-          <span className="font-mono text-[0.55rem] text-[#c6c6c6] mr-1">
+        <div className="flex flex-wrap items-center gap-2 mt-4 pl-8">
+          <span className="font-mono text-[0.55rem] text-muted-foreground mr-1">
             Less
           </span>
-          {LEGEND_COLORS.map((col) => (
+          {LEGEND_COLORS.map((col, idx) => (
             <div
-              key={col}
-              className="w-3 h-3 shrink-0"
+              key={idx}
+              className="w-3 h-3 shrink-0 border border-border"
               style={{ backgroundColor: col }}
             />
           ))}
-          <span className="font-mono text-[0.55rem] text-[#c6c6c6] ml-1">
+          <span className="font-mono text-[0.55rem] text-muted-foreground ml-1">
             More
           </span>
         </div>
@@ -299,16 +299,16 @@ function DistractionVectors({
 
   return (
     <Cell
-      className="lg:col-span-4 bg-[#131313] p-8 flex flex-col gap-6"
+      className="lg:col-span-4 bg-card p-6 sm:p-8 flex flex-col gap-6 border border-border"
     >
-      <header className="flex justify-between items-center pb-4 border-b border-[#2a2a2a]">
-        <h3 className="font-serif text-lg text-[#e2e2e2] font-normal">
+      <header className="flex justify-between items-center pb-4 border-b border-border">
+        <h3 className="font-serif text-lg text-foreground font-normal">
           Top Applications
         </h3>
-        <Icon name="warning" size={16} className="text-[#c6c6c6]" />
+        <Icon name="warning" size={16} className="text-muted-foreground" />
       </header>
       {items.length === 0 ? (
-        <p className="font-sans text-sm text-[#c6c6c6] text-center py-8">
+        <p className="font-sans text-sm text-muted-foreground text-center py-8">
           No data today
         </p>
       ) : (
@@ -330,19 +330,19 @@ function DistractionRow({
   return (
     <li className="group flex flex-col gap-2">
       <div className="flex justify-between font-mono text-xs">
-        <span className="group-hover:text-white text-[#e2e2e2] transition-colors duration-150 overflow-hidden text-ellipsis whitespace-nowrap">
+        <span className="group-hover:text-primary text-foreground font-medium transition-colors duration-150 overflow-hidden text-ellipsis whitespace-nowrap">
           {entry.name}
         </span>
-        <span className="text-[#c6c6c6] shrink-0">
+        <span className="text-muted-foreground shrink-0">
           {entry.time}
         </span>
       </div>
-      <div className="w-full h-0.5 bg-[#2a2a2a]">
+      <div className="w-full h-1 bg-muted">
         <div
-          className="h-full group-hover:bg-white bg-[#474747]"
+          className="h-full bg-primary"
           style={{
             width: `${entry.pct}%`,
-            transition: "background-color 0.15s, width 0.4s ease-out",
+            transition: "width 0.4s ease-out",
           }}
         />
       </div>
@@ -363,17 +363,17 @@ function ProcessLedger({
   totalSeconds: number;
 }) {
   return (
-    <Cell className="lg:col-span-12 bg-[#131313] p-8">
+    <Cell className="lg:col-span-12 bg-card p-6 sm:p-8 border border-border">
       <header className="flex justify-between items-center mb-6">
-        <h3 className="font-serif text-lg text-[#e2e2e2] font-normal">
+        <h3 className="font-serif text-lg text-foreground font-normal">
           Process Ledger
         </h3>
       </header>
 
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-left">
+        <table className="w-full border-collapse text-left min-w-[500px]">
           <thead>
-            <tr className="border-b border-[#2a2a2a]">
+            <tr className="border-b border-border">
               {[
                 "Application",
                 "Category",
@@ -383,7 +383,7 @@ function ProcessLedger({
               ].map((col, i) => (
                 <th
                   key={col}
-                  className="font-sans text-[0.65rem] uppercase tracking-[0.15em] text-[#c6c6c6] p-3 font-normal whitespace-nowrap"
+                  className="font-sans text-[0.65rem] uppercase tracking-[0.15em] text-muted-foreground p-3 font-bold whitespace-nowrap"
                   style={{
                     paddingLeft: i === 0 ? 0 : "1rem",
                     paddingRight: i === 4 ? 0 : "1rem",
@@ -400,7 +400,7 @@ function ProcessLedger({
               <tr>
                 <td
                   colSpan={5}
-                  className="font-sans text-sm text-[#c6c6c6] text-center p-8"
+                  className="font-sans text-sm text-muted-foreground text-center p-8"
                 >
                   No data available for today
                 </td>
@@ -409,21 +409,21 @@ function ProcessLedger({
               apps.map((row) => (
                 <tr
                   key={row.app_name}
-                  className="border-b border-[#1b1b1b] hover:bg-[#0e0e0e] transition-colors duration-100 cursor-default"
+                  className="border-b border-border/50 hover:bg-muted/50 transition-colors duration-100 cursor-default"
                 >
-                  <td className="font-mono text-xs text-[#e2e2e2] p-4 pl-0">
+                  <td className="font-mono text-xs text-foreground p-4 pl-0 font-medium">
                     {row.app_name}
                   </td>
-                  <td className="font-mono text-xs text-[#c6c6c6] p-4">
+                  <td className="font-mono text-xs text-muted-foreground p-4">
                     {row.category || "Uncategorized"}
                   </td>
-                  <td className="font-mono text-xs text-[#e2e2e2] p-4 text-right">
+                  <td className="font-mono text-xs text-foreground p-4 text-right">
                     {row.session_count}
                   </td>
-                  <td className="font-mono text-xs text-[#e2e2e2] p-4 text-right">
+                  <td className="font-mono text-xs text-foreground p-4 text-right">
                     {formatDuration(row.duration_seconds)}
                   </td>
-                  <td className="font-mono text-xs text-[#e2e2e2] p-4 pr-0 text-right">
+                  <td className="font-mono text-xs text-foreground p-4 pr-0 text-right font-bold">
                     {totalSeconds > 0
                       ? ((row.duration_seconds / totalSeconds) * 100).toFixed(1)
                       : "0"}
@@ -451,15 +451,15 @@ function SessionTelemetry({
 }) {
   const recent = useMemo(() => sessions.slice(0, 3), [sessions]);
   return (
-    <Cell className="lg:col-span-12 bg-[#131313] p-8">
+    <Cell className="lg:col-span-12 bg-card p-6 sm:p-8 border border-border">
       <header className="flex justify-between items-center mb-6">
-        <h3 className="font-serif text-lg text-[#e2e2e2] font-normal">
+        <h3 className="font-serif text-lg text-foreground font-normal">
           Session Telemetry
         </h3>
         <LiveDot />
       </header>
       {recent.length === 0 ? (
-        <p className="font-sans text-sm text-[#c6c6c6] text-center py-8">
+        <p className="font-sans text-sm text-muted-foreground text-center py-8">
           No focus sessions yet
         </p>
       ) : (
@@ -477,12 +477,12 @@ function LiveDot() {
   return (
     <span className="relative inline-flex w-2 h-2">
       <span
-        className="absolute inset-0 bg-[#474747] opacity-75 rounded-none"
+        className="absolute inset-0 bg-primary opacity-75 rounded-none"
         style={{
           animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite",
         }}
       />
-      <span className="relative w-2 h-2 bg-white" />
+      <span className="relative w-2 h-2 bg-primary" />
     </span>
   );
 }
@@ -498,23 +498,23 @@ function SessionCard({
 
   return (
     <div
-      className={`group flex flex-col gap-4 p-5 border border-[#2a2a2a] transition-all duration-150 cursor-default ${session.completed ? 'group-hover:border-[#474747] opacity-100' : 'opacity-60'}`}
+      className={`group flex flex-col gap-4 p-5 border border-border bg-background transition-all duration-150 cursor-default ${session.completed ? 'hover:border-primary opacity-100' : 'opacity-60'}`}
     >
       <div className="flex justify-between items-center">
-        <span className="font-mono text-xs text-[#c6c6c6]">
+        <span className="font-mono text-xs text-muted-foreground">
           {session.date}
         </span>
         <span
-          className={`font-mono text-[0.6rem] uppercase tracking-[0.1em] bg-[#1f1f1f] px-2 py-1 ${session.completed ? 'text-[#e2e2e2]' : 'text-[#c6c6c6] line-through'}`}
+          className={`font-mono text-[0.6rem] uppercase tracking-[0.1em] px-2 py-1 border border-border ${session.completed ? 'bg-secondary text-foreground' : 'bg-muted text-muted-foreground line-through'}`}
         >
           {session.completed ? "Completed" : "Interrupted"}
         </span>
       </div>
       <div>
-        <span className="font-mono text-2xl text-[#e2e2e2] block">
+        <span className="font-mono text-2xl text-foreground font-bold block">
           {durationStr}
         </span>
-        <span className="font-sans text-[0.7rem] uppercase tracking-[0.15em] text-[#c6c6c6]">
+        <span className="font-sans text-[0.7rem] uppercase tracking-[0.15em] text-muted-foreground font-bold">
           Focus Session
         </span>
       </div>
@@ -524,7 +524,7 @@ function SessionCard({
 
 function BlueprintGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-px bg-[#353535]">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-px bg-border border border-border">
       {children}
     </div>
   );
