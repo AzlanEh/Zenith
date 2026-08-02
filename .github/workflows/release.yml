@@ -41,6 +41,11 @@ jobs:
       - name: Frontend production dependency audit
         run: npm run audit:prod
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev libxss-dev libx11-dev
+
       - name: Rust tests
         working-directory: src-tauri
         run: cargo test --all-features
