@@ -5,7 +5,12 @@ export { useWeeklyHourlyUsage } from "./useWeeklyHourlyUsage";
 export { useCategoryUsage } from "./useCategoryUsage";
 export { useAppLimits, useSetAppLimit } from "./useAppLimits";
 
-export { useFocusSettings, useUpdateFocusSettings } from "./useFocusSettings";
+export {
+  useFocusSettings,
+  useUpdateFocusSettings,
+  useAddFocusBlockedApp,
+  useRemoveFocusBlockedApp,
+} from "./useFocusSettings";
 export { useNotificationSettings, useUpdateNotificationSettings } from "./useNotificationSettings";
 export { useTheme } from "./useTheme";
 export { useSetAppCategory } from "./useAppCategory";

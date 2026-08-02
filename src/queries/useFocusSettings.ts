@@ -22,3 +22,23 @@ export function useUpdateFocusSettings() {
     },
   });
 }
+
+export function useAddFocusBlockedApp() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (appName: string) => api.addFocusBlockedApp(appName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["focusSettings"] });
+    },
+  });
+}
+
+export function useRemoveFocusBlockedApp() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (appName: string) => api.removeFocusBlockedApp(appName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["focusSettings"] });
+    },
+  });
+}

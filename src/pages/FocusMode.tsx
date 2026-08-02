@@ -26,6 +26,8 @@ import {
   useStartFocusSession,
   useStopFocusSession,
   useUpdateFocusSettings,
+  useAddFocusBlockedApp,
+  useRemoveFocusBlockedApp,
 } from "../queries";
 import { api } from "../services/api";
 import { logger } from "../utils/logger";
@@ -35,6 +37,8 @@ import type { InstalledApp } from "../types";
 export function FocusMode() {
   const { data: settings } = useFocusSettings();
   const updateFocusSettingsMutation = useUpdateFocusSettings();
+  const addFocusBlockedAppMutation = useAddFocusBlockedApp();
+  const removeFocusBlockedAppMutation = useRemoveFocusBlockedApp();
   const startFocusSession = useStartFocusSession();
   const stopFocusSession = useStopFocusSession();
   const { state, timeLeft, totalTime, setTimeLeft, start, pause, reset } =
@@ -108,8 +112,7 @@ export function FocusMode() {
 
   const handleAddBlockedApp = async (appName: string) => {
     try {
-      await api.addFocusBlockedApp(appName);
-      await loadData();
+      await addFocusBlockedAppMutation.mutateAsync(appName);
       toast.success(`${appName} added to blocklist`);
     } catch (e) {
       logger.error("Failed to block app", e);
@@ -119,8 +122,7 @@ export function FocusMode() {
 
   const handleRemoveBlockedApp = async (appName: string) => {
     try {
-      await api.removeFocusBlockedApp(appName);
-      await loadData();
+      await removeFocusBlockedAppMutation.mutateAsync(appName);
       toast.success(`${appName} removed from blocklist`);
     } catch (e) {
       logger.error("Failed to unblock app", e);
