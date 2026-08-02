@@ -31,15 +31,15 @@ Tracks the path from v0.1.5 → v0.2.0 and beyond. Status: **v0.2.0 in progress*
 
 ## Cleanup backlog (from repo audit 2026-08)
 
-- [ ] Remove dead custom-theme subsystem: `theme.rs`, `get_theme`/`get_theme_path` commands, `queries/useTheme.ts`, `api.getTheme*` (useDarkMode is the real theme)
-- [ ] Remove dead commands not exposed to frontend: `cleanup_old_data`, `get_storage_stats`
-- [ ] Remove dead query hooks: `useTheme`, `useAppCategory`, `useCategoryUsage`, `useRemoveGoal`
-- [ ] Remove unused `AchievementsPanel.tsx`
-- [ ] Move `format_export_csv`/`format_export_json` + CSV escaping from Rust to TS
-- [ ] Collapse 3 duplicate `ProgressBar` implementations into one
-- [ ] Inline `useFocusTimerStore` into FocusMode page (single consumer)
-- [ ] Replace `once_cell` with `std::sync::OnceLock`
-- [ ] Drop dead `_mindfulness_sessions` param on `init_onboarding_goals`
+- [x] Remove dead custom-theme subsystem: `theme.rs`, `get_theme`/`get_theme_path` commands, `queries/useTheme.ts`, `api.getTheme*` (useDarkMode is the real theme)
+- [x] Remove dead commands not exposed to frontend: `cleanup_old_data`, `get_storage_stats` (also `parse_retention_days` + tests)
+- [x] Remove dead query hooks: `useTheme`, `useAppCategory`, `useCategoryUsage`, `useRemoveGoal` (also `api.removeGoal`, `api.getCategoryUsage`)
+- [x] Remove unused `AchievementsPanel.tsx`
+- [x] Move `format_export_csv`/`format_export_json` + CSV escaping from Rust to TS
+- [x] Collapse 3 duplicate `ProgressBar` implementations into one
+- [x] Inline `useFocusTimerStore` into FocusMode page (single consumer)
+- [x] Replace `once_cell` with `std::sync::LazyLock`
+- [x] Drop dead `_mindfulness_sessions` param on `init_onboarding_goals`
 
 ## Deferred
 
