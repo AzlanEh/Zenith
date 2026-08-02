@@ -166,7 +166,7 @@ export function FocusMode() {
 
   if (isLoading) {
     return (
-      <div className="p-4 lg:p-8 max-w-7xl mx-auto h-[calc(100vh-100px)] pb-12 w-full flex items-center justify-center">
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto min-h-full flex-1 pb-12 w-full flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
@@ -174,11 +174,11 @@ export function FocusMode() {
 
   return (
     <ErrorBoundary>
-      <div className="p-4 lg:p-8 max-w-7xl mx-auto h-[calc(100vh-100px)] pb-12 w-full">
+      <div className="p-4 lg:p-8 max-w-7xl mx-auto min-h-full flex-1 pb-12 w-full">
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 h-full">
           {/* Timer Section */}
           <div className="xl:col-span-2 flex flex-col gap-6">
-            <div className="glass-panel flex-1 flex flex-col items-center justify-center p-8 lg:p-12 relative overflow-hidden group rounded-lg">
+            <div className="glass-panel flex-1 flex flex-col items-center justify-center p-6 sm:p-8 lg:p-12 relative overflow-hidden group rounded-none">
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-secondary rounded-full blur-3xl opacity-50 pointer-events-none"></div>
 
               <div className="relative z-10 flex flex-col items-center justify-between h-full w-full max-w-md mx-auto">
@@ -192,8 +192,8 @@ export function FocusMode() {
                   </div>
                 </div>
 
-                <div className="flex-1 flex flex-col items-center justify-center py-12">
-                  <div className="text-[6rem] sm:text-[8rem] lg:text-[10rem] leading-none font-mono font-light text-foreground tracking-tighter tabular-nums select-none transition-all">
+                <div className="flex-1 flex flex-col items-center justify-center py-8 sm:py-12">
+                  <div className="text-5xl sm:text-7xl lg:text-[10rem] leading-none font-mono font-light text-foreground tracking-tighter tabular-nums select-none transition-all">
                     {String(minutes).padStart(2, "0")}:
                     {String(seconds).padStart(2, "0")}
                   </div>
@@ -212,7 +212,7 @@ export function FocusMode() {
                     <input
                       type="text"
                       placeholder="What are you working on?"
-                      className="w-full bg-background border border-border p-4 pl-11 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors rounded-lg placeholder:text-muted-foreground text-center"
+                      className="w-full bg-background border border-border p-4 pl-11 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors rounded-none placeholder:text-muted-foreground text-center"
                       defaultValue="Writing Q3 Strategy Document"
                     />
                   </div>
@@ -235,7 +235,7 @@ export function FocusMode() {
                                 startFocusSession.mutate(localFocusMin);
                               }
                       }
-                      className="flex-1 max-w-[200px] h-14 bg-foreground text-background hover:bg-foreground/90 transition-colors flex items-center justify-center gap-2 font-medium text-lg rounded-xl"
+                      className="flex-1 max-w-[200px] h-14 bg-foreground text-background hover:bg-foreground/90 transition-colors flex items-center justify-center gap-2 font-medium text-lg rounded-none"
                     >
                       {isFocusActive ? (
                         <Pause className="w-6 h-6 fill-current" />
@@ -253,7 +253,7 @@ export function FocusMode() {
                     <button
                       onClick={reset}
                       aria-label="Reset timer"
-                      className="size-14 border border-border bg-background hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center rounded-xl"
+                      className="size-14 border border-border bg-background hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center rounded-none"
                     >
                       <Square className="w-5 h-5 fill-current" />
                     </button>
@@ -270,7 +270,7 @@ export function FocusMode() {
                           Timer Settings
                         </button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-2xl !p-0 bg-background border border-border shadow-2xl flex flex-col max-h-[90vh] [&>button]:hidden">
+                      <DialogContent className="max-w-2xl !p-0 bg-background border border-border shadow-2xl flex flex-col max-h-[90vh] rounded-none [&>button]:hidden">
                         {/* Modal Header */}
                         <div className="p-8 border-b border-border flex justify-between items-end bg-background">
                           <div>
@@ -284,7 +284,7 @@ export function FocusMode() {
                           <button
                             onClick={() => setIsSettingsOpen(false)}
                             aria-label="Close settings"
-                            className="p-2 hover:bg-secondary transition-colors rounded-lg text-muted-foreground hover:text-foreground"
+                            className="p-2 hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
                           >
                             <X className="w-6 h-6" />
                           </button>
@@ -424,7 +424,7 @@ export function FocusMode() {
 
           {/* Right Sidebar Stats & Apps */}
           <div className="flex flex-col gap-6 h-full">
-            <div className="glass-panel p-6 flex flex-col gap-6 rounded-lg">
+            <div className="glass-panel p-6 flex flex-col gap-6 rounded-none">
               <h3 className="text-lg font-serif-accent text-foreground border-b border-border pb-3">
                 Focus Statistics
               </h3>
@@ -434,7 +434,7 @@ export function FocusMode() {
                     <span className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
                       Focus Score
                     </span>
-                    <span className="text-xs font-bold text-chart-1 bg-chart-1/10 px-2 py-0.5 border border-chart-1/20 rounded">
+                    <span className="text-xs font-bold text-chart-1 bg-chart-1/10 px-2 py-0.5 border border-chart-1/20 rounded-none">
                       +5%
                     </span>
                   </div>
@@ -470,18 +470,18 @@ export function FocusMode() {
               </div>
             </div>
 
-            <div className="glass-panel p-6 flex-1 flex flex-col rounded-lg overflow-hidden">
+            <div className="glass-panel p-6 flex-1 flex flex-col rounded-none overflow-hidden">
               <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
                 <h3 className="text-lg font-serif-accent text-foreground">
                   Blocked Apps
                 </h3>
-                <span className="px-2 py-0.5 text-xs font-medium bg-secondary text-foreground border border-border rounded">
+                <span className="px-2 py-0.5 text-xs font-medium bg-secondary text-foreground border border-border rounded-none">
                   {isFocusActive ? "Active" : "Inactive"}
                 </span>
               </div>
               <div className="flex-1 overflow-y-auto pr-1 space-y-3">
                 {blockedAppsList.length === 0 && (
-                  <div className="text-center p-4 text-sm text-muted-foreground border border-dashed border-border rounded-xl">
+                  <div className="text-center p-4 text-sm text-muted-foreground border border-dashed border-border rounded-none">
                     No apps blocked. Click manage to add apps.
                   </div>
                 )}
@@ -490,14 +490,15 @@ export function FocusMode() {
                   return (
                     <div
                       key={appName}
-                      className="flex items-center justify-between p-3 border border-border bg-background/50 hover:bg-secondary/50 transition-colors rounded-xl"
+                      className="flex items-center justify-between p-3 border border-border bg-background/50 hover:bg-secondary/50 transition-colors rounded-none"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="size-8 bg-secondary flex items-center justify-center text-muted-foreground rounded-lg p-1">
+                        <div className="size-8 bg-secondary flex items-center justify-center text-muted-foreground rounded-none p-1">
                           <AppIcon
                             appName={appName}
                             iconHint={appInfo?.icon ?? undefined}
                             className="w-full h-full object-contain"
+                            shape="rounded-none"
                           />
                         </div>
                         <div>
@@ -526,12 +527,12 @@ export function FocusMode() {
                 <DialogTrigger asChild>
                   <button
                     disabled={isFocusActive}
-                    className="w-full mt-4 py-2.5 text-sm font-medium bg-secondary hover:bg-secondary/80 text-foreground transition-colors border border-border rounded-xl disabled:opacity-50"
+                    className="w-full mt-4 py-2.5 text-sm font-medium bg-secondary hover:bg-secondary/80 text-foreground transition-colors border border-border rounded-none disabled:opacity-50"
                   >
                     Manage Blocklist
                   </button>
                 </DialogTrigger>
-                <DialogContent className="max-w-md max-h-[80vh] flex flex-col p-6 bg-background rounded-lg">
+                <DialogContent className="max-w-md max-h-[80vh] flex flex-col p-6 bg-background rounded-none">
                   <DialogHeader className="mb-4">
                     <DialogTitle className="text-xl font-serif-accent">
                       Add App to Blocklist
@@ -545,14 +546,15 @@ export function FocusMode() {
                           handleAddBlockedApp(app.name);
                           setIsManageOpen(false);
                         }}
-                        className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-secondary/50 transition-colors text-left border border-transparent hover:border-border"
+                        className="w-full flex items-center justify-between p-3 rounded-none hover:bg-secondary/50 transition-colors text-left border border-transparent hover:border-border"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="size-8 bg-background border border-border flex items-center justify-center rounded-lg p-1">
+                          <div className="size-8 bg-background border border-border flex items-center justify-center rounded-none p-1">
                             <AppIcon
                               appName={app.name}
                               iconHint={app.icon ?? undefined}
                               className="w-full h-full object-contain"
+                              shape="rounded-none"
                             />
                           </div>
                           <div>
