@@ -111,8 +111,8 @@ export interface AppIconProps {
   className?: string;
   /** Extra classes forwarded to the wrapper (stacks with className) */
   wrapperClassName?: string;
-  /** Shape variant: "rounded-xl" (default, large cards) or "rounded-lg" (small lists) */
-  shape?: "rounded-xl" | "rounded-lg" | "rounded-md" | "rounded-full";
+  /** Shape variant: "rounded-none" (default, brutalist) or "rounded-xl" | "rounded-lg" | "rounded-md" | "rounded-full" */
+  shape?: "rounded-none" | "rounded-xl" | "rounded-lg" | "rounded-md" | "rounded-full";
   /** If true the hover scale transform is applied */
   hoverable?: boolean;
   /** Override the fallback background color (CSS color string) */
@@ -124,7 +124,7 @@ export const AppIcon = memo(function AppIcon({
   iconHint,
   className = "h-10 w-10",
   wrapperClassName,
-  shape = "rounded-xl",
+  shape = "rounded-none",
   hoverable = false,
   color,
 }: AppIconProps) {
