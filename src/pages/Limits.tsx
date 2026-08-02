@@ -101,7 +101,7 @@ export function Limits() {
     <ErrorBoundary>
       <div className="p-4 lg:p-8 max-w-5xl mx-auto flex flex-col gap-8 pb-20 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* Daily App Limits */}
-        <section className="glass-panel p-6 md:p-8 rounded-lg">
+        <section className="glass-panel p-6 md:p-8 rounded-none">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-xl font-serif-accent text-foreground">
@@ -119,7 +119,7 @@ export function Limits() {
                   Add App
                 </button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl bg-background border-border shadow-2xl flex flex-col max-h-[90vh] p-0 gap-0 overflow-hidden [&>button]:hidden">
+              <DialogContent className="max-w-2xl bg-background border-border shadow-2xl flex flex-col max-h-[90vh] p-0 gap-0 overflow-hidden rounded-none [&>button]:hidden">
                 {/* Header & Search */}
                 <div className="p-8 space-y-6 border-b border-border bg-secondary/10 relative">
                   <div className="flex justify-between items-center">
@@ -159,7 +159,7 @@ export function Limits() {
                       <button
                         key={category}
                         onClick={() => setActiveCategory(category)}
-                        className={`whitespace-nowrap px-4 py-1.5 text-[0.65rem] font-mono uppercase tracking-widest transition-all ${
+                        className={`whitespace-nowrap px-4 py-1.5 text-[0.65rem] font-mono uppercase tracking-widest transition-all rounded-none ${
                           activeCategory === category
                             ? "bg-foreground text-background"
                             : "border border-border text-muted-foreground hover:text-foreground hover:border-foreground"
@@ -188,7 +188,7 @@ export function Limits() {
                                   : [...prev, app.name],
                               );
                             }}
-                            className={`flex items-center justify-between p-4 transition-colors group cursor-pointer ${
+                            className={`flex items-center justify-between p-4 transition-colors group cursor-pointer rounded-none ${
                               isSelected
                                 ? "bg-primary text-primary-foreground"
                                 : "bg-secondary/10 hover:bg-secondary/30 text-foreground"
@@ -196,7 +196,7 @@ export function Limits() {
                           >
                             <div className="flex items-center gap-4">
                               <div
-                                className={`w-10 h-10 flex items-center justify-center p-1 ${isSelected ? "bg-primary-foreground/20" : "bg-background border border-border"}`}
+                                className={`w-10 h-10 flex items-center justify-center p-1 rounded-none ${isSelected ? "bg-primary-foreground/20" : "bg-background border border-border"}`}
                               >
                                 <AppIcon
                                   appName={app.name}
@@ -262,17 +262,17 @@ export function Limits() {
 
           <div className="flex flex-col gap-6">
             {appLimits.length === 0 && (
-              <div className="text-center p-8 border border-dashed border-border rounded-xl text-muted-foreground">
+              <div className="text-center p-8 border border-dashed border-border rounded-none text-muted-foreground">
                 <p>No app limits set. Click "Add App" to start.</p>
               </div>
             )}
             {appLimits.map((app) => (
               <div
                 key={app.id}
-                className={`flex flex-col md:flex-row md:items-center gap-4 p-5 border border-border bg-secondary/10 hover:bg-secondary/30 transition-colors rounded-xl ${!app.block_when_exceeded && "opacity-60 grayscale"}`}
+                className={`flex flex-col md:flex-row md:items-center gap-4 p-5 border border-border bg-secondary/10 hover:bg-secondary/30 transition-colors rounded-none ${!app.block_when_exceeded && "opacity-60 grayscale"}`}
               >
                 <div className="flex items-center gap-4 min-w-[200px]">
-                  <div className="size-10 bg-background border border-border flex items-center justify-center shrink-0 rounded-lg p-1">
+                  <div className="size-10 bg-background border border-border flex items-center justify-center shrink-0 rounded-none p-1">
                     <AppIcon
                       appName={app.app_name}
                       iconHint={
@@ -329,7 +329,7 @@ export function Limits() {
                         );
                       }}
                     />
-                    <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-foreground"></div>
+                    <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-none peer peer-checked:after:translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:border-border after:border after:rounded-none after:h-5 after:w-5 after:transition-all peer-checked:bg-foreground"></div>
                   </label>
                 </div>
               </div>
