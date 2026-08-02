@@ -33,20 +33,20 @@ export const Sidebar = memo(function Sidebar({ isOpen, currentPage, setCurrentPa
         "flex flex-col h-screen z-50 transition-transform duration-300",
         "fixed inset-y-0 left-0 lg:sticky lg:inset-y-auto",
         "w-full sm:w-56 lg:w-60 xl:w-64",
-        "bg-[#1b1b1b] border-r border-[#474747]",
+        "bg-card border-r border-border",
         !isOpen ? "-translate-x-full lg:translate-x-0" : "translate-x-0",
       )}
     >
       <div className="p-4 sm:p-5 lg:p-6 xl:p-8 mb-4">
         <span
-          className="block font-serif italic text-[#e2e2e2]"
+          className="block font-serif italic text-foreground"
           style={{
             fontSize: "clamp(1.25rem, 3vw, 1.875rem)",
           }}
         >
           Zenith
         </span>
-        <span className="hidden sm:block font-sans uppercase tracking-[0.1em] text-xs text-[#c6c6c6]">
+        <span className="hidden sm:block font-sans uppercase tracking-[0.1em] text-xs text-muted-foreground">
           Digital Sanctuary
         </span>
       </div>
@@ -57,12 +57,12 @@ export const Sidebar = memo(function Sidebar({ isOpen, currentPage, setCurrentPa
             key={item.label}
             onClick={() => setCurrentPage(item.page)}
             className={cn(
-              "flex items-center w-full text-left gap-3 px-3 py-2 no-underline",
+              "flex items-center w-full text-left gap-3 px-3 py-2 no-underline cursor-pointer",
               "font-mono uppercase tracking-[0.1em] transition-all duration-200",
               "border-t-0 border-r-0 border-b-0",
               currentPage === item.page
-                ? "font-bold bg-white text-[#1c1b1b] border-l-4 border-[#1c1b1b]"
-                : "font-normal bg-transparent text-[#c6c6c6] border-l-4 border-transparent hover:bg-[#2a2a2a] hover:text-[#e2e2e2]",
+                ? "font-bold bg-primary text-primary-foreground border-l-4 border-primary"
+                : "font-normal bg-transparent text-muted-foreground border-l-4 border-transparent hover:bg-muted hover:text-foreground",
             )}
             style={{
               fontSize: "clamp(0.65rem, 1.5vw, 0.75rem)",
@@ -82,7 +82,7 @@ export const Sidebar = memo(function Sidebar({ isOpen, currentPage, setCurrentPa
       <div className="p-4 sm:p-5 lg:p-6 xl:p-8 mt-auto">
         <button
           onClick={() => setCurrentPage("focus")}
-          className="w-full bg-[#131313] text-white border border-[#474747] p-3 font-mono uppercase tracking-[0.2em] font-bold cursor-pointer transition-all duration-200 hover:bg-white hover:text-[#1c1b1b]"
+          className="w-full bg-primary text-primary-foreground border border-primary p-3 font-mono uppercase tracking-[0.2em] font-bold cursor-pointer transition-all duration-200 hover:bg-primary/90"
           style={{
             fontSize: "clamp(0.6rem, 1.5vw, 0.7rem)",
           }}
