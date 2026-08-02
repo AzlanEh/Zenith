@@ -71,7 +71,7 @@ export function CategoryManager() {
   const clearSelection = () => setSelected(new Set());
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6">
+    <div className="rounded-none border border-border bg-card p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">App Categories</h3>
         <span className="text-sm text-muted-foreground">{apps.length} apps</span>
@@ -84,13 +84,13 @@ export function CategoryManager() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search apps..."
-            className="w-full h-9 pl-9 pr-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full h-9 pl-9 pr-3 rounded-none border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="h-9 px-3 rounded-none border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         >
           {categories.map((c) => (
             <option key={c} value={c}>{c}</option>
@@ -99,12 +99,12 @@ export function CategoryManager() {
       </div>
 
       {selected.size > 0 && (
-        <div className="flex items-center gap-2 mb-4 p-3 bg-muted rounded-lg">
+        <div className="flex items-center gap-2 mb-4 p-3 bg-muted rounded-none">
           <span className="text-sm font-medium">{selected.size} selected</span>
           <select
             value={bulkCategory}
             onChange={(e) => setBulkCategory(e.target.value)}
-            className="h-8 px-2 rounded border border-input bg-background text-xs"
+            className="h-8 px-2 rounded-none border border-input bg-background text-xs"
           >
             <option value="">Set category...</option>
             {APP_CATEGORIES.map((c) => (
@@ -114,11 +114,11 @@ export function CategoryManager() {
           <button
             onClick={handleBulkAssign}
             disabled={!bulkCategory}
-            className="h-8 px-3 rounded bg-foreground text-background text-xs font-medium disabled:opacity-50"
+            className="h-8 px-3 rounded-none bg-foreground text-background text-xs font-medium disabled:opacity-50"
           >
             Apply
           </button>
-          <button onClick={clearSelection} className="h-8 px-3 rounded border border-input text-xs">
+          <button onClick={clearSelection} className="h-8 px-3 rounded-none border border-input text-xs">
             Clear
           </button>
         </div>
@@ -131,7 +131,7 @@ export function CategoryManager() {
         {filteredApps.map((app) => (
           <div
             key={app.name}
-            className={`flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-muted transition-colors ${
+            className={`flex items-center gap-3 px-2 py-2 rounded-none hover:bg-muted transition-colors ${
               selected.has(app.name) ? "bg-muted" : ""
             }`}
           >
@@ -139,7 +139,7 @@ export function CategoryManager() {
               type="checkbox"
               checked={selected.has(app.name)}
               onChange={() => toggleSelect(app.name)}
-              className="rounded border-input"
+              className="rounded-none border-input"
             />
             <span className="flex-1 text-sm truncate">{app.name}</span>
             <select
