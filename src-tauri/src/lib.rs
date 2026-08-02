@@ -331,29 +331,6 @@ fn get_autostart_status() -> CmdResult<AutostartStatus> {
 /// Default data retention period in days
 const DEFAULT_RETENTION_DAYS: i64 = 90;
 
-fn parse_retention_days(days: Option<i64>) -> CmdResult<i64> {
-    let retention_days = days.unwrap_or(DEFAULT_RETENTION_DAYS);
-    if !(1..=3650).contains(&retention_days) {
-        return Err(WellbeingError::Other(
-            "Retention days must be between 1 and 3650".to_string(),
-        ));
-    }
-    Ok(retention_days)
-}
-
-#[tauri::command]
-async fn cleanup_old_data(state: State<'_, AppState>, days: Option<i64>) -> CmdResult<usize> {
-    let retention_days = parse_retention_days(days)?;
-    let db = state.db.lock().await;
-    Ok(db.cleanup_old_data(retention_days)?)
-}
-
-#[tauri::command]
-async fn get_storage_stats(state: State<'_, AppState>) -> CmdResult<(i64, i64, Option<String>)> {
-    let db = state.db.lock().await;
-    Ok(db.get_storage_stats()?)
-}
-
 #[tauri::command]
 async fn wipe_all_data(state: State<'_, AppState>, confirmation_text: String) -> CmdResult<()> {
     if confirmation_text.trim() != "DELETE" {
@@ -1354,10 +1331,8 @@ pub fn run() {
             enable_autostart,
             disable_autostart,
             get_autostart_status,
-            cleanup_old_data,
             wipe_all_data,
             save_export_file,
-            get_storage_stats,
             export_usage_data,
             import_usage_data,
             format_export_csv,

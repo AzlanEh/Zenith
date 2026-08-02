@@ -720,29 +720,6 @@ impl Database {
         Ok(())
     }
 
-    /// Get the count of usage sessions and approximate database size info
-    pub fn get_storage_stats(&self) -> SqliteResult<(i64, i64, Option<String>)> {
-        let session_count: i64 =
-            self.conn
-                .query_row("SELECT COUNT(*) FROM usage_sessions", [], |row| row.get(0))?;
-
-        let oldest_timestamp: Option<i64> = self
-            .conn
-            .query_row("SELECT MIN(start_time) FROM usage_sessions", [], |row| {
-                row.get(0)
-            })
-            .optional()?
-            .flatten();
-
-        let oldest_date = oldest_timestamp.map(|ts| {
-            chrono::DateTime::from_timestamp(ts, 0)
-                .map(|dt| dt.format("%Y-%m-%d").to_string())
-                .unwrap_or_else(|| "Unknown".to_string())
-        });
-
-        Ok((session_count, oldest_timestamp.unwrap_or(0), oldest_date))
-    }
-
     /// Export usage data within a date range
     /// Returns: Vec of (date, app_name, category, duration_seconds, session_count)
     pub fn export_usage_data(
