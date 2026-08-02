@@ -1,6 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
-  Theme,
   DailyStats,
   WeeklyStats,
   AppLimit,
@@ -38,10 +37,6 @@ export const api = {
   getAppLimits: (): Promise<AppLimit[]> => invokeApi("get_app_limits"),
 
   removeAppLimit: (appName: string): Promise<void> => invokeApi("remove_app_limit", { appName }),
-
-  getTheme: (): Promise<Theme> => invokeApi("get_theme"),
-
-  getThemePath: (): Promise<string | null> => invokeApi("get_theme_path"),
 
   getAllApps: (): Promise<App[]> => invokeApi("get_all_apps"),
 

@@ -1,20 +1,3 @@
-export interface Theme {
-  colors: {
-    primary: string;
-    secondary: string;
-    background: string;
-    surface: string;
-    text: string;
-    textSecondary: string;
-    accent: string;
-    warning: string;
-    danger: string;
-  };
-  fonts: {
-    family: string;
-  };
-}
-
 export interface AppUsage {
   app_name: string;
   duration_seconds: number;

@@ -11,7 +11,6 @@ mod migrations;
 mod notification_settings;
 mod notifications;
 mod settings_store;
-mod theme;
 mod tracker;
 mod tray;
 mod window_tracker;
@@ -32,7 +31,6 @@ use std::io::Write;
 use std::sync::Arc;
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_updater::UpdaterExt;
-use theme::{Theme, ThemeLoader};
 use tokio::sync::Mutex;
 use tracker::UsageTracker;
 
@@ -132,16 +130,6 @@ async fn remove_app_limit(state: State<'_, AppState>, app_name: String) -> CmdRe
     let db = state.db.lock().await;
     db.remove_limit(&app_name)?;
     Ok(())
-}
-
-#[tauri::command]
-fn get_theme() -> CmdResult<Theme> {
-    Ok(ThemeLoader::load())
-}
-
-#[tauri::command]
-fn get_theme_path() -> Option<String> {
-    ThemeLoader::get_theme_path().map(|p| p.to_string_lossy().to_string())
 }
 
 #[tauri::command]
@@ -1348,8 +1336,6 @@ pub fn run() {
             set_app_limit,
             get_app_limits,
             remove_app_limit,
-            get_theme,
-            get_theme_path,
             get_all_apps,
             record_usage,
             get_hourly_usage,

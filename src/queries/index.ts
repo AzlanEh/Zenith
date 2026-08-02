@@ -12,7 +12,6 @@ export {
   useRemoveFocusBlockedApp,
 } from "./useFocusSettings";
 export { useNotificationSettings, useUpdateNotificationSettings } from "./useNotificationSettings";
-export { useTheme } from "./useTheme";
 export { useSetAppCategory } from "./useAppCategory";
 export { useStartFocusSession, useStopFocusSession } from "./useFocusSession";
 export {
