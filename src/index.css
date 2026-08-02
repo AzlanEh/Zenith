@@ -76,12 +76,12 @@
 }
 
 @theme inline {
-    --font-heading: "Cal Sans", "Inter", sans-serif;
+    --font-heading: "Newsreader", serif;
     --font-display: "Inter", sans-serif;
-    --font-serif-accent: "Sorts Mill Goudy", serif;
+    --font-serif-accent: "Newsreader", serif;
     --font-headline: "Newsreader", serif;
     --font-body: "Inter", sans-serif;
-    --font-label: "Space Grotesk", sans-serif;
+    --font-label: "Inter", sans-serif;
 
     --color-background: var(--background);
     --color-foreground: var(--foreground);
