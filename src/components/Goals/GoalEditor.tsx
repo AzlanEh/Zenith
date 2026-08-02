@@ -34,12 +34,12 @@ function Icon({ name, size = 24, style: s }: { name: string; size?: number; styl
   return <LucideIcon size={size} style={s} />;
 }
 
-function ProgressBar({ pct, color = "#f5f5e8", height = 6 }: { pct: number; color?: string; height?: number }) {
+function ProgressBar({ pct, colorClass = "bg-primary", height = 6 }: { pct: number; colorClass?: string; height?: number }) {
   return (
-    <div className="w-full bg-[#353535] border border-[#474747] overflow-hidden" style={{ height }}>
+    <div className="w-full bg-muted border border-border overflow-hidden" style={{ height }}>
       <div
-        className="h-full"
-        style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: color, transition: "width 1s ease-out" }}
+        className={cn("h-full transition-all duration-500 ease-out", colorClass)}
+        style={{ width: `${Math.min(pct, 100)}%` }}
       />
     </div>
   );
@@ -57,11 +57,11 @@ function HoverButton({
   className?: string;
 }) {
   const baseClasses =
-    "font-sans uppercase tracking-[0.2em] text-[0.7rem] font-bold cursor-pointer p-4 w-full transition-all duration-200 border-2 border-[#f5f5e8]";
+    "font-sans uppercase tracking-[0.2em] text-[0.7rem] font-bold cursor-pointer p-4 w-full transition-all duration-200 border-2";
   const variantClasses: Record<string, string> = {
-    primary: "bg-[#f5f5e8] text-[#131313] hover:bg-transparent hover:text-[#f5f5e8]",
-    "outline-primary": "bg-transparent text-[#f5f5e8] hover:bg-[#f5f5e8] hover:text-[#131313]",
-    ghost: "bg-transparent text-[#c6c6c6] border-none hover:text-[#f5f5e8]",
+    primary: "bg-primary text-primary-foreground border-primary hover:bg-primary/90",
+    "outline-primary": "bg-transparent text-foreground border-border hover:bg-muted hover:border-foreground",
+    ghost: "bg-transparent text-muted-foreground border-transparent hover:text-foreground",
   };
   return (
     <button onClick={onClick} className={cn(baseClasses, variantClasses[variant], extraClasses)}>
@@ -71,56 +71,45 @@ function HoverButton({
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; bg: string; color: string; border: string }> = {
+  const map: Record<string, { label: string; className: string }> = {
     on_track: {
       label: "On Track",
-      bg: "rgba(245,245,232,0.1)",
-      color: "#f5f5e8",
-      border: "rgba(245,245,232,0.3)",
+      className: "bg-primary/10 text-foreground border-primary/30",
     },
     exceeded: {
       label: "Exceeded",
-      bg: "rgba(255,180,171,0.1)",
-      color: "#ffb4ab",
-      border: "rgba(255,180,171,0.3)",
+      className: "bg-destructive/10 text-destructive border-destructive/30",
     },
     achieved: {
       label: "Achieved",
-      bg: "#f5f5e8",
-      color: "#131313",
-      border: "#f5f5e8",
+      className: "bg-primary text-primary-foreground border-primary",
     },
     warning: {
       label: "Warning",
-      bg: "rgba(255,180,171,0.1)",
-      color: "#ffb4ab",
-      border: "rgba(255,180,171,0.3)",
+      className: "bg-destructive/10 text-destructive border-destructive/30",
     },
     not_started: {
       label: "Not Started",
-      bg: "rgba(145,145,145,0.1)",
-      color: "#c6c6c6",
-      border: "rgba(145,145,145,0.3)",
+      className: "bg-muted text-muted-foreground border-border",
     },
   };
   const s = map[status] ?? map.not_started;
   return (
     <span
-      className="font-mono text-[0.625rem] uppercase tracking-[0.1em] font-bold px-2 py-1"
-      style={{ backgroundColor: s.bg, color: s.color, border: `1px solid ${s.border}` }}
+      className={cn("font-mono text-[0.625rem] uppercase tracking-[0.1em] font-bold px-2 py-1 border", s.className)}
     >
       {s.label}
     </span>
   );
 }
 
-function IconBtn({ icon, hoverColor }: { icon: string; hoverColor: string }) {
+function IconBtn({ icon, onClick }: { icon: string; onClick?: () => void }) {
   return (
     <button
-      className="bg-transparent border-none cursor-pointer p-0 flex transition-colors duration-200 text-[#c6c6c6] hover:text-[var(--hover-color)]"
-      style={{ "--hover-color": hoverColor } as React.CSSProperties}
+      onClick={onClick}
+      className="bg-transparent border-none cursor-pointer p-1 flex transition-colors duration-200 text-muted-foreground hover:text-foreground"
     >
-      <Icon name={icon} size={20} />
+      <Icon name={icon} size={18} />
     </button>
   );
 }
@@ -128,7 +117,7 @@ function IconBtn({ icon, hoverColor }: { icon: string; hoverColor: string }) {
 function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block font-mono text-xs uppercase tracking-[0.1em] font-bold mb-2">{label}</label>
+      <label className="block font-mono text-xs uppercase tracking-[0.1em] font-bold mb-2 text-foreground">{label}</label>
       {children}
     </div>
   );
@@ -142,8 +131,8 @@ function DayButton({ day, active, onToggle }: { day: string; active: boolean; on
       className={cn(
         "flex-1 aspect-square flex items-center justify-center font-mono text-xs font-bold p-0 cursor-pointer transition-all duration-200 border-2",
         active
-          ? "border-[#f5f5e8] bg-[#f5f5e8] text-[#131313]"
-          : "border-[#474747] bg-transparent text-[#c6c6c6] hover:border-[#f5f5e8] hover:text-[#f5f5e8]"
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-background text-muted-foreground hover:border-foreground hover:text-foreground"
       )}
     >
       {day}
@@ -158,13 +147,13 @@ function ToggleSwitch({ enabled, onToggle }: { enabled: boolean; onToggle: () =>
       onClick={onToggle}
       className={cn(
         "w-12 h-6 relative flex items-center cursor-pointer transition-all duration-200 border-2",
-        enabled ? "bg-[#f5f5e8] border-[#f5f5e8]" : "bg-[#2a2a2a] border-[#474747]"
+        enabled ? "bg-primary border-primary" : "bg-muted border-border"
       )}
     >
       <div
         className={cn(
           "w-4 h-4 ml-1 transition-transform duration-200",
-          enabled ? "bg-[#131313]" : "bg-[#c6c6c6]"
+          enabled ? "bg-primary-foreground" : "bg-muted-foreground"
         )}
         style={{ transform: enabled ? "translateX(1.25rem)" : "translateX(0)" }}
       />
@@ -177,29 +166,33 @@ function GoalItem({ goal, progress }: { goal: Goal; progress?: GoalProgress }) {
   const status = progress?.status ?? "not_started";
   const currentMin = progress?.current_minutes ?? 0;
 
-  const borderLeftColor =
-    status === "exceeded" ? "#ffb4ab" : status === "achieved" ? "#f5f5e8" : "#474747";
-  const progressColor = status === "exceeded" ? "#ffb4ab" : "#f5f5e8";
+  const borderLeftClass =
+    status === "exceeded"
+      ? "border-l-destructive"
+      : status === "achieved"
+        ? "border-l-primary"
+        : "border-l-border";
+  const progressColorClass = status === "exceeded" ? "bg-destructive" : "bg-primary";
 
   return (
-    <div className="group bg-[#1b1b1b] border-2 border-[#474747] p-6" style={{ borderLeft: `4px solid ${borderLeftColor}` }}>
+    <div className={cn("group bg-card border-2 border-border p-5 border-l-4", borderLeftClass)}>
       <div className="flex justify-between items-start mb-4">
         <div>
-          <h4 className="font-serif text-xl uppercase mb-1">{goal.name}</h4>
-          <p className="font-mono text-xs text-[#c6c6c6] uppercase tracking-[0.1em] font-bold">
+          <h4 className="font-serif text-xl uppercase mb-1 text-foreground">{goal.name}</h4>
+          <p className="font-mono text-xs text-muted-foreground uppercase tracking-[0.1em] font-bold">
             {goal.target_minutes} min / day
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <StatusBadge status={status} />
-          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <IconBtn icon="edit" hoverColor="#f5f5e8" />
-            <IconBtn icon="delete" hoverColor="#ffb4ab" />
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <IconBtn icon="edit" />
+            <IconBtn icon="delete" />
           </div>
         </div>
       </div>
-      <ProgressBar pct={pct} color={progressColor} />
-      <div className="flex justify-between font-mono text-[0.625rem] uppercase font-bold text-[#c6c6c6] mt-2">
+      <ProgressBar pct={pct} colorClass={progressColorClass} />
+      <div className="flex justify-between font-mono text-[0.625rem] uppercase font-bold text-muted-foreground mt-2">
         <span>Current: {currentMin}m</span>
         <span>Target: {goal.target_minutes}m</span>
       </div>
@@ -273,48 +266,43 @@ export function GoalEditor({ open, onOpenChange, onSave, initial, goals = [], pr
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(19,19,19,0.9)", backdropFilter: "blur(8px)" }}
-    >
-      <div
-        className="bg-[#131313] border-4 border-[#474747] w-full max-w-[72rem] flex flex-col max-h-[90vh] overflow-hidden"
-        style={{ boxShadow: "16px 16px 0px 0px rgba(255,255,255,0.05)" }}
-      >
-        <div className="p-6 md:p-8 flex justify-between items-center border-b-2 border-[#474747] shrink-0">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+      <div className="bg-card border-4 border-border w-full max-w-5xl flex flex-col max-h-[90vh] overflow-hidden shadow-2xl">
+        <div className="p-6 md:p-8 flex justify-between items-center border-b-2 border-border shrink-0 bg-card">
           <h2
-            className="font-serif tracking-tight uppercase"
+            className="font-serif tracking-tight uppercase text-foreground"
             style={{ fontSize: "clamp(1.25rem, 3vw, 2.25rem)" }}
           >
             Directive Management
           </h2>
           <button
             onClick={() => onOpenChange(false)}
-            className="bg-transparent border-none cursor-pointer text-[#c6c6c6] hover:text-[#f5f5e8] transition-colors duration-200 p-0"
+            aria-label="Close directive manager"
+            className="bg-transparent border-none cursor-pointer text-muted-foreground hover:text-foreground transition-colors duration-200 p-0"
           >
-            <Icon name="close" size={32} />
+            <Icon name="close" size={28} />
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[7fr_5fr]">
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 overflow-y-auto">
           {/* Goals List */}
-          <div className="p-8 border-r-2 border-[#474747] flex flex-col gap-8 overflow-y-auto min-h-0">
-            <div className="flex justify-between items-end mb-4 shrink-0">
-              <h3 className="font-sans text-sm uppercase tracking-[0.2em] font-bold text-[#c6c6c6]">
+          <div className="lg:col-span-7 p-6 sm:p-8 border-b-2 lg:border-b-0 lg:border-r-2 border-border flex flex-col gap-6 overflow-y-auto min-h-0 bg-card">
+            <div className="flex justify-between items-end mb-2 shrink-0">
+              <h3 className="font-sans text-sm uppercase tracking-[0.2em] font-bold text-muted-foreground">
                 Active Directives
               </h3>
-              <span className="font-mono text-xs text-[#f5f5e8] font-bold">{goals.length} Total</span>
+              <span className="font-mono text-xs text-foreground font-bold">{goals.length} Total</span>
             </div>
             {goals.length === 0 ? (
-              <p className="text-[#c6c6c6] font-sans text-center">No goals yet</p>
+              <p className="text-muted-foreground font-sans text-center py-8">No goals yet</p>
             ) : (
               goals.map((g) => <GoalItem key={g.id} goal={g} progress={progressMap.get(g.id)} />)
             )}
           </div>
 
           {/* Editor */}
-          <div className="p-8" style={{ backgroundColor: "rgba(27,27,27,0.5)" }}>
-            <h3 className="font-sans text-sm uppercase tracking-[0.2em] font-bold text-[#c6c6c6] mb-8">
+          <div className="lg:col-span-5 p-6 sm:p-8 bg-background flex flex-col gap-6 overflow-y-auto min-h-0">
+            <h3 className="font-sans text-sm uppercase tracking-[0.2em] font-bold text-muted-foreground mb-4">
               Configure Directive
             </h3>
             <div className="flex flex-col gap-6">
@@ -323,7 +311,7 @@ export function GoalEditor({ open, onOpenChange, onSave, initial, goals = [], pr
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-[#131313] border-2 border-[#474747] p-3 font-sans text-[#e2e2e2] outline-none text-base box-border focus:border-[#f5f5e8]"
+                  className="w-full bg-card border-2 border-border p-3 font-sans text-foreground outline-none text-base box-border focus:border-primary"
                 />
               </FormField>
 
@@ -331,7 +319,7 @@ export function GoalEditor({ open, onOpenChange, onSave, initial, goals = [], pr
                 <select
                   value={constraintType}
                   onChange={(e) => setConstraintType(e.target.value)}
-                  className="w-full bg-[#131313] border-2 border-[#474747] p-3 font-sans text-[#e2e2e2] outline-none text-base appearance-none rounded-none cursor-pointer focus:border-[#f5f5e8]"
+                  className="w-full bg-card border-2 border-border p-3 font-sans text-foreground outline-none text-base appearance-none rounded-none cursor-pointer focus:border-primary"
                 >
                   {CONSTRAINT_TYPES.map((t) => (
                     <option key={t} value={t}>
@@ -348,17 +336,17 @@ export function GoalEditor({ open, onOpenChange, onSave, initial, goals = [], pr
                     value={extraValue}
                     onChange={(e) => setExtraValue(e.target.value)}
                     placeholder={`Enter ${extraLabel.toLowerCase()}`}
-                    className="w-full bg-[#131313] border-2 border-[#474747] p-3 font-sans text-[#e2e2e2] outline-none text-base box-border focus:border-[#f5f5e8]"
+                    className="w-full bg-card border-2 border-border p-3 font-sans text-foreground outline-none text-base box-border focus:border-primary"
                   />
                 </FormField>
               )}
 
               <div>
                 <div className="flex justify-between items-end mb-2">
-                  <label className="font-mono text-xs uppercase tracking-[0.1em] font-bold">
+                  <label className="font-mono text-xs uppercase tracking-[0.1em] font-bold text-foreground">
                     Target Duration
                   </label>
-                  <span className="font-mono text-lg text-[#f5f5e8] font-bold">{targetMinutes}m</span>
+                  <span className="font-mono text-lg text-foreground font-bold">{targetMinutes}m</span>
                 </div>
                 <input
                   type="range"
@@ -366,13 +354,12 @@ export function GoalEditor({ open, onOpenChange, onSave, initial, goals = [], pr
                   max={480}
                   value={targetMinutes}
                   onChange={(e) => setTargetMinutes(Number(e.target.value))}
-                  className="w-full h-2 bg-[#353535] appearance-none border border-[#474747] cursor-pointer"
-                  style={{ accentColor: "#f5f5e8" }}
+                  className="w-full"
                 />
               </div>
 
               <div>
-                <label className="block font-mono text-xs uppercase tracking-[0.1em] font-bold mb-3">
+                <label className="block font-mono text-xs uppercase tracking-[0.1em] font-bold mb-3 text-foreground">
                   Active Cycles
                 </label>
                 <div className="flex gap-2">
@@ -382,14 +369,14 @@ export function GoalEditor({ open, onOpenChange, onSave, initial, goals = [], pr
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t-2 border-[#474747]">
-                <label className="font-mono text-xs uppercase tracking-[0.1em] font-bold">
+              <div className="flex items-center justify-between pt-4 border-t-2 border-border">
+                <label className="font-mono text-xs uppercase tracking-[0.1em] font-bold text-foreground">
                   System Status
                 </label>
                 <ToggleSwitch enabled={enabled} onToggle={() => setEnabled((v) => !v)} />
               </div>
 
-              <div className="pt-6">
+              <div className="pt-4">
                 <HoverButton variant="primary" onClick={handleSave}>
                   Enforce Directive
                 </HoverButton>
