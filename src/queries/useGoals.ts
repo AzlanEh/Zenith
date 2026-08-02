@@ -53,15 +53,3 @@ export function useUpdateGoal() {
     },
   });
 }
-
-export function useRemoveGoal() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (goalId: string) => api.removeGoal(goalId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["goals"] });
-      queryClient.invalidateQueries({ queryKey: ["goalsProgress"] });
-      queryClient.invalidateQueries({ queryKey: ["goalsStats"] });
-    },
-  });
-}

@@ -2,7 +2,6 @@ export { useDailyStats } from "./useDailyStats";
 export { useWeeklyStats } from "./useWeeklyStats";
 export { useHourlyUsage } from "./useHourlyUsage";
 export { useWeeklyHourlyUsage } from "./useWeeklyHourlyUsage";
-export { useCategoryUsage } from "./useCategoryUsage";
 export { useAppLimits, useSetAppLimit } from "./useAppLimits";
 
 export {
@@ -12,7 +11,6 @@ export {
   useRemoveFocusBlockedApp,
 } from "./useFocusSettings";
 export { useNotificationSettings, useUpdateNotificationSettings } from "./useNotificationSettings";
-export { useSetAppCategory } from "./useAppCategory";
 export { useStartFocusSession, useStopFocusSession } from "./useFocusSession";
 export {
   useGoals,
@@ -21,5 +19,4 @@ export {
   useAchievements,
   useAddGoal,
   useUpdateGoal,
-  useRemoveGoal,
 } from "./useGoals";

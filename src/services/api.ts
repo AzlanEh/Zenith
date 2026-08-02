@@ -5,7 +5,6 @@ import type {
   AppLimit,
   App,
   HourlyUsage,
-  CategoryUsage,
   InstalledApp,
   AutostartStatus,
   ExportRecord,
@@ -46,8 +45,6 @@ export const api = {
   getHourlyUsage: (): Promise<HourlyUsage[]> => invokeApi("get_hourly_usage"),
 
   getWeeklyHourlyUsage: (): Promise<WeeklyHourlyUsage[]> => invokeApi("get_weekly_hourly_usage"),
-
-  getCategoryUsage: (): Promise<CategoryUsage[]> => invokeApi("get_category_usage"),
 
   setAppCategory: (appName: string, category: string): Promise<void> =>
     invokeApi("set_app_category", { appName, category }),
@@ -139,8 +136,6 @@ export const api = {
   addGoal: (goal: Goal): Promise<void> => invokeApi("add_goal", { goal }),
 
   updateGoal: (goal: Goal): Promise<void> => invokeApi("update_goal", { goal }),
-
-  removeGoal: (goalId: string): Promise<void> => invokeApi("remove_goal", { goalId }),
 
   getGoalsProgress: (): Promise<GoalProgress[]> => invokeApi("get_goals_progress"),
 
