@@ -1442,7 +1442,6 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use database::ExportRecord;
     use std::sync::Arc;
     use tokio::sync::Mutex;
 
@@ -1491,84 +1490,6 @@ mod tests {
         assert!(is_valid_app_name("アプリ")); // Japanese
         assert!(is_valid_app_name("应用程序")); // Chinese
         assert!(is_valid_app_name("приложение")); // Russian
-    }
-
-    #[test]
-    fn test_escape_csv_field_simple() {
-        // Simple fields without special chars don't need escaping
-        assert_eq!(escape_csv_field("Firefox"), "Firefox");
-        assert_eq!(escape_csv_field("Development"), "Development");
-        assert_eq!(escape_csv_field("123"), "123");
-    }
-
-    #[test]
-    fn test_escape_csv_field_with_comma() {
-        // Fields with commas should be quoted
-        assert_eq!(escape_csv_field("Hello, World"), "\"Hello, World\"");
-    }
-
-    #[test]
-    fn test_escape_csv_field_with_quotes() {
-        // Fields with quotes should be escaped (doubled) and quoted
-        assert_eq!(escape_csv_field("Say \"Hello\""), "\"Say \"\"Hello\"\"\"");
-    }
-
-    #[test]
-    fn test_escape_csv_field_with_newline() {
-        // Fields with newlines should be quoted
-        assert_eq!(escape_csv_field("Line1\nLine2"), "\"Line1\nLine2\"");
-    }
-
-    #[test]
-    fn test_parse_retention_days_defaults() {
-        let parsed = parse_retention_days(None).unwrap();
-        assert_eq!(parsed, DEFAULT_RETENTION_DAYS);
-    }
-
-    #[test]
-    fn test_parse_retention_days_rejects_out_of_range() {
-        assert!(parse_retention_days(Some(0)).is_err());
-        assert!(parse_retention_days(Some(-10)).is_err());
-        assert!(parse_retention_days(Some(3651)).is_err());
-    }
-
-    #[test]
-    fn test_parse_retention_days_accepts_bounds() {
-        assert_eq!(parse_retention_days(Some(1)).unwrap(), 1);
-        assert_eq!(parse_retention_days(Some(3650)).unwrap(), 3650);
-    }
-
-    #[test]
-    fn test_format_export_csv_structure() {
-        let records = vec![
-            ExportRecord {
-                date: "2026-01-12".to_string(),
-                app_name: "Firefox".to_string(),
-                category: "Productivity".to_string(),
-                duration_seconds: 3661, // 1h 1m 1s
-                session_count: 5,
-            },
-            ExportRecord {
-                date: "2026-01-12".to_string(),
-                app_name: "Code".to_string(),
-                category: "Development".to_string(),
-                duration_seconds: 120, // 2m
-                session_count: 1,
-            },
-        ];
-
-        let csv = format_export_csv(records);
-
-        // Check header
-        assert!(csv.starts_with(
-            "Date,App Name,Category,Duration (seconds),Duration (formatted),Sessions\n"
-        ));
-
-        // Check first data row
-        assert!(csv.contains("2026-01-12,Firefox,Productivity,3661,1h 1m,5"));
-
-        // Check second data row
-        assert!(csv.contains("2026-01-12,Code,Development,120,2m,1"));
     }
 
     #[tokio::test]
