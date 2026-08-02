@@ -5,13 +5,14 @@ interface ProgressBarProps {
   max?: number;
   className?: string;
   barClassName?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
 }
 
 const sizeMap = {
   sm: "h-2",
   md: "h-3",
   lg: "h-4",
+  xl: "h-6",
 };
 
 export function ProgressBar({ value, max = 100, className, barClassName, size = "md" }: ProgressBarProps) {

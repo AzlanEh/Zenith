@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Plus, Trophy, Flag, Lock, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { GoalEditor } from "../components/Goals/GoalEditor";
+import { ProgressBar } from "../components/Goals/ProgressBar";
 import { useFocusHistory } from "../hooks/useFocusHistory";
 import {
   useAchievements,
@@ -34,7 +35,7 @@ const Icon = ({
   return <LucideIcon className={className} style={style} />;
 };
 
-const ProgressBar = ({ item }: { item: GoalProgress }) => (
+const ProgressBarCard = ({ item }: { item: GoalProgress }) => (
   <div>
     <div className="flex justify-between items-baseline mb-4">
       <span className="font-sans text-sm tracking-[0.15em] font-bold uppercase text-foreground">
@@ -44,14 +45,7 @@ const ProgressBar = ({ item }: { item: GoalProgress }) => (
         {item.progress_percent}%
       </span>
     </div>
-    <div className="h-6 bg-muted border-2 border-border overflow-hidden">
-      <div
-        className="h-full bg-primary transition-all duration-500 ease-out"
-        style={{
-          width: `${item.progress_percent}%`,
-        }}
-      />
-    </div>
+    <ProgressBar value={item.progress_percent} size="xl" className="border-2 border-border" />
     <div className="flex justify-between mt-2 font-mono text-[0.72rem] text-muted-foreground uppercase font-bold">
       <span>Target: {item.target_minutes}m</span>
       <span className={item.is_met ? "text-primary font-bold" : "text-muted-foreground"}>
@@ -77,7 +71,7 @@ const DailyProgress = ({ progress }: { progress: GoalProgress[] }) => (
           No goals set for today
         </p>
       ) : (
-        progress.map((item) => <ProgressBar key={item.goal_id} item={item} />)
+        progress.map((item) => <ProgressBarCard key={item.goal_id} item={item} />)
       )}
     </div>
   </div>

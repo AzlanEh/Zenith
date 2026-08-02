@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pen, Trash2, X } from "lucide-react";
 import type { Goal, GoalProgress } from "@/types";
 import { cn } from "@/lib/utils";
+import { ProgressBar } from "./ProgressBar";
 
 const CONSTRAINT_TYPES = [
   "Daily Screen Time",
@@ -32,17 +33,6 @@ function Icon({ name, size = 24, style: s }: { name: string; size?: number; styl
   const LucideIcon = ICON_MAP[name];
   if (!LucideIcon) return null;
   return <LucideIcon size={size} style={s} />;
-}
-
-function ProgressBar({ pct, colorClass = "bg-primary", height = 6 }: { pct: number; colorClass?: string; height?: number }) {
-  return (
-    <div className="w-full bg-muted border border-border overflow-hidden" style={{ height }}>
-      <div
-        className={cn("h-full transition-all duration-500 ease-out", colorClass)}
-        style={{ width: `${Math.min(pct, 100)}%` }}
-      />
-    </div>
-  );
 }
 
 function HoverButton({
@@ -191,7 +181,7 @@ function GoalItem({ goal, progress }: { goal: Goal; progress?: GoalProgress }) {
           </div>
         </div>
       </div>
-      <ProgressBar pct={pct} colorClass={progressColorClass} />
+      <ProgressBar value={pct} size="sm" className="border border-border" barClassName={progressColorClass} />
       <div className="flex justify-between font-mono text-[0.625rem] uppercase font-bold text-muted-foreground mt-2">
         <span>Current: {currentMin}m</span>
         <span>Target: {goal.target_minutes}m</span>
