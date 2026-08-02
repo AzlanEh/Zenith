@@ -144,8 +144,8 @@ export const api = {
 
   getFocusNotes: (): Promise<FocusNote[]> => invokeApi("get_focus_notes"),
 
-  initOnboardingGoals: (dailyGoalMinutes: number, screenLimitHours: number, mindfulnessSessions: number): Promise<void> =>
-    invokeApi("init_onboarding_goals", { dailyGoalMinutes, screenLimitHours, mindfulnessSessions }),
+  initOnboardingGoals: (dailyGoalMinutes: number, screenLimitHours: number): Promise<void> =>
+    invokeApi("init_onboarding_goals", { dailyGoalMinutes, screenLimitHours }),
 
   wipeAllData: (confirmationText: string): Promise<void> => invokeApi("wipe_all_data", { confirmationText }),
 };

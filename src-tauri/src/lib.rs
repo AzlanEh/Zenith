@@ -816,7 +816,6 @@ async fn init_onboarding_goals(
     state: State<'_, AppState>,
     daily_goal_minutes: i32,
     screen_limit_hours: i32,
-    _mindfulness_sessions: i32,
 ) -> CmdResult<()> {
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
     let mut goals_state = state.goals_state.lock().await;

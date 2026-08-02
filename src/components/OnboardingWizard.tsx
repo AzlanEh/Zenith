@@ -39,7 +39,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const finish = async () => {
     try {
       setIsSubmitting(true);
-      await api.initOnboardingGoals(focus * 60, screen, mind);
+      await api.initOnboardingGoals(focus * 60, screen);
     } catch (e) {
       logger.error("Failed to initialize onboarding goals", e);
     } finally {
