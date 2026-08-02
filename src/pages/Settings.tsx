@@ -1,3 +1,4 @@
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   save,
   confirm as tauriConfirm,
@@ -5,6 +6,7 @@ import {
 } from "@tauri-apps/plugin-dialog";
 import {
   Bell,
+  Bug,
   CheckCircle,
   Download,
   Hourglass,
@@ -41,6 +43,18 @@ import {
 } from "../queries";
 import { api } from "../services/api";
 import type { AutostartStatus, BreakSettings } from "../types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../components/ui/dialog";
+
+const REPORT_ISSUE_URL =
+  "https://github.com/AzlanEh/Zenith/issues/new?template=bug_report.yml";
 
 function Toggle({
   pressed,
@@ -138,6 +152,105 @@ function BrutalSlider({
         className="w-full"
       />
     </div>
+  );
+}
+
+function ReportIssueDialog() {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [appVersion, setAppVersion] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    import("@tauri-apps/api/app")
+      .then(({ getVersion }) => getVersion())
+      .then(setAppVersion)
+      .catch(() => setAppVersion("unknown"));
+  }, [open]);
+
+  const handleSubmit = () => {
+    if (!title.trim() || !body.trim()) return;
+    const url = new URL(REPORT_ISSUE_URL);
+    url.searchParams.set("title", title.trim());
+    url.searchParams.set(
+      "body",
+      `${body.trim()}\n\n---\n<sub>Zenith ${appVersion} / ${navigator.userAgent}</sub>`,
+    );
+    openUrl(url.toString());
+    setTitle("");
+    setBody("");
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button className="border border-border bg-background px-4 py-2 font-label text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground hover:border-foreground transition-colors flex items-center gap-2">
+          <Bug />
+          Report an Issue
+        </button>
+      </DialogTrigger>
+      <DialogContent className="rounded-none max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="font-headline text-2xl">
+            Report an Issue
+          </DialogTitle>
+          <DialogDescription className="font-body text-xs">
+            Draft your report here — it opens a pre-filled issue on GitHub.
+            Your version and system info are attached automatically.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <label
+              htmlFor="issue-title"
+              className="font-label text-xs uppercase tracking-widest text-muted-foreground"
+            >
+              Title
+            </label>
+            <input
+              id="issue-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Short summary of the problem"
+              className="bg-background border border-border text-foreground font-label p-3 text-sm focus:border-foreground focus:ring-0 outline-none"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label
+              htmlFor="issue-body"
+              className="font-label text-xs uppercase tracking-widest text-muted-foreground"
+            >
+              Description
+            </label>
+            <textarea
+              id="issue-body"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={6}
+              placeholder="What happened? What did you expect? Steps to reproduce."
+              className="bg-background border border-border text-foreground font-body p-3 text-sm focus:border-foreground focus:ring-0 outline-none resize-y"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <button
+            onClick={() => setOpen(false)}
+            className="border border-border px-6 py-2 font-label text-xs uppercase tracking-widest text-foreground hover:bg-secondary transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!title.trim() || !body.trim()}
+            className="border border-foreground bg-foreground text-background px-6 py-2 font-label text-xs uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            Open in Browser
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -755,6 +868,10 @@ export function Settings() {
             </div>
           </section>
         </div>
+
+        <footer className="flex justify-end pt-6">
+          <ReportIssueDialog />
+        </footer>
       </div>
     </ErrorBoundary>
   );
