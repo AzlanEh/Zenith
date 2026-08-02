@@ -11,6 +11,7 @@ import {
   Plus,
 } from "lucide-react";
 import { api } from "@/services/api";
+import { logger } from "@/utils/logger";
 
 interface OnboardingWizardProps {
   onComplete: () => void;
@@ -21,6 +22,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const [focus, setFocus] = useState(4);
   const [screen, setScreen] = useState(2);
   const [mind, setMind] = useState(3);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
@@ -35,9 +37,15 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     setMind((prev) => Math.max(0, Math.min(10, prev + change)));
 
   const finish = async () => {
-    await api.initOnboardingGoals(focus * 60, screen);
-    localStorage.setItem("onboarding_completed", "true");
-    onComplete();
+    try {
+      setIsSubmitting(true);
+      await api.initOnboardingGoals(focus * 60, screen, mind);
+    } catch (e) {
+      logger.error("Failed to initialize onboarding goals", e);
+    } finally {
+      localStorage.setItem("onboarding_completed", "true");
+      onComplete();
+    }
   };
 
   if (step === 0) {
@@ -331,11 +339,12 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           <div className="pt-8">
             <button
               onClick={finish}
-              className="group relative inline-flex items-center justify-center px-12 py-5 bg-foreground text-background font-label text-sm uppercase tracking-[0.2em] font-medium overflow-hidden transition-all duration-500 hover:shadow-[0_0_40px_rgba(255,255,255,0.1)] active:scale-[0.98]"
+              disabled={isSubmitting}
+              className="group relative inline-flex items-center justify-center px-12 py-5 bg-foreground text-background font-label text-sm uppercase tracking-[0.2em] font-medium overflow-hidden transition-all duration-500 hover:shadow-[0_0_40px_rgba(255,255,255,0.1)] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
             >
               <div className="absolute inset-0 bg-background w-0 group-hover:w-full transition-all duration-500 ease-out z-0" />
               <span className="relative z-10 group-hover:text-foreground transition-colors duration-500 flex items-center space-x-3">
-                <span>Enter Sanctuary</span>
+                <span>{isSubmitting ? "Entering..." : "Enter Sanctuary"}</span>
                 <ArrowRight className="w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-300" />
               </span>
             </button>
