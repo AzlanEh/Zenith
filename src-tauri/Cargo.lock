@@ -6211,7 +6211,6 @@ dependencies = [
  "active-win-pos-rs",
  "chrono",
  "dirs 5.0.1",
- "once_cell",
  "rusqlite",
  "serde",
  "serde_json",

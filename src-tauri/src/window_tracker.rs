@@ -1,7 +1,7 @@
 use active_win_pos_rs::get_active_window;
-use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::LazyLock;
 
 /// App name mapping configuration
 /// Maps lowercase window class/name patterns to display names
@@ -16,7 +16,7 @@ struct AppMapping {
 
 /// Static mapping of window class patterns to app display names
 /// This replaces the long if-else chain with a data-driven approach
-static APP_MAPPINGS: Lazy<Vec<AppMapping>> = Lazy::new(|| {
+static APP_MAPPINGS: LazyLock<Vec<AppMapping>> = LazyLock::new(|| {
     vec![
         // Browsers
         AppMapping {
@@ -279,7 +279,7 @@ static APP_MAPPINGS: Lazy<Vec<AppMapping>> = Lazy::new(|| {
 });
 
 /// Exact match lookup for common apps (faster path)
-static EXACT_MATCH_MAP: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
+static EXACT_MATCH_MAP: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
     let mut map = HashMap::new();
     for mapping in APP_MAPPINGS.iter() {
         if let Some(exact) = mapping.exact {
