@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FocusSchedule } from "../types";
-import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
-import { Plus, Pencil, Trash2, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Plus, Pencil, Trash2, Check, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -63,6 +63,12 @@ export function FocusScheduleEditor({ schedules, onSave }: FocusScheduleEditorPr
     await onSave(next);
   };
 
+  const handleToggleSchedule = async (idx: number) => {
+    const next = [...schedules];
+    next[idx] = { ...next[idx], enabled: !next[idx].enabled };
+    await onSave(next);
+  };
+
   const toggleDay = (day: number) => {
     setDraft((prev) => ({
       ...prev,
@@ -72,7 +78,7 @@ export function FocusScheduleEditor({ schedules, onSave }: FocusScheduleEditorPr
 
   if (schedules.length === 0 && !open) {
     return (
-      <div className="text-center py-8 border border-dashed border-border rounded-xl">
+      <div className="text-center py-8 border border-dashed border-border rounded-none">
         <p className="text-sm text-muted-foreground mb-4">No focus schedules configured</p>
         <button
           onClick={() => handleOpen(null)}
@@ -95,7 +101,7 @@ export function FocusScheduleEditor({ schedules, onSave }: FocusScheduleEditorPr
         return (
           <div
             key={schedule.id}
-            className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${
+            className={`flex items-center justify-between p-4 rounded-none border transition-colors ${
               schedule.enabled
                 ? "border-border bg-secondary/10"
                 : "border-border/50 bg-secondary/5 opacity-50"
@@ -105,27 +111,36 @@ export function FocusScheduleEditor({ schedules, onSave }: FocusScheduleEditorPr
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-foreground truncate">{schedule.name}</span>
                 {!schedule.enabled && (
-                  <span className="text-[0.6rem] font-mono uppercase tracking-wider text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+                  <span className="text-[0.6rem] font-mono uppercase tracking-wider text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-none">
                     Disabled
                   </span>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {schedule.start_time} - {schedule.end_time} · {dayLabels}
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {dayLabels} • {schedule.start_time} - {schedule.end_time}
               </p>
             </div>
-            <div className="flex items-center gap-1 shrink-0 ml-4">
+            <div className="flex items-center gap-2 ml-4">
+              <button
+                onClick={() => handleToggleSchedule(idx)}
+                className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                title={schedule.enabled ? "Disable" : "Enable"}
+              >
+                {schedule.enabled ? (
+                  <Check className="w-4 h-4 text-primary" />
+                ) : (
+                  <Clock className="w-4 h-4 opacity-50" />
+                )}
+              </button>
               <button
                 onClick={() => handleOpen(idx)}
-                className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Edit schedule"
+                className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Pencil className="w-4 h-4" />
               </button>
               <button
                 onClick={() => handleDelete(idx)}
-                className="p-2 text-muted-foreground hover:text-red-500 transition-colors"
-                aria-label="Delete schedule"
+                className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -136,27 +151,21 @@ export function FocusScheduleEditor({ schedules, onSave }: FocusScheduleEditorPr
 
       <button
         onClick={() => handleOpen(null)}
-        className="text-sm font-medium text-primary hover:underline flex items-center gap-1"
+        className="w-full py-2.5 text-xs font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-foreground transition-colors flex items-center justify-center gap-1.5 rounded-none"
       >
         <Plus className="w-4 h-4" />
-        Add Schedule
+        Add Focus Schedule
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md bg-background border-border">
-          <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="text-xl font-serif-accent text-foreground">
-                {editIdx !== null ? "Edit Schedule" : "New Schedule"}
-              </DialogTitle>
-              <button
-                onClick={() => setOpen(false)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+        <DialogContent className="max-w-md bg-background border-border rounded-none">
+          <DialogHeader>
+            <DialogTitle>
+              {editIdx !== null ? "Edit Focus Schedule" : "Add Focus Schedule"}
+            </DialogTitle>
+          </DialogHeader>
 
+          <div className="space-y-4 pt-2">
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">Name</label>
               <input
@@ -164,7 +173,7 @@ export function FocusScheduleEditor({ schedules, onSave }: FocusScheduleEditorPr
                 value={draft.name}
                 onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
                 placeholder="e.g., Morning Focus"
-                className="w-full bg-background border border-border rounded-lg p-2.5 text-sm outline-none focus:border-primary transition-colors"
+                className="w-full bg-background border border-border rounded-none p-2.5 text-sm outline-none focus:border-primary transition-colors"
               />
             </div>
 
@@ -175,10 +184,10 @@ export function FocusScheduleEditor({ schedules, onSave }: FocusScheduleEditorPr
                   <button
                     key={day}
                     onClick={() => toggleDay(i)}
-                    className={`w-10 h-10 text-xs font-medium rounded-full transition-colors ${
+                    className={`w-10 h-10 text-xs font-medium rounded-none transition-colors border ${
                       draft.days.includes(i)
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary/30 text-muted-foreground hover:text-foreground"
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-secondary/30 text-muted-foreground border-border hover:text-foreground"
                     }`}
                   >
                     {day}
@@ -194,7 +203,7 @@ export function FocusScheduleEditor({ schedules, onSave }: FocusScheduleEditorPr
                   type="time"
                   value={draft.start_time}
                   onChange={(e) => setDraft((p) => ({ ...p, start_time: e.target.value }))}
-                  className="w-full bg-background border border-border rounded-lg p-2.5 text-sm outline-none focus:border-primary transition-colors"
+                  className="w-full bg-background border border-border rounded-none p-2.5 text-sm outline-none focus:border-primary transition-colors"
                 />
               </div>
               <div className="space-y-2">
@@ -203,7 +212,7 @@ export function FocusScheduleEditor({ schedules, onSave }: FocusScheduleEditorPr
                   type="time"
                   value={draft.end_time}
                   onChange={(e) => setDraft((p) => ({ ...p, end_time: e.target.value }))}
-                  className="w-full bg-background border border-border rounded-lg p-2.5 text-sm outline-none focus:border-primary transition-colors"
+                  className="w-full bg-background border border-border rounded-none p-2.5 text-sm outline-none focus:border-primary transition-colors"
                 />
               </div>
             </div>
@@ -217,20 +226,20 @@ export function FocusScheduleEditor({ schedules, onSave }: FocusScheduleEditorPr
                   checked={draft.enabled}
                   onChange={(e) => setDraft((p) => ({ ...p, enabled: e.target.checked }))}
                 />
-                <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                <div className="w-11 h-6 bg-secondary peer-focus:outline-none rounded-none peer peer-checked:after:translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:border-border after:border after:rounded-none after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
               </label>
             </div>
 
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setOpen(false)}
-                className="flex-1 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground border border-border rounded-lg transition-colors"
+                className="flex-1 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground border border-border rounded-none transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="flex-1 py-2.5 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+                className="flex-1 py-2.5 text-sm font-medium bg-primary text-primary-foreground rounded-none hover:opacity-90 transition-opacity"
               >
                 {editIdx !== null ? "Save" : "Add"}
               </button>
