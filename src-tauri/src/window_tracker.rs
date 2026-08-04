@@ -498,6 +498,11 @@ pub fn extract_app_name(window_name: &str) -> Option<String> {
     // Normalize the name
     let name_lower = window_name.to_lowercase();
 
+    // ponytail: hardcoded exclusion, promote to user-configurable list when requested
+    if name_lower == "zenith-dw" {
+        return None;
+    }
+
     // Fast path: try exact match first (handles X11 class names like "firefox", "discord")
     if let Some(&display_name) = EXACT_MATCH_MAP.get(name_lower.as_str()) {
         return sanitize_app_name(display_name);
@@ -675,6 +680,12 @@ mod tests {
     #[test]
     fn test_extract_app_name_empty() {
         assert_eq!(extract_app_name(""), None);
+    }
+
+    #[test]
+    fn test_extract_app_name_excluded() {
+        assert_eq!(extract_app_name("Zenith-dw"), None);
+        assert_eq!(extract_app_name("zenith-dw"), None);
     }
 
     #[test]
