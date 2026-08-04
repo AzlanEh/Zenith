@@ -25,6 +25,22 @@ const SESSION_FLUSH_INTERVAL: u32 = 5;
 /// Maximum number of failed writes to buffer before dropping oldest
 const MAX_RETRY_BUFFER_SIZE: usize = 100;
 
+/// Windows display-name -> process exe name (sans .exe). Fallback is the display name.
+#[cfg(target_os = "windows")]
+const WINDOWS_EXE_ALIASES: &[(&str, &str)] = &[
+    ("visual studio code", "Code"),
+    ("google chrome", "chrome"),
+    ("mozilla firefox", "firefox"),
+    ("microsoft edge", "msedge"),
+    ("windows terminal", "WindowsTerminal"),
+    ("notepad++", "notepad++"),
+    ("sublime text", "sublime_text"),
+    ("slack", "slack"),
+    ("spotify", "Spotify"),
+    ("discord", "Discord"),
+    ("steam", "steam"),
+];
+
 /// Notification types to track what we've already sent
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum NotificationType {
@@ -661,9 +677,15 @@ impl UsageTracker {
 
         #[cfg(target_os = "windows")]
         {
-            // On Windows, use taskkill
+            // Display names rarely equal the process exe name (e.g. "Visual Studio
+            // Code" -> Code.exe), so map known ones before taskkill.
+            let exe = WINDOWS_EXE_ALIASES
+                .get(app_lower.as_str())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| app_name.clone());
+            // /F force kill, /T kill child process tree.
             let _ = Command::new("taskkill")
-                .args(["/IM", &format!("{}.exe", app_name), "/F"])
+                .args(["/T", "/F", "/IM", &format!("{}.exe", exe)])
                 .output();
         }
     }
@@ -885,4 +907,29 @@ fn get_idle_seconds_wayland() -> u64 {
     // If all methods fail, assume active (conservative - better to over-track than miss data)
     tracing::trace!("Wayland idle detection failed, assuming active");
     0
+}
+
+#[cfg(all(test, target_os = "windows"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn windows_exe_alias_resolves_display_names() {
+        assert_eq!(
+            WINDOWS_EXE_ALIASES
+                .iter()
+                .find(|(d, _)| d == &"visual studio code")
+                .unwrap()
+                .1,
+            "Code"
+        );
+        assert_eq!(
+            WINDOWS_EXE_ALIASES
+                .iter()
+                .find(|(d, _)| d == &"google chrome")
+                .unwrap()
+                .1,
+            "chrome"
+        );
+    }
 }
