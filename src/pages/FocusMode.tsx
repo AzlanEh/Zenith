@@ -25,6 +25,7 @@ import {
   useFocusSettings,
   useStartFocusSession,
   useStopFocusSession,
+  useExtendFocusSession,
   useUpdateFocusSettings,
   useAddFocusBlockedApp,
   useRemoveFocusBlockedApp,
