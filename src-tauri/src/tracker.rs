@@ -661,9 +661,16 @@ impl UsageTracker {
 
         #[cfg(target_os = "windows")]
         {
-            // On Windows, use taskkill
-            let _ = Command::new("taskkill")
-                .args(["/IM", &format!("{}.exe", app_name), "/F"])
+            // On Windows, display names (e.g. "Visual Studio Code") don't match
+            // process names (e.g. "Code.exe"), so taskkill /IM is useless here.
+            // Match processes by window title instead — blocking triggers on the
+            // foreground app, whose title contains the display name.
+            let script = format!(
+                r#"Get-Process | Where-Object {{ $_.MainWindowTitle -like '*{name}*' }} | Stop-Process -Force"#,
+                name = app_name.replace('\'', "''")
+            );
+            let _ = Command::new("powershell")
+                .args(["-NoProfile", "-NonInteractive", "-Command", &script])
                 .output();
         }
     }
