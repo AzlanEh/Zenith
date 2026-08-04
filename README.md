@@ -45,13 +45,16 @@ A high-fidelity digital wellbeing platform for reclaiming cognitive sovereignty.
 <summary>Click to view screenshots</summary>
 
 ### Dashboard
-![Dashboard](screenshots/screenshot-2026-01-19_22-54-10.png)
+![Dashboard](public/screenshots/Dashboard.png)
+
+### Analytics
+![Analytics](public/screenshots/Analytics.png)
+
+### Focus Mode
+![Focus Mode](public/screenshots/Focus-mode.png)
 
 ### Settings
-![App Limits](screenshots/screenshot-2026-01-19_22-54-37.png)
-
-### History
-![Focus Mode](screenshots/screenshot-2026-01-19_22-55-24.png)
+![Settings](public/screenshots/Settings.png)
 
 </details>
 
