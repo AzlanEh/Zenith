@@ -6,6 +6,11 @@ use std::sync::{LazyLock, Mutex};
 #[cfg(target_os = "linux")]
 use std::collections::VecDeque;
 
+#[cfg(target_os = "windows")]
+use windows_sys::Win32::Graphics::Gdi::HBITMAP;
+#[cfg(target_os = "windows")]
+use windows_sys::Win32::UI::WindowsAndMessaging::HICON;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InstalledApp {
     pub name: String,
@@ -347,11 +352,241 @@ fn resolve_icon_path_windows(icon: &str) -> Option<String> {
     let clean = clean.trim_matches('"');
 
     let path = PathBuf::from(clean);
-    if path.exists() {
-        Some(path.to_string_lossy().to_string())
+    if !path.exists() {
+        return None;
+    }
+
+    // An .exe can't be displayed by <img>. Extract its icon to a cached .ico
+    // so the asset protocol can serve it. Cache keyed by the exe path.
+    if path
+        .extension()
+        .map_or(false, |e| e.eq_ignore_ascii_case("exe"))
+    {
+        return extract_exe_icon(&path);
+    }
+
+    Some(path.to_string_lossy().to_string())
+}
+
+/// Extract the associated icon from an .exe into a cached .ico file using the
+/// native Windows API (ExtractIconEx -> GetIconInfo -> GetDIBits). Returns the
+/// .ico path, cached under %LOCALAPPDATA%\zenith\icons so extraction happens
+/// once per exe.
+#[cfg(target_os = "windows")]
+fn extract_exe_icon(exe_path: &Path) -> Option<String> {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    use windows_sys::Win32::UI::Shell::ExtractIconExW;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{DestroyIcon, HICON};
+
+    let cache_dir = dirs::data_local_dir()
+        .map(|d| d.join("zenith").join("icons"))
+        .or_else(|| {
+            std::env::var("LOCALAPPDATA")
+                .ok()
+                .map(|d| PathBuf::from(d).join("zenith").join("icons"))
+        })?;
+    fs::create_dir_all(&cache_dir).ok()?;
+
+    let mut hasher = DefaultHasher::new();
+    exe_path.to_string_lossy().hash(&mut hasher);
+    let ico_path = cache_dir.join(format!("{}.ico", hasher.finish()));
+
+    if ico_path.exists() {
+        return Some(ico_path.to_string_lossy().to_string());
+    }
+
+    // Extract the large icon (index 0). Falls back to the small icon when only
+    // a small one exists (rare).
+    let wide: Vec<u16> = exe_path
+        .to_string_lossy()
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
+    let mut large: HICON = std::ptr::null_mut();
+    let mut small: HICON = std::ptr::null_mut();
+    let extracted = unsafe { ExtractIconExW(wide.as_ptr(), 0, &mut large, &mut small, 1) };
+    if extracted == 0 {
+        return None;
+    }
+    let chosen = if !large.is_null() { large } else { small };
+    let spare = if !large.is_null() && !small.is_null() {
+        small
+    } else {
+        std::ptr::null_mut()
+    };
+    if chosen.is_null() {
+        return None;
+    }
+
+    let written = unsafe { icon_to_ico(chosen, &ico_path) };
+
+    if !spare.is_null() {
+        unsafe { DestroyIcon(spare) };
+    }
+    unsafe { DestroyIcon(chosen) };
+
+    if written {
+        Some(ico_path.to_string_lossy().to_string())
     } else {
         None
     }
+}
+
+/// Render an HICON to a standard 32bpp .ico file (XOR + AND mask).
+#[cfg(target_os = "windows")]
+unsafe fn icon_to_ico(hicon: HICON, ico_path: &Path) -> bool {
+    use windows_sys::Win32::Graphics::Gdi::DeleteObject;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{GetIconInfo, ICONINFO};
+
+    let mut info: ICONINFO = std::mem::zeroed();
+    if GetIconInfo(hicon, &mut info) == 0 {
+        return false;
+    }
+    let color_hbm = info.hbmColor;
+    let mask_hbm = info.hbmMask;
+
+    let mut ok = false;
+    if !color_hbm.is_null() {
+        if let Some((w, h, color_bgra)) = bitmap_to_bgra(color_hbm) {
+            // Legacy icons carry transparency in the AND mask instead of an
+            // alpha channel. Detect real alpha; if absent, build the mask.
+            let has_alpha = color_bgra
+                .chunks_exact(4)
+                .any(|px| px[3] > 0 && px[3] < 255);
+            let and_mask = if has_alpha || mask_hbm.is_null() {
+                vec![0u8; (row_bytes(w) * h) as usize]
+            } else if let Some((_, _, mask_bgra)) = bitmap_to_bgra(mask_hbm) {
+                compute_and_mask(w, h, &mask_bgra)
+            } else {
+                vec![0u8; (row_bytes(w) * h) as usize]
+            };
+            ok = std::fs::write(ico_path, build_ico(w, h, &color_bgra, &and_mask)).is_ok();
+        }
+    }
+
+    if !color_hbm.is_null() {
+        DeleteObject(color_hbm as _);
+    }
+    if !mask_hbm.is_null() {
+        DeleteObject(mask_hbm as _);
+    }
+    ok
+}
+
+/// Monochrome AND-mask rows are padded to 32-bit boundaries.
+#[cfg(target_os = "windows")]
+fn row_bytes(width: u32) -> u32 {
+    ((width + 31) / 32) * 4
+}
+
+/// Build the AND mask (1 bit per pixel, MSB-first, 1 = transparent) from a
+/// 32bpp monochrome conversion of the icon's mask bitmap (white = transparent).
+#[cfg(target_os = "windows")]
+fn compute_and_mask(width: u32, height: u32, mask_bgra: &[u8]) -> Vec<u8> {
+    let rb = row_bytes(width) as usize;
+    let mut and = vec![0u8; rb * height as usize];
+    for y in 0..height as usize {
+        for x in 0..width as usize {
+            if mask_bgra[(y * width as usize + x) * 4] > 0 {
+                and[y * rb + x / 8] |= 0x80 >> (x % 8);
+            }
+        }
+    }
+    and
+}
+
+/// Serialize a 32bpp icon: ICONDIR + ICONDIRENTRY + BITMAPINFOHEADER (2x
+/// height) + XOR bitmap + AND mask.
+#[cfg(target_os = "windows")]
+fn build_ico(width: u32, height: u32, xor_bgra: &[u8], and_mask: &[u8]) -> Vec<u8> {
+    use windows_sys::Win32::Graphics::Gdi::BI_RGB;
+
+    let xor_size = width * height * 4;
+    let bytes_in_res = 40 + xor_size + and_mask.len() as u32;
+    let mut out = Vec::with_capacity(22 + bytes_in_res as usize);
+
+    // ICONDIR
+    out.extend_from_slice(&0u16.to_le_bytes());
+    out.extend_from_slice(&1u16.to_le_bytes());
+    out.extend_from_slice(&1u16.to_le_bytes());
+    // ICONDIRENTRY
+    out.push(if width >= 256 { 0 } else { width as u8 });
+    out.push(if height >= 256 { 0 } else { height as u8 });
+    out.push(0); // color count
+    out.push(0); // reserved
+    out.extend_from_slice(&1u16.to_le_bytes()); // planes
+    out.extend_from_slice(&32u16.to_le_bytes()); // bit count
+    out.extend_from_slice(&bytes_in_res.to_le_bytes());
+    out.extend_from_slice(&22u32.to_le_bytes()); // image offset = 6 + 16
+                                                 // BITMAPINFOHEADER (height doubled: XOR + AND)
+    out.extend_from_slice(&40u32.to_le_bytes());
+    out.extend_from_slice(&(width as i32).to_le_bytes());
+    out.extend_from_slice(&((height as i32) * 2).to_le_bytes());
+    out.extend_from_slice(&1u16.to_le_bytes());
+    out.extend_from_slice(&32u16.to_le_bytes());
+    out.extend_from_slice(&BI_RGB.to_le_bytes());
+    out.extend_from_slice(&xor_size.to_le_bytes());
+    out.extend_from_slice(&[0u8; 16]);
+    // XOR bitmap (BGRA, bottom-up DIB)
+    out.extend_from_slice(xor_bgra);
+    // AND mask
+    out.extend_from_slice(and_mask);
+    out
+}
+
+/// Read an HBITMAP as top-down 32bpp BGRA. Returns (width, height, pixels).
+#[cfg(target_os = "windows")]
+unsafe fn bitmap_to_bgra(hbm: HBITMAP) -> Option<(u32, u32, Vec<u8>)> {
+    use windows_sys::Win32::Graphics::Gdi::{
+        CreateCompatibleDC, DeleteDC, GetDIBits, GetObjectW, BITMAP, BITMAPINFO, BITMAPINFOHEADER,
+        BI_RGB, DIB_RGB_COLORS, HDC,
+    };
+
+    let mut bmp: BITMAP = std::mem::zeroed();
+    if GetObjectW(
+        hbm as _,
+        std::mem::size_of::<BITMAP>() as i32,
+        &mut bmp as *mut _ as *mut std::ffi::c_void,
+    ) == 0
+    {
+        return None;
+    }
+    let w = bmp.bmWidth as u32;
+    let h = bmp.bmHeight as u32;
+    if w == 0 || h == 0 {
+        return None;
+    }
+
+    let hdc: HDC = CreateCompatibleDC(std::ptr::null_mut());
+    if hdc.is_null() {
+        return None;
+    }
+
+    // Negative height requests top-down row order.
+    let mut bmi: BITMAPINFO = std::mem::zeroed();
+    bmi.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
+    bmi.bmiHeader.biWidth = w as i32;
+    bmi.bmiHeader.biHeight = -(h as i32);
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+
+    let mut buf = vec![0u8; (w * h * 4) as usize];
+    let lines = GetDIBits(
+        hdc,
+        hbm,
+        0,
+        h,
+        buf.as_mut_ptr() as *mut std::ffi::c_void,
+        &mut bmi,
+        DIB_RGB_COLORS,
+    );
+    DeleteDC(hdc);
+    if lines == 0 {
+        return None;
+    }
+    Some((w, h, buf))
 }
 
 /// Cached installed apps — scanned once, served forever.
@@ -479,6 +714,9 @@ fn get_installed_apps_windows() -> Vec<InstalledApp> {
     // Scan registry for installed programs
     scan_registry_apps(&mut apps);
 
+    // Scan UWP/Store apps (AppX packages)
+    scan_uwp_apps(&mut apps);
+
     // Sort by name
     apps.sort_by_key(|a| a.name.to_lowercase());
 
@@ -521,10 +759,13 @@ fn scan_start_menu_dir(dir: &PathBuf, apps: &mut Vec<InstalledApp>) {
                     }
 
                     if !apps.iter().any(|a| a.name == name) {
+                        // Resolve the .lnk to its real target exe so `exec` is
+                        // usable (icon lookup + future launch) instead of a .lnk path.
+                        let target = resolve_lnk_target(&path);
                         apps.push(InstalledApp {
                             name,
-                            exec: Some(path.to_string_lossy().to_string()),
-                            icon: None,
+                            exec: target.clone(),
+                            icon: target,
                             desktop_file: path
                                 .file_name()
                                 .unwrap_or_default()
@@ -536,6 +777,29 @@ fn scan_start_menu_dir(dir: &PathBuf, apps: &mut Vec<InstalledApp>) {
                 }
             }
         }
+    }
+}
+
+/// Resolve a Windows .lnk shortcut to its target executable path.
+/// Uses PowerShell's WScript.Shell COM object (available on all Windows).
+#[cfg(target_os = "windows")]
+fn resolve_lnk_target(lnk_path: &Path) -> Option<String> {
+    let script = format!(
+        r#"$sh = New-Object -ComObject WScript.Shell; $lnk = $sh.CreateShortcut('{}'); $lnk.TargetPath"#,
+        lnk_path.to_string_lossy().replace('\'', "''")
+    );
+    let output = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let target = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if target.is_empty() || !target.to_lowercase().ends_with(".exe") {
+        None
+    } else {
+        Some(target)
     }
 }
 
@@ -597,6 +861,79 @@ fn scan_registry_apps(apps: &mut Vec<InstalledApp>) {
                 categories: Vec::new(),
             });
         }
+    }
+}
+
+/// Scan Windows Store (UWP/AppX) apps.
+///
+/// UWP apps have no .exe, .lnk or registry entry — they're AppX packages
+/// launched via `explorer.exe shell:AppsFolder\{AppUserModelId}`. This queries
+/// PowerShell once for all installed packages, resolves the friendly name via
+/// Get-StartApps (which contains AppUserModelId), and picks the largest png
+/// from the package's Assets folder as the icon.
+#[cfg(target_os = "windows")]
+fn scan_uwp_apps(apps: &mut Vec<InstalledApp>) {
+    let script = r#"
+$pkgs = Get-AppxPackage
+$startApps = Get-StartApps
+$rows = @()
+foreach ($pkg in $pkgs) {
+  if ($pkg.IsFramework -or $pkg.IsBundle) { continue }
+  $pkgFamily = $pkg.PackageFamilyName
+  $sa = $startApps | Where-Object { $_.AppID -like "$pkgFamily!*" } | Select-Object -First 1
+  if (-not $sa) { continue }
+  $icon = $null
+  $assets = Join-Path $pkg.InstallLocation "Assets"
+  if (Test-Path $assets) {
+    $icon = Get-ChildItem $assets -Filter *.png -ErrorAction SilentlyContinue |
+      Sort-Object Length -Descending | Select-Object -First 1 | Select-Object -ExpandProperty FullName
+  }
+  $rows += [PSCustomObject]@{
+    Name = $sa.Name
+    Exec = "explorer.exe shell:AppsFolder\" + $sa.AppID
+    Icon = $icon
+    Pkg  = $pkgFamily
+  }
+}
+$rows | ConvertTo-Json -Compress
+"#;
+    let output = match std::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .output()
+    {
+        Ok(o) if o.status.success() => o,
+        _ => return,
+    };
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = match serde_json::from_str(stdout.trim()) {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+
+    // ConvertTo-Json returns an array for >1 row, or a bare object for exactly 1.
+    let rows = match json {
+        serde_json::Value::Array(arr) => arr,
+        serde_json::Value::Object(_) => vec![json],
+        _ => return,
+    };
+
+    for row in rows {
+        let name = row.get("Name").and_then(|v| v.as_str()).unwrap_or("");
+        if name.is_empty() || apps.iter().any(|a| a.name == name) {
+            continue;
+        }
+        apps.push(InstalledApp {
+            name: name.to_string(),
+            exec: row.get("Exec").and_then(|v| v.as_str()).map(String::from),
+            icon: row.get("Icon").and_then(|v| v.as_str()).map(String::from),
+            desktop_file: row
+                .get("Pkg")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            categories: Vec::new(),
+        });
     }
 }
 
