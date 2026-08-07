@@ -161,6 +161,26 @@ jobs:
         working-directory: src-tauri
         run: cargo test --all-features
 
+  # Rust build & test on Windows (verifies cfg(target_os = "windows") paths)
+  rust-windows:
+    name: Rust Tests (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Run tests
+        working-directory: src-tauri
+        run: cargo test --all-features
+
   # Rust dependency security audit
   rust-audit:
     name: Rust Security Audit

@@ -202,16 +202,6 @@ jobs:
           echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
           chown -R builder:builder .
 
-      - name: Create source tarball for PKGBUILD
-        run: |
-          VERSION=${{ needs.create-release.outputs.version }}
-          rm -rf /tmp/srcroot
-          mkdir -p /tmp/srcroot/zenith-$VERSION
-          cp -a . /tmp/srcroot/zenith-$VERSION/
-          rm -rf /tmp/srcroot/zenith-$VERSION/.git /tmp/srcroot/zenith-$VERSION/pkg/linux/arch/*.tar.gz /tmp/srcroot/zenith-$VERSION/pkg/linux/arch/*.pkg.tar.zst
-          tar -czf pkg/linux/arch/zenith-dw-$VERSION.tar.gz -C /tmp/srcroot zenith-$VERSION
-          chown builder:builder pkg/linux/arch/zenith-dw-$VERSION.tar.gz
-
       - name: Setup Rust as builder user
         run: |
           su builder -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable"
