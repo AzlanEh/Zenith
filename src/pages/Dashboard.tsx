@@ -244,7 +244,10 @@ function WeeklyTelemetry({
     for (let i = startOffset; i >= endOffset; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const key = `${year}-${month}-${day}`;
       const dayLabel = d.toLocaleDateString("en", { weekday: "short" });
       const hours = dayMap.get(key) ?? 0;
       result.push({ day: dayLabel, fullDate: key, hours, filled: hours > 0 });
@@ -254,8 +257,12 @@ function WeeklyTelemetry({
 
   const dateRangeLabel = useMemo(() => {
     if (bars.length === 0) return "";
-    const startDate = new Date(bars[0].fullDate);
-    const endDate = new Date(bars[bars.length - 1].fullDate);
+    const parseDate = (dateStr: string) => {
+      const [y, m, d] = dateStr.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    };
+    const startDate = parseDate(bars[0].fullDate);
+    const endDate = parseDate(bars[bars.length - 1].fullDate);
     const fmt = (d: Date) => d.toLocaleDateString("en", { month: "short", day: "2-digit" });
     return `${fmt(startDate)} - ${fmt(endDate)}`;
   }, [bars]);

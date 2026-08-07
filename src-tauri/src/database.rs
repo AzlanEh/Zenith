@@ -386,7 +386,7 @@ impl Database {
     }
 
     pub fn get_weekly_stats(&self) -> SqliteResult<Vec<(i64, i64)>> {
-        let week_ago = Utc::now().timestamp() - (30 * 24 * 60 * 60);
+        let cutoff = Utc::now().timestamp() - (30 * 24 * 60 * 60);
 
         let mut stmt = self.conn.prepare(
             "SELECT DATE(start_time, 'unixepoch', 'localtime') as day,
@@ -399,7 +399,7 @@ impl Database {
              ORDER BY day ASC",
         )?;
 
-        let rows = stmt.query_map([week_ago], |row| {
+        let rows = stmt.query_map([cutoff], |row| {
             let day_str: String = row.get(0)?;
             // Parse the date string, falling back to current time if parsing fails
             let day = chrono::NaiveDate::parse_from_str(&day_str, "%Y-%m-%d")
