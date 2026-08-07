@@ -6,7 +6,7 @@
 use rusqlite::{Connection, Result as SqliteResult};
 
 /// Current schema version - increment this when adding new migrations
-pub const SCHEMA_VERSION: i64 = 2;
+pub const SCHEMA_VERSION: i64 = 3;
 
 /// Represents a single migration
 struct Migration {
@@ -38,12 +38,21 @@ fn get_migrations() -> Vec<Migration> {
                 CREATE INDEX IF NOT EXISTS idx_sessions_date ON usage_sessions(start_time);
             ",
         },
-        // Future migrations go here:
-        // Migration {
-        //     version: 3,
-        //     description: "Add weekly goals table",
-        //     sql: "CREATE TABLE IF NOT EXISTS weekly_goals (...)",
-        // },
+        Migration {
+            version: 3,
+            description: "Deduplicate overlapping usage sessions from multi-instance runs",
+            sql: "
+                DELETE FROM usage_sessions 
+                WHERE id IN (
+                  SELECT s2.id 
+                  FROM usage_sessions s1 
+                  JOIN usage_sessions s2 ON s1.app_id = s2.app_id 
+                    AND s1.id < s2.id 
+                    AND ABS(s1.start_time - s2.start_time) <= 5
+                    AND ABS(s1.end_time - s2.end_time) <= 5
+                );
+            ",
+        },
     ]
 }
 

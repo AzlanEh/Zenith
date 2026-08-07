@@ -22,6 +22,7 @@ use commands::{DailyStats, DayStats, WeeklyStats};
 use database::{AppLimit, AppUsage, CategoryUsage, Database, ExportRecord, HourlyUsage};
 use error::WellbeingError;
 use focus_mode::{FocusManager, FocusSession, FocusSettings};
+use fs2::FileExt;
 use goals::{Achievement, Goal, GoalProgress, GoalType, GoalsState};
 use limit_popup::EmergencyAccessManager;
 use notification_settings::{NotificationManager, NotificationSettings};
@@ -960,6 +961,22 @@ pub fn run_background() {
             tracing::error!(error = %e, path = %parent.display(), "Failed to create data directory");
             return;
         }
+
+        // Single-instance file lock check for background processes
+        let lock_path = parent.join("zenith.lock");
+        if let Ok(lock_file) = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&lock_path)
+        {
+            if lock_file.try_lock_exclusive().is_err() {
+                tracing::warn!("Another Zenith process is already running. Exiting duplicate background process.");
+                return;
+            }
+            // Keep lock_file alive for the lifetime of run_background
+            std::mem::forget(lock_file);
+        }
     }
 
     let db = match Database::new(db_path) {
@@ -1116,6 +1133,12 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .manage(AppState {
             db,
             break_reminder,
