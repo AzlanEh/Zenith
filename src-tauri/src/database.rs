@@ -386,7 +386,7 @@ impl Database {
     }
 
     pub fn get_weekly_stats(&self) -> SqliteResult<Vec<(i64, i64)>> {
-        let week_ago = Utc::now().timestamp() - (7 * 24 * 60 * 60);
+        let week_ago = Utc::now().timestamp() - (30 * 24 * 60 * 60);
 
         let mut stmt = self.conn.prepare(
             "SELECT DATE(start_time, 'unixepoch', 'localtime') as day,
@@ -982,5 +982,26 @@ mod tests {
         let db = Database::new_in_memory().expect("in-memory db");
         let err = db.update_session_duration(999_999, Utc::now().timestamp());
         assert!(matches!(err, Err(rusqlite::Error::QueryReturnedNoRows)));
+    }
+
+    #[test]
+    fn test_get_weekly_stats_includes_30_days() {
+        let db = Database::new_in_memory().expect("in-memory db");
+        let app_id = db.get_or_create_app("TestApp", None).unwrap();
+        let now = Utc::now().timestamp();
+
+        // 20 days ago (within 30 days)
+        let time_20_days_ago = now - (20 * 24 * 60 * 60);
+        let s1 = db.start_session(app_id, time_20_days_ago).unwrap();
+        db.end_session(s1, time_20_days_ago + 300).unwrap();
+
+        // 35 days ago (outside 30 days)
+        let time_35_days_ago = now - (35 * 24 * 60 * 60);
+        let s2 = db.start_session(app_id, time_35_days_ago).unwrap();
+        db.end_session(s2, time_35_days_ago + 300).unwrap();
+
+        let stats = db.get_weekly_stats().unwrap();
+        assert_eq!(stats.len(), 1);
+        assert_eq!(stats[0].1, 300);
     }
 }
