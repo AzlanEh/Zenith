@@ -680,8 +680,9 @@ impl UsageTracker {
             // Display names rarely equal the process exe name (e.g. "Visual Studio
             // Code" -> Code.exe), so map known ones before taskkill.
             let exe = WINDOWS_EXE_ALIASES
-                .get(app_lower.as_str())
-                .map(|s| s.to_string())
+                .iter()
+                .find(|(d, _)| d == &app_lower.as_str())
+                .map(|(_, e)| e.to_string())
                 .unwrap_or_else(|| app_name.clone());
             // /F force kill, /T kill child process tree.
             let _ = Command::new("taskkill")

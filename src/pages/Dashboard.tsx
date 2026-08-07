@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import {
   BarChart3,
+  ChevronLeft,
+  ChevronRight,
   CircleDot,
   Cpu,
   List,
@@ -225,31 +227,93 @@ function WeeklyTelemetry({
   days: { date: string; total_seconds: number }[];
 }) {
   const [hoveredBar, setHoveredBar] = useState<number | null>(null);
+  const [weekOffset, setWeekOffset] = useState<number>(0); // 0 = current week, 1..3 = past weeks
 
   const bars = useMemo(() => {
     const dayMap = new Map<string, number>();
     for (const d of days) dayMap.set(d.date, d.total_seconds / 3600);
 
-    const result: { day: string; hours: number; filled: boolean }[] = [];
-    for (let i = 6; i >= 0; i--) {
+    const result: { day: string; fullDate: string; hours: number; filled: boolean }[] = [];
+    // weekOffset 0: days (today-6) to today
+    // weekOffset 1: days (today-13) to (today-7)
+    // weekOffset 2: days (today-20) to (today-14)
+    // weekOffset 3: days (today-27) to (today-21)
+    const endOffset = weekOffset * 7;
+    const startOffset = endOffset + 6;
+
+    for (let i = startOffset; i >= endOffset; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const key = `${year}-${month}-${day}`;
       const dayLabel = d.toLocaleDateString("en", { weekday: "short" });
       const hours = dayMap.get(key) ?? 0;
-      result.push({ day: dayLabel, hours, filled: hours > 0 });
+      result.push({ day: dayLabel, fullDate: key, hours, filled: hours > 0 });
     }
     return result;
-  }, [days]);
+  }, [days, weekOffset]);
+
+  const dateRangeLabel = useMemo(() => {
+    if (bars.length === 0) return "";
+    const parseDate = (dateStr: string) => {
+      const [y, m, d] = dateStr.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    };
+    const startDate = parseDate(bars[0].fullDate);
+    const endDate = parseDate(bars[bars.length - 1].fullDate);
+    const fmt = (d: Date) => d.toLocaleDateString("en", { month: "short", day: "2-digit" });
+    return `${fmt(startDate)} - ${fmt(endDate)}`;
+  }, [bars]);
+
+  const weekTitle = useMemo(() => {
+    if (weekOffset === 0) return "Current Week";
+    if (weekOffset === 1) return "1 Week Ago";
+    return `${weekOffset} Weeks Ago`;
+  }, [weekOffset]);
 
   const maxHours = Math.max(...bars.map((b) => b.hours), 1);
 
   return (
     <section className="p-6 md:p-8 bg-card border-b border-border">
-      <SectionHeader title="Weekly Activity" icon="bar_chart" />
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+        <div className="flex items-center gap-2">
+          <h2 className="font-mono text-xs tracking-[0.1em] uppercase text-foreground border-b border-border pb-1 font-bold">
+            Weekly Activity
+          </h2>
+          <BarChart3 className="text-muted-foreground w-4 h-4" />
+        </div>
+        <div className="flex items-center gap-2 font-mono text-[0.625rem] uppercase tracking-[0.1em]">
+          <span className="text-muted-foreground border border-border px-2 py-1 bg-background">
+            {weekTitle} ({dateRangeLabel})
+          </span>
+          <div className="flex items-center border border-border bg-background">
+            <button
+              type="button"
+              onClick={() => setWeekOffset((w) => Math.min(3, w + 1))}
+              disabled={weekOffset >= 3}
+              className="p-1 hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+              title="Previous Week"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <div className="w-px h-4 bg-border" />
+            <button
+              type="button"
+              onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
+              disabled={weekOffset <= 0}
+              className="p-1 hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+              title="Next Week"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
       {days.length === 0 ? (
         <p className="font-sans text-sm text-muted-foreground text-center py-16">
-          No data this week
+          No data available
         </p>
       ) : (
         <>
@@ -269,7 +333,7 @@ function WeeklyTelemetry({
               const isHovered = hoveredBar === i;
               return (
                 <div
-                  key={bar.day}
+                  key={bar.fullDate}
                   className="flex-1 relative cursor-pointer transition-all duration-200"
                   style={{
                     height: `${heightPct}%`,
@@ -288,7 +352,7 @@ function WeeklyTelemetry({
                 >
                   {isHovered && (
                     <span className="absolute left-1/2 -translate-x-1/2 font-mono text-[0.625rem] bg-popover text-popover-foreground border border-border px-1.5 py-0.5 whitespace-nowrap top-[-1.75rem] z-20">
-                      {bar.hours.toFixed(1)}h
+                      {bar.hours.toFixed(1)}h ({bar.fullDate})
                     </span>
                   )}
                 </div>
@@ -297,7 +361,7 @@ function WeeklyTelemetry({
           </div>
           <div className="flex justify-between font-mono text-[0.625rem] text-muted-foreground uppercase tracking-[0.1em] mt-2">
             {bars.map((b) => (
-              <span key={b.day}>{b.day}</span>
+              <span key={b.fullDate}>{b.day}</span>
             ))}
           </div>
         </>

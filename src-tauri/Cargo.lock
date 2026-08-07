@@ -6228,6 +6228,7 @@ dependencies = [
  "tracing-subscriber",
  "urlencoding",
  "user-idle",
+ "windows-sys 0.61.2",
  "winreg",
 ]
 
