@@ -47,6 +47,25 @@ Tracks the path from v0.1.5 → v0.2.0 and beyond. Status: **v0.2.0 tagged and r
 - [x] Replace `once_cell` with `std::sync::LazyLock`
 - [x] Drop dead `_mindfulness_sessions` param on `init_onboarding_goals`
 
+## Planned for v0.3.0 Roadmap
+
+### Advanced Analytics & Insights
+- [ ] Hourly activity heatmap visualization on Dashboard & History pages
+- [ ] Cognitive load & context-switching frequency score calculations
+- [ ] Week-over-week category comparison charts & shift detection
+- [ ] Extended telemetry history retention controls (> 90 days optional archive)
+
+### Custom Notification Rules & Focus Modes
+- [ ] Per-category custom alert thresholds & Do Not Disturb override rules
+- [ ] Friction-based focus mode bypass (e.g. countdown delay or challenge question before emergency unblock)
+- [ ] Custom Pomodoro break schedule presets (25/5, 50/10, custom work/rest ratios)
+- [ ] Audio/visual ambient break indicators
+
+### Platform & OS Improvements
+- [ ] Native macOS window tracking & bundle target support
+- [ ] Advanced Wayland window focus detection improvements (Hyprland / Sway IPC enhancements)
+- [ ] System tray live status badge (remaining focus timer / active usage)
+
 ## Deferred
 
 - [ ] Multiple profiles (work/personal, auto-switch) — not now
