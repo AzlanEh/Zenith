@@ -218,7 +218,7 @@ function IntensityMatrix({
         </span>
       </header>
 
-      <div className="flex-1 flex flex-col justify-center overflow-x-auto">
+      <div className="flex-1 flex flex-col justify-center overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <div className="flex flex-col gap-1.5 w-full min-w-[320px]">
           {days.map(({ date: dateStr, label: dayLabel }, r) => (
             <div key={dateStr} className="flex gap-1 items-center w-full">
