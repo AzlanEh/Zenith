@@ -240,7 +240,7 @@ function IntensityMatrix({
                       data-row={r}
                       data-col={c}
                       title={`${dayLabel} ${startHour}:${startMin} - ${endHour}:${endMin} — ${formatDuration(seconds)}`}
-                      className="flex-1 min-w-[6px] h-5 sm:h-6 cursor-crosshair opacity-90 hover:opacity-100 transition-opacity duration-100 hover:outline hover:outline-1 hover:outline-primary outline-none"
+                      className="flex-1 min-w-[6px] h-5 sm:h-6 cursor-crosshair opacity-90 hover:opacity-100 transition-opacity duration-100 hover:outline hover:outline-1 hover:outline-primary outline-none rounded-sm"
                       style={{
                         backgroundColor: cellColor(seconds),
                       }}
@@ -267,7 +267,7 @@ function IntensityMatrix({
           {LEGEND_SWATCHES.map((swatch) => (
             <div key={swatch.label} className="flex items-center gap-1">
               <div
-                className="w-3 h-3 shrink-0 border border-border"
+                className="w-3 h-3 shrink-0 border border-border rounded-sm"
                 style={{ backgroundColor: swatch.color }}
               />
               <span className="font-mono text-[0.55rem] text-muted-foreground">
