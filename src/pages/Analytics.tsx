@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import {
   AlertTriangle,
   CalendarDays,
@@ -161,20 +161,28 @@ function StatCards({
   );
 }
 
-const COLS = 48;
-const LEGEND_COLORS = [
-  "var(--muted)",
-  "var(--secondary)",
-  "var(--border)",
-  "var(--primary)",
+const COLS = 24;
+const LEGEND_SWATCHES = [
+  { label: "0%", color: "rgba(255, 255, 255, 0.05)" },
+  { label: "25%", color: "#064e3b" },
+  { label: "50%", color: "#15803d" },
+  { label: "75%", color: "#22c55e" },
+  { label: "100%", color: "#4ade80" },
 ];
+
+function cellColor(seconds: number): string {
+  if (seconds <= 0) return "rgba(255, 255, 255, 0.05)";
+  if (seconds <= 900) return "#064e3b";
+  if (seconds <= 1800) return "#15803d";
+  if (seconds <= 2700) return "#22c55e";
+  return "#4ade80";
+}
 
 function IntensityMatrix({
   weeklyHourlyUsage,
-  maxWeeklyHourlySeconds,
 }: {
   weeklyHourlyUsage: { date: string; hour: number; total_seconds: number }[];
-  maxWeeklyHourlySeconds: number;
+  maxWeeklyHourlySeconds?: number;
 }) {
   const { days, hourlyLookup } = useMemo(() => {
     const lookup = new Map<string, number>();
@@ -188,21 +196,13 @@ function IntensityMatrix({
       const dateStr = d.toISOString().slice(0, 10);
       dayList.push({
         date: dateStr,
-        label: i === 6
+        label: i === 0
           ? "Today"
           : d.toLocaleDateString("en", { weekday: "short" }),
       });
     }
     return { days: dayList, hourlyLookup: lookup };
   }, [weeklyHourlyUsage]);
-
-  const cellColor = useCallback((v: number): string => {
-    const pct = maxWeeklyHourlySeconds > 0 ? v / maxWeeklyHourlySeconds : 0;
-    if (pct > 0.8) return "var(--primary)";
-    if (pct > 0.5) return "var(--ring)";
-    if (pct > 0.2) return "var(--border)";
-    return "var(--muted)";
-  }, [maxWeeklyHourlySeconds]);
 
   return (
     <Cell
@@ -229,13 +229,15 @@ function IntensityMatrix({
               <div className="flex gap-0.5 flex-1">
                 {Array.from({ length: COLS }, (_, c) => {
                   const seconds = hourlyLookup.get(`${dateStr}-${c}`) ?? 0;
+                  const startHour = String(c).padStart(2, "0");
+                  const endHour = String(c + 1).padStart(2, "0");
                   return (
                     <div
                       key={c}
                       data-cell
                       data-row={r}
                       data-col={c}
-                      title={`${dayLabel} ${Math.floor(c / 2)}:${c % 2 === 0 ? "00" : "30"} — ${formatDuration(seconds)}`}
+                      title={`${dayLabel} ${startHour}:00 - ${endHour}:00 — ${formatDuration(seconds)}`}
                       className="flex-1 min-w-[6px] aspect-square cursor-crosshair opacity-90 hover:opacity-100 transition-opacity duration-100 hover:outline hover:outline-1 hover:outline-primary outline-none"
                       style={{
                         backgroundColor: cellColor(seconds),
@@ -253,19 +255,23 @@ function IntensityMatrix({
           <span>06:00</span>
           <span>12:00</span>
           <span>18:00</span>
-          <span>24:00</span>
+          <span>23:00</span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 mt-4 pl-8">
+        <div className="flex flex-wrap items-center gap-3 mt-4 pl-8">
           <span className="font-mono text-[0.55rem] text-muted-foreground mr-1">
             Less
           </span>
-          {LEGEND_COLORS.map((col, idx) => (
-            <div
-              key={idx}
-              className="w-3 h-3 shrink-0 border border-border"
-              style={{ backgroundColor: col }}
-            />
+          {LEGEND_SWATCHES.map((swatch) => (
+            <div key={swatch.label} className="flex items-center gap-1">
+              <div
+                className="w-3 h-3 shrink-0 border border-border"
+                style={{ backgroundColor: swatch.color }}
+              />
+              <span className="font-mono text-[0.55rem] text-muted-foreground">
+                {swatch.label}
+              </span>
+            </div>
           ))}
           <span className="font-mono text-[0.55rem] text-muted-foreground ml-1">
             More
