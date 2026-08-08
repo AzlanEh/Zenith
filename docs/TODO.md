@@ -62,14 +62,8 @@ Tracks the path from v0.1.5 → v0.2.0 and beyond. Status: **v0.2.0 tagged and r
 - [ ] Audio/visual ambient break indicators
 
 ### Platform & OS Improvements
-- [ ] Native macOS window tracking & bundle target support
 - [ ] Advanced Wayland window focus detection improvements (Hyprland / Sway IPC enhancements)
 - [ ] System tray live status badge (remaining focus timer / active usage)
-
-## Deferred
-
-- [ ] Multiple profiles (work/personal, auto-switch) — not now
-- [ ] Android/iOS builds — not now
 
 ---
 
