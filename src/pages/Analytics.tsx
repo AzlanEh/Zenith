@@ -218,14 +218,14 @@ function IntensityMatrix({
         </span>
       </header>
 
-      <div className="flex-1 flex flex-col justify-center items-center overflow-x-auto">
-        <div className="flex flex-col gap-1 w-full max-w-[560px] min-w-[320px]">
+      <div className="flex-1 flex flex-col justify-center overflow-x-auto">
+        <div className="flex flex-col gap-1.5 w-full min-w-[320px]">
           {days.map(({ date: dateStr, label: dayLabel }, r) => (
-            <div key={dateStr} className="flex gap-1 items-center">
+            <div key={dateStr} className="flex gap-1 items-center w-full">
               <span className="font-mono text-[0.55rem] text-muted-foreground w-8 shrink-0 uppercase tracking-[0.05em]">
                 {dayLabel}
               </span>
-              <div className="flex gap-0.5 flex-1">
+              <div className="flex gap-0.5 flex-1 w-full">
                 {Array.from({ length: COLS }, (_, c) => {
                   const seconds = hourlyLookup.get(`${dateStr}-${c}`) ?? 0;
                   const startHour = String(c).padStart(2, "0");
@@ -237,7 +237,7 @@ function IntensityMatrix({
                       data-row={r}
                       data-col={c}
                       title={`${dayLabel} ${startHour}:00 - ${endHour}:00 — ${formatDuration(seconds)}`}
-                      className="flex-1 min-w-[6px] max-w-[20px] aspect-square cursor-crosshair opacity-90 hover:opacity-100 transition-opacity duration-100 hover:outline hover:outline-1 hover:outline-primary outline-none"
+                      className="flex-1 min-w-[6px] h-5 sm:h-6 cursor-crosshair opacity-90 hover:opacity-100 transition-opacity duration-100 hover:outline hover:outline-1 hover:outline-primary outline-none"
                       style={{
                         backgroundColor: cellColor(seconds),
                       }}
@@ -249,7 +249,7 @@ function IntensityMatrix({
           ))}
         </div>
 
-        <div className="flex justify-between mt-3 pl-8 w-full max-w-[560px] font-mono text-[0.6rem] text-muted-foreground">
+        <div className="flex justify-between mt-3 pl-9 w-full font-mono text-[0.6rem] text-muted-foreground">
           <span>00:00</span>
           <span>06:00</span>
           <span>12:00</span>
@@ -257,7 +257,7 @@ function IntensityMatrix({
           <span>23:00</span>
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-3 mt-4 pl-8 w-full max-w-[560px]">
+        <div className="flex flex-wrap items-center gap-3 mt-4 pl-9 w-full">
           <span className="font-mono text-[0.55rem] text-muted-foreground mr-1">
             Less
           </span>
