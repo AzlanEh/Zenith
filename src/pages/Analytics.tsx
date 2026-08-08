@@ -163,7 +163,7 @@ function StatCards({
 
 const COLS = 24;
 const LEGEND_SWATCHES = [
-  { label: "0%", color: "rgba(255, 255, 255, 0.05)" },
+  { label: "0%", color: "var(--muted)" },
   { label: "25%", color: "#064e3b" },
   { label: "50%", color: "#15803d" },
   { label: "75%", color: "#22c55e" },
@@ -171,7 +171,7 @@ const LEGEND_SWATCHES = [
 ];
 
 function cellColor(seconds: number): string {
-  if (seconds <= 0) return "rgba(255, 255, 255, 0.05)";
+  if (seconds <= 0) return "var(--muted)";
   if (seconds <= 900) return "#064e3b";
   if (seconds <= 1800) return "#15803d";
   if (seconds <= 2700) return "#22c55e";
@@ -182,7 +182,6 @@ function IntensityMatrix({
   weeklyHourlyUsage,
 }: {
   weeklyHourlyUsage: { date: string; hour: number; total_seconds: number }[];
-  maxWeeklyHourlySeconds?: number;
 }) {
   const { days, hourlyLookup } = useMemo(() => {
     const lookup = new Map<string, number>();
@@ -552,11 +551,6 @@ export function Analytics() {
     return dailyStats.apps.reduce((sum, app) => sum + app.session_count, 0);
   }, [dailyStats]);
 
-  const maxWeeklyHourlySeconds = useMemo(() => {
-    if (weeklyHourlyUsage.length === 0) return 1;
-    return Math.max(...weeklyHourlyUsage.map((h) => h.total_seconds));
-  }, [weeklyHourlyUsage]);
-
   const sortedApps = useMemo(() => {
     if (!dailyStats) return [];
     return [...dailyStats.apps].sort(
@@ -577,7 +571,6 @@ export function Analytics() {
         <div className="lg:col-span-8">
           <IntensityMatrix
             weeklyHourlyUsage={weeklyHourlyUsage}
-            maxWeeklyHourlySeconds={maxWeeklyHourlySeconds}
           />
         </div>
         <div className="lg:col-span-4">

@@ -89,8 +89,8 @@ describe("Analytics IntensityMatrix", () => {
       `[data-row="${todayRowIndex}"][data-col="4"]`
     );
 
-    // 0s -> rgba(255, 255, 255, 0.05)
-    expect(cell0?.style.backgroundColor).toBe("rgba(255, 255, 255, 0.05)");
+    // 0s -> var(--muted)
+    expect(cell0?.style.backgroundColor).toBe("var(--muted)");
     // 500s (1-900s) -> #064e3b -> rgb(6, 78, 59)
     expect(cell1?.style.backgroundColor).toMatch(/rgb\(6,\s*78,\s*59\)|#064e3b/i);
     // 1200s (901-1800s) -> #15803d -> rgb(21, 128, 61)
