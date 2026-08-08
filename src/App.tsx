@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BreakOverlay } from "./components/BreakOverlay";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { KeyboardShortcutsModal } from "./components/KeyboardShortcutsModal";
@@ -52,6 +52,14 @@ function App() {
   const setSidebarOpen = useUIStore((state) => state.setMobileSidebarOpen);
 
   useDarkMode();
+
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    document.addEventListener("contextmenu", handleContextMenu);
+    return () => document.removeEventListener("contextmenu", handleContextMenu);
+  }, []);
 
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const {
