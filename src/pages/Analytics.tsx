@@ -162,12 +162,12 @@ function StatCards({
 }
 
 const COLS = 48;
-const LEGEND_SWATCHES = [
-  { label: "0%", color: "var(--muted)" },
-  { label: "25%", color: "#064e3b" },
-  { label: "50%", color: "#15803d" },
-  { label: "75%", color: "#22c55e" },
-  { label: "100%", color: "#4ade80" },
+const LEGEND_COLORS = [
+  "var(--muted)",
+  "#064e3b",
+  "#15803d",
+  "#22c55e",
+  "#4ade80",
 ];
 
 function cellColor(seconds: number): string {
@@ -260,20 +260,16 @@ function IntensityMatrix({
           <span>24:00</span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 mt-4 pl-9 w-full">
+        <div className="flex items-center gap-1.5 mt-4 pl-9 w-full">
           <span className="font-mono text-[0.55rem] text-muted-foreground mr-1">
             Less
           </span>
-          {LEGEND_SWATCHES.map((swatch) => (
-            <div key={swatch.label} className="flex items-center gap-1">
-              <div
-                className="w-3 h-3 shrink-0 border border-border rounded-[3px]"
-                style={{ backgroundColor: swatch.color }}
-              />
-              <span className="font-mono text-[0.55rem] text-muted-foreground">
-                {swatch.label}
-              </span>
-            </div>
+          {LEGEND_COLORS.map((color, idx) => (
+            <div
+              key={idx}
+              className="w-3 h-3 shrink-0 border border-border rounded-[3px]"
+              style={{ backgroundColor: color }}
+            />
           ))}
           <span className="font-mono text-[0.55rem] text-muted-foreground ml-1">
             More

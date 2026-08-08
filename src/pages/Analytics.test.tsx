@@ -111,12 +111,9 @@ describe("Analytics IntensityMatrix", () => {
     expect(cell1?.getAttribute("title")).toBe("Today 00:30 - 01:00 — 5m");
   });
 
-  it("renders 5 legend swatches with 0%, 25%, 50%, 75%, 100% percentages", () => {
+  it("renders Less and More labels for legend swatches", () => {
     render(<Analytics />);
-    expect(screen.getByText("0%")).toBeInTheDocument();
-    expect(screen.getByText("25%")).toBeInTheDocument();
-    expect(screen.getByText("50%")).toBeInTheDocument();
-    expect(screen.getByText("75%")).toBeInTheDocument();
-    expect(screen.getByText("100%")).toBeInTheDocument();
+    expect(screen.getByText("Less")).toBeInTheDocument();
+    expect(screen.getByText("More")).toBeInTheDocument();
   });
 });
