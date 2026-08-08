@@ -28,12 +28,12 @@ vi.mock("../queries", () => ({
   }),
   useWeeklyHourlyUsage: () => ({
     data: [
-      // Today (row 6) - mock different hours to test color scale thresholds
+      // Today (row 6) - mock half-hour slots to test color scale thresholds
       { date: new Date().toISOString().slice(0, 10), hour: 0, total_seconds: 0 },
-      { date: new Date().toISOString().slice(0, 10), hour: 1, total_seconds: 500 }, // 1-900 -> #064e3b
-      { date: new Date().toISOString().slice(0, 10), hour: 2, total_seconds: 1200 }, // 901-1800 -> #15803d
-      { date: new Date().toISOString().slice(0, 10), hour: 3, total_seconds: 2400 }, // 1801-2700 -> #22c55e
-      { date: new Date().toISOString().slice(0, 10), hour: 4, total_seconds: 3600 }, // 2701+ -> #4ade80
+      { date: new Date().toISOString().slice(0, 10), hour: 1, total_seconds: 300 },  // 1-450s -> #064e3b
+      { date: new Date().toISOString().slice(0, 10), hour: 2, total_seconds: 600 },  // 451-900s -> #15803d
+      { date: new Date().toISOString().slice(0, 10), hour: 3, total_seconds: 1200 }, // 901-1350s -> #22c55e
+      { date: new Date().toISOString().slice(0, 10), hour: 4, total_seconds: 1800 }, // 1351s+ -> #4ade80
     ],
   }),
 }));
@@ -51,25 +51,25 @@ describe("Analytics IntensityMatrix", () => {
     vi.clearAllMocks();
   });
 
-  it("renders 24 hourly columns per row (total 168 cells for 7 days)", () => {
+  it("renders 48 half-hour columns per row (total 336 cells for 7 days)", () => {
     const { container } = render(<Analytics />);
     const row0Cells = container.querySelectorAll('[data-row="0"][data-cell]');
-    expect(row0Cells.length).toBe(24);
+    expect(row0Cells.length).toBe(48);
 
     const allCells = container.querySelectorAll('[data-cell]');
-    expect(allCells.length).toBe(24 * 7); // 168 cells
+    expect(allCells.length).toBe(48 * 7); // 336 cells
   });
 
-  it("renders time labels 00:00, 06:00, 12:00, 18:00, 23:00", () => {
+  it("renders time labels 00:00, 06:00, 12:00, 18:00, 24:00", () => {
     render(<Analytics />);
     expect(screen.getByText("00:00")).toBeInTheDocument();
     expect(screen.getByText("06:00")).toBeInTheDocument();
     expect(screen.getByText("12:00")).toBeInTheDocument();
     expect(screen.getByText("18:00")).toBeInTheDocument();
-    expect(screen.getByText("23:00")).toBeInTheDocument();
+    expect(screen.getByText("24:00")).toBeInTheDocument();
   });
 
-  it("applies the 5-tier emerald green color scale based on hourly seconds", () => {
+  it("applies the 5-tier emerald green color scale based on 30-minute intervals", () => {
     const { container } = render(<Analytics />);
     const todayRowIndex = 6;
 
@@ -91,24 +91,24 @@ describe("Analytics IntensityMatrix", () => {
 
     // 0s -> var(--muted)
     expect(cell0?.style.backgroundColor).toBe("var(--muted)");
-    // 500s (1-900s) -> #064e3b -> rgb(6, 78, 59)
+    // 300s (1-450s) -> #064e3b -> rgb(6, 78, 59)
     expect(cell1?.style.backgroundColor).toMatch(/rgb\(6,\s*78,\s*59\)|#064e3b/i);
-    // 1200s (901-1800s) -> #15803d -> rgb(21, 128, 61)
+    // 600s (451-900s) -> #15803d -> rgb(21, 128, 61)
     expect(cell2?.style.backgroundColor).toMatch(/rgb\(21,\s*128,\s*61\)|#15803d/i);
-    // 2400s (1801-2700s) -> #22c55e -> rgb(34, 197, 94)
+    // 1200s (901-1350s) -> #22c55e -> rgb(34, 197, 94)
     expect(cell3?.style.backgroundColor).toMatch(/rgb\(34,\s*197,\s*94\)|#22c55e/i);
-    // 3600s (2701s+) -> #4ade80 -> rgb(74, 222, 128)
+    // 1800s (1351s+) -> #4ade80 -> rgb(74, 222, 128)
     expect(cell4?.style.backgroundColor).toMatch(/rgb\(74,\s*222,\s*128\)|#4ade80/i);
   });
 
-  it("formats tooltip title string correctly as '${dayLabel} ${startHour}:00 - ${endHour}:00 — ${formatDuration(seconds)}'", () => {
+  it("formats tooltip title string correctly with 30-minute intervals", () => {
     const { container } = render(<Analytics />);
     const todayRowIndex = 6;
 
     const cell1 = container.querySelector<HTMLElement>(
       `[data-row="${todayRowIndex}"][data-col="1"]`
     );
-    expect(cell1?.getAttribute("title")).toBe("Today 01:00 - 02:00 — 8m");
+    expect(cell1?.getAttribute("title")).toBe("Today 00:30 - 01:00 — 5m");
   });
 
   it("renders 5 legend swatches with 0%, 25%, 50%, 75%, 100% percentages", () => {
