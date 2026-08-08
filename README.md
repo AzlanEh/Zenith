@@ -2,7 +2,7 @@
 
 A high-fidelity digital wellbeing platform for reclaiming cognitive sovereignty. Built with Tauri, React, and TypeScript.
 
-![Version](https://img.shields.io/badge/version-0.1.5-blue.svg)
+![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)
 ![CI](https://github.com/AzlanEh/zenith/actions/workflows/release.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey.svg)
@@ -21,23 +21,26 @@ A high-fidelity digital wellbeing platform for reclaiming cognitive sovereignty.
 ## Features
 
 ### Core Functionality
-- **Usage Tracking** - Automatic tracking of application usage time with session detection
-- **App Limits** - Set daily time limits for applications with optional hard blocking
-- **Focus Mode** - Proactively block distracting apps with scheduled focus sessions
+- **Usage Tracking** - Automatic tracking of application usage time with session detection and deduplication
+- **App Limits** - Set daily time limits for applications with optional hard blocking (process termination / window title matching)
+- **Focus Mode** - Proactively block distracting apps with scheduled focus sessions & emergency bypass options
 - **Break Reminders** - Pomodoro-style notifications to encourage healthy breaks
-- **Goal Setting** - Set screen time goals and track progress with achievements
+- **Goal Setting & Onboarding** - Guided onboarding wizard, daily screen time goals, and achievement tracking
+- **Single Instance Enforcement** - Prevents multiple concurrent application instances using native process locks
 
 ### Analytics & History
-- **Dashboard** - Real-time overview of today's usage with charts and statistics
-- **Historical Analysis** - View past weeks/months with trend charts and period comparisons
-- **Category Tracking** - Organize apps into categories (Work, Social, Entertainment, etc.)
-- **Data Export** - Export usage data as CSV or JSON with date range selection
+- **Dashboard** - Real-time overview of today's usage with charts and cognitive load statistics
+- **4-Week Telemetry Navigation** - Interactive multi-week navigation allowing historical weekly usage exploration up to 30 days
+- **Category Tracking** - Organize apps into categories (Work, Social, Entertainment, etc.) with custom category management
+- **Data Export & Import** - Export and import usage data as CSV or JSON with date range selection
 
-### User Experience
-- **Dark Mode** - Light, dark, and system theme options
-- **System Tray** - Minimize to tray with quick actions
+### Platform & OS Integration
+- **Cross-Platform** - Native tracking and window detection support on Linux (Hyprland, Sway, X11) and Windows (Win32)
+- **Windows Features** - UWP application scanning, shortcut (`.lnk`) resolution, native icon extraction, and window title blocking
+- **Dark Mode** - Brutalist monochrome design system powered by OKLCH colors and modern typography (Newsreader, Inter, Geist Mono)
+- **System Tray** - Background autostart support and system tray integration with quick actions
 - **Keyboard Shortcuts** - Full keyboard navigation support
-- **Notifications** - Customizable notification thresholds with Do Not Disturb
+- **Notifications** - Customizable notification thresholds with Do Not Disturb modes
 
 ## Screenshots
 
@@ -144,37 +147,40 @@ The built application will be in `src-tauri/target/release/bundle/`.
 
 ```
 zenith/
-├── src/                    # Frontend (React + TypeScript)
-│   ├── components/         # UI components
-│   │   ├── dashboard/      # Dashboard sub-components
-│   │   └── ui/            # Shadcn/UI components
-│   ├── hooks/             # Custom React hooks
-│   ├── services/          # API service layer
-│   ├── store/             # Zustand state management
+├── src/                    # Frontend (React 19 + TypeScript)
+│   ├── components/         # UI components (Shadcn/UI, Dashboard, Focus, Goals)
+│   ├── hooks/             # Custom React hooks (useDarkMode, usePeriodicRefresh)
+│   ├── queries/           # TanStack Query v5 hooks
+│   ├── services/          # API service layer (Tauri invoke wrappers)
+│   ├── store/             # Zustand state management (useUIStore)
 │   ├── types/             # TypeScript type definitions
-│   └── utils/             # Utility functions
+│   └── utils/             # Utility functions and logger
 │
-├── src-tauri/             # Backend (Rust)
+├── src-tauri/             # Backend (Rust + Tauri 2.0)
 │   └── src/
-│       ├── lib.rs         # Main entry, Tauri commands
-│       ├── database.rs    # SQLite database operations
-│       ├── window_tracker.rs # X11 window tracking
-│       ├── focus_mode.rs  # Focus session management
-│       ├── break_reminder.rs # Break reminder system
-│       ├── goals.rs       # Goals and achievements
-│       └── ...
+│       ├── lib.rs         # Main entry, single-instance lock, command routing
+│       ├── app_scanner.rs # Desktop & UWP app scanner, shortcut & icon resolver
+│       ├── autostart.rs   # Systemd, XDG autostart, and Windows registry autostart
+│       ├── database.rs    # SQLite storage, usage tracking, retention & migrations
+│       ├── window_tracker.rs # Hyprland/Sway/X11 & Win32 window detection
+│       ├── tracker.rs     # Active window telemetry logger & idle detection
+│       ├── focus_mode.rs  # Focus sessions, schedule engine & process blocking
+│       ├── break_reminder.rs # Break reminder timer logic
+│       ├── goals.rs       # Goals management & achievement calculation
+│       ├── migrations.rs  # Schema migrations (deduplication & indexes)
+│       └── tray.rs        # System tray icon and menu handler
 │
 ├── e2e/                   # Playwright E2E tests
-└── pkg/                   # Packaging (PKGBUILD, etc.)
+└── pkg/                   # Packaging (PKGBUILD, desktop entry)
 ```
 
 ### Technology Stack
 
-- **Frontend**: React 19, TypeScript, Tailwind CSS, Shadcn/UI, Recharts
-- **Backend**: Rust, Tauri 2.0
-- **Database**: SQLite (via rusqlite)
+- **Frontend**: React 19, TypeScript, Tailwind CSS v4, Shadcn/UI, Recharts, TanStack Query v5
+- **Backend**: Rust, Tauri 2.0 (`tauri-plugin-single-instance`, `active-win-pos-rs`, `user-idle`)
+- **Database**: SQLite (via `rusqlite` with auto 90-day retention & migrations)
 - **State Management**: Zustand
-- **Testing**: Vitest (unit), Playwright (E2E)
+- **Testing**: Vitest (unit & component tests), Playwright (E2E)
 
 ## Development
 

@@ -26,13 +26,18 @@
 src/                  React 19 frontend
   services/api.ts     invoke() wrappers for all Tauri commands
   queries/            TanStack Query v5 hooks (re-exported from index.ts)
-  store/              Zustand stores (useUIStore, useFocusTimerStore)
+  store/              Zustand store (useUIStore)
   utils/logger.ts     Custom logger: logger.error() in prod, warn/info DEV-only
   lib/utils.ts        cn() = twMerge(clsx(inputs))
 src-tauri/src/        Rust backend
-  lib.rs              Entrypoint, all #[tauri::command] definitions, AppState
-  database.rs         SQLite ops via rusqlite
-  window_tracker.rs   Active window detection (Hyprland/Sway/X11)
+  lib.rs              Entrypoint, single-instance process lock, Tauri commands, AppState
+  app_scanner.rs      App scanner (Linux XDG/Flatpak/Snap, Windows UWP/Start Menu & icons)
+  autostart.rs        Systemd / XDG / Windows Registry autostart management
+  database.rs         SQLite ops via rusqlite & session retention
+  migrations.rs       Database schema migrations (deduplication & indexes)
+  tracker.rs          Active window telemetry logger & idle detection
+  window_tracker.rs   Active window detection (Hyprland/Sway/X11 & Win32)
+  tray.rs             System tray icon and menu event handling
 ```
 
 ## Stack specifics
@@ -58,10 +63,11 @@ src-tauri/src/        Rust backend
 
 ## Gotchas
 
+- **Single instance**: enforced natively via `tauri-plugin-single-instance`
 - **DB location**: `$XDG_DATA_HOME/zenith/zenith.db` (usually `~/.local/share/zenith/zenith.db`)
 - **Data retention**: 90 days — automatic cleanup runs on app startup
 - **Background mode**: `run_background()` for headless autostart (no GUI window)
-- **Emergency access**: tempoary 5/10/15 min bypass of hard app blocks
+- **Emergency access**: temporary 5/10/15 min bypass of hard app blocks
 - **Export**: CSV/JSON only, must use absolute path, file must NOT already exist
 - **Data wipe**: requires `"DELETE"` confirmation string
 - **CSP is strict**: must update `tauri.conf.json` CSP if adding external resources

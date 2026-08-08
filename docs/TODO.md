@@ -1,10 +1,10 @@
 # Zenith — Improvement Roadmap
 
-Tracks the path from v0.1.5 → v0.2.0 and beyond. Status: **v0.2.0 in progress** (49 commits ahead of v0.1.5, not yet tagged).
+Tracks the path from v0.1.5 → v0.2.0 and beyond. Status: **v0.2.0 tagged and released**.
 
 ---
 
-## Shipped since v0.1.5
+## Shipped in v0.2.0 & Unreleased Post-v0.2.0
 
 - [x] Onboarding wizard (`init_onboarding_goals`)
 - [x] Goals v2: editor modal, list, achievements panel
@@ -13,21 +13,27 @@ Tracks the path from v0.1.5 → v0.2.0 and beyond. Status: **v0.2.0 in progress*
 - [x] Emergency access (5/10/15 min bypass)
 - [x] Import usage data (CSV/JSON)
 - [x] In-app issue report dialog (pre-filled GitHub issue)
-- [x] Brutaist redesign: semantic design tokens, oklch, 0px radius, Newsreader/Geist Mono
+- [x] Brutalist redesign: semantic design tokens, oklch, 0px radius, Newsreader/Geist Mono
 - [x] Background headless mode (`run_background`, autostart)
 - [x] Auto-updater (check/download/install, `latest.json` endpoint)
 - [x] System tray (minimize, quick actions)
 - [x] CI (`.github/workflows/ci.yml`) + release workflow (`release.yml`) + PR/issue templates
 - [x] Rust: `WellbeingError`, migrations system, tracing, atomic `record_usage`
+- [x] 4-week telemetry navigation in `WeeklyTelemetry` dashboard (30-day API query range)
+- [x] Single-instance process lock (`tauri-plugin-single-instance`)
+- [x] SQLite Migration 3 for session deduplication & DB performance
+- [x] Windows UWP app scanning, `.lnk` target resolution, and native icon extraction
+- [x] App blocking on Windows by window title in addition to process name
+- [x] Excluded Zenith background process (`zenith-dw`) from usage telemetry
 
-## v0.2.0 release gate — BLOCKERS
+## v0.2.0 release gate — COMPLETED
 
-1. [x] Fix lint: `npm run lint` fails with **1796 errors, 81 warnings** (blocked release)
+1. [x] Fix lint: `npm run lint` passing clean
 2. [x] Add `CHANGELOG.md` (Keep a Changelog format) summarizing v0.1.6 → v0.2.0
 3. [x] Bump version to 0.2.0 in all three places: `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`
-4. [ ] Verify release workflow end-to-end (tag `v0.2.0` dry-run: quality gates, artifacts, signing secrets present) — gates pass locally (lint/typecheck/vitest/cargo test/clippy/fmt), signing secrets present in repo; remaining: actual `v0.2.0` tag push
+4. [x] Verify release workflow end-to-end (tag `v0.2.0` pushed and built)
 5. [x] Verify `cargo clippy --all-targets --all-features -- -D warnings` + `cargo fmt --check`
-6. [ ] Post-release smoke test: dashboard, settings, update check, tray, background mode
+6. [x] Post-release smoke test: dashboard, settings, update check, tray, background mode
 
 ## Cleanup backlog (from repo audit 2026-08)
 
@@ -48,4 +54,4 @@ Tracks the path from v0.1.5 → v0.2.0 and beyond. Status: **v0.2.0 in progress*
 
 ---
 
-*Last updated: 2026-08-02*
+*Last updated: 2026-08-08*

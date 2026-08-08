@@ -35,8 +35,8 @@ Recommended tag flow:
 ```bash
 git checkout main
 git pull --ff-only
-git tag v0.1.6
-git push origin v0.1.6
+git tag v0.2.1
+git push origin v0.2.1
 ```
 
 ## What the Release Workflow Enforces
@@ -99,11 +99,11 @@ If a bad release is published:
    - Delete tag locally/remotely:
 
 ```bash
-git tag -d v0.1.6
-git push origin :refs/tags/v0.1.6
+git tag -d v0.2.1
+git push origin :refs/tags/v0.2.1
 ```
 
-3. Prepare a fixed patch release (for example `v0.1.7`). Do not reuse a deleted tag name.
+3. Prepare a fixed patch release (for example `v0.2.2`). Do not reuse a deleted tag name.
 
 ## Troubleshooting
 

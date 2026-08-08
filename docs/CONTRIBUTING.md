@@ -231,16 +231,22 @@ src/
 ├── components/          # React components
 │   ├── ui/             # Shadcn/UI primitives
 │   └── dashboard/      # Dashboard sub-components
-├── hooks/              # Custom hooks
-├── services/           # API layer
+├── hooks/              # Custom React hooks
+├── queries/            # TanStack Query v5 hooks
+├── services/           # API layer (Tauri invoke wrappers)
 ├── store/              # State management
 ├── types/              # Type definitions
-└── utils/              # Utilities
+└── utils/              # Utilities & logger
 
 src-tauri/src/
-├── lib.rs              # Entry point, commands
-├── database.rs         # SQLite operations
-├── window_tracker.rs   # X11 tracking
+├── lib.rs              # Entry point, single-instance lock, commands
+├── app_scanner.rs      # Linux/Windows app & icon scanner
+├── autostart.rs        # Autostart management (systemd/XDG/Windows)
+├── database.rs         # SQLite operations & 90-day retention
+├── migrations.rs       # Schema migrations (session deduplication)
+├── window_tracker.rs   # Linux & Windows window tracking
+├── tracker.rs          # Telemetry recording & idle detection
+├── tray.rs             # System tray menu and icon handler
 └── ...                 # Feature modules
 ```
 
