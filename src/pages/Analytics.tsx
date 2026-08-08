@@ -225,7 +225,7 @@ function IntensityMatrix({
               <span className="font-mono text-[0.55rem] text-muted-foreground w-8 shrink-0 uppercase tracking-[0.05em]">
                 {dayLabel}
               </span>
-              <div className="flex gap-0.5 flex-1 max-w-[430px] sm:max-w-[526px]">
+              <div className="flex gap-0.5 flex-1 w-full">
                 {Array.from({ length: COLS }, (_, c) => {
                   const seconds = hourlyLookup.get(`${dateStr}-${c}`) ?? 0;
                   const startHour = String(c).padStart(2, "0");
@@ -237,7 +237,7 @@ function IntensityMatrix({
                       data-row={r}
                       data-col={c}
                       title={`${dayLabel} ${startHour}:00 - ${endHour}:00 — ${formatDuration(seconds)}`}
-                      className="flex-1 min-w-[6px] max-w-[16px] sm:max-w-[20px] aspect-square cursor-crosshair opacity-90 hover:opacity-100 transition-opacity duration-100 hover:outline hover:outline-1 hover:outline-primary outline-none"
+                      className="flex-1 min-w-[6px] aspect-square cursor-crosshair opacity-90 hover:opacity-100 transition-opacity duration-100 hover:outline hover:outline-1 hover:outline-primary outline-none"
                       style={{
                         backgroundColor: cellColor(seconds),
                       }}
@@ -249,7 +249,7 @@ function IntensityMatrix({
           ))}
         </div>
 
-        <div className="flex justify-between mt-3 pl-8 max-w-[462px] sm:max-w-[558px] font-mono text-[0.6rem] text-muted-foreground">
+        <div className="flex justify-between mt-3 pl-8 w-full font-mono text-[0.6rem] text-muted-foreground">
           <span>00:00</span>
           <span>06:00</span>
           <span>12:00</span>
