@@ -70,10 +70,10 @@ export function FocusMode() {
   const isPaused = !isFocusActive && pausedTimeLeft !== null;
 
   useEffect(() => {
-    if (isSettingsOpen && settings) {
+    if (settings?.default_duration_minutes) {
       setLocalFocusMin(settings.default_duration_minutes);
     }
-  }, [isSettingsOpen, settings]);
+  }, [settings?.default_duration_minutes]);
 
   useEffect(() => {
     if (isFocusActive && focusSession?.end_time) {
@@ -110,7 +110,8 @@ export function FocusMode() {
       setTimeLeft(pausedTimeLeft);
     } else {
       hasReportedCompletion.current = false;
-      const defaultSec = (settings?.default_duration_minutes ?? localFocusMin ?? 25) * 60;
+      const defaultMin = localFocusMin ?? settings?.default_duration_minutes ?? 25;
+      const defaultSec = defaultMin * 60;
       setTimeLeft(defaultSec);
       setTotalTime(defaultSec);
     }
@@ -142,10 +143,11 @@ export function FocusMode() {
   };
 
   const handleStart = () => {
+    const defaultMin = localFocusMin ?? settings?.default_duration_minutes ?? 25;
     const mins =
       isPaused && pausedTimeLeft !== null
         ? Math.max(1, Math.ceil(pausedTimeLeft / 60))
-        : localFocusMin;
+        : defaultMin;
     setPausedTimeLeft(null);
     startFocusSession.mutate(mins);
   };
@@ -158,7 +160,8 @@ export function FocusMode() {
   const handleReset = () => {
     setPausedTimeLeft(null);
     stopFocusSession.mutate();
-    const defaultSec = (settings?.default_duration_minutes ?? localFocusMin ?? 25) * 60;
+    const defaultMin = localFocusMin ?? settings?.default_duration_minutes ?? 25;
+    const defaultSec = defaultMin * 60;
     setTimeLeft(defaultSec);
     setTotalTime(defaultSec);
   };
@@ -251,6 +254,27 @@ export function FocusMode() {
                     <div className="h-1.5 w-1.5 bg-foreground rounded-full"></div>
                     <div className="h-1.5 w-1.5 bg-foreground rounded-full opacity-20"></div>
                   </div>
+                  {!isFocusActive && !isPaused && (
+                    <div className="flex justify-center gap-2 mt-4">
+                      {[15, 20, 25, 45, 60].map((mins) => (
+                        <button
+                          key={mins}
+                          onClick={() => {
+                            setLocalFocusMin(mins);
+                            setTimeLeft(mins * 60);
+                            setTotalTime(mins * 60);
+                          }}
+                          className={`px-3 py-1 text-xs font-mono border transition-colors cursor-pointer rounded-none ${
+                            localFocusMin === mins
+                              ? "bg-foreground text-background border-foreground font-bold"
+                              : "bg-background text-muted-foreground border-border hover:border-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {mins}m
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="w-full space-y-6">
