@@ -834,9 +834,11 @@ fn scan_registry_apps(apps: &mut Vec<InstalledApp>) {
                 continue;
             };
 
-            // Skip system components and entries without display names
+            // Skip system components, hidden entries, and sub-components
             let is_system: bool = subkey.get_value("SystemComponent").unwrap_or(0u32) == 1;
-            if is_system {
+            let no_display: bool = subkey.get_value("NoDisplay").unwrap_or(0u32) == 1;
+            let is_parent: bool = subkey.get_value::<String, _>("ParentKeyName").is_ok();
+            if is_system || no_display || is_parent {
                 continue;
             }
 
@@ -948,6 +950,7 @@ fn parse_desktop_file(path: &PathBuf) -> Option<InstalledApp> {
     let mut categories: Vec<String> = Vec::new();
     let mut no_display = false;
     let mut hidden = false;
+    let mut terminal = false;
     let mut app_type: Option<String> = None;
 
     let mut in_desktop_entry = false;
@@ -969,27 +972,50 @@ fn parse_desktop_file(path: &PathBuf) -> Option<InstalledApp> {
             let key = key.trim();
             let value = value.trim();
 
-            match key {
-                "Name" if name.is_none() => name = Some(value.to_string()),
-                "Exec" => exec = Some(clean_exec(value)),
-                "Icon" => icon = Some(value.to_string()),
-                "Categories" => {
-                    categories = value
-                        .split(';')
-                        .filter(|s| !s.is_empty())
-                        .map(|s| s.to_string())
-                        .collect();
+            let key_lower = key.to_lowercase();
+
+            if key_lower == "nodisplay" || key_lower.starts_with("nodisplay[") {
+                if value.eq_ignore_ascii_case("true")
+                    || value == "1"
+                    || value.eq_ignore_ascii_case("yes")
+                {
+                    no_display = true;
                 }
-                "NoDisplay" => no_display = value.eq_ignore_ascii_case("true"),
-                "Hidden" => hidden = value.eq_ignore_ascii_case("true"),
-                "Type" => app_type = Some(value.to_string()),
-                _ => {}
+            } else if key_lower == "hidden" || key_lower.starts_with("hidden[") {
+                if value.eq_ignore_ascii_case("true")
+                    || value == "1"
+                    || value.eq_ignore_ascii_case("yes")
+                {
+                    hidden = true;
+                }
+            } else if key_lower == "terminal" {
+                if value.eq_ignore_ascii_case("true")
+                    || value == "1"
+                    || value.eq_ignore_ascii_case("yes")
+                {
+                    terminal = true;
+                }
+            } else {
+                match key {
+                    "Name" if name.is_none() => name = Some(value.to_string()),
+                    "Exec" => exec = Some(clean_exec(value)),
+                    "Icon" => icon = Some(value.to_string()),
+                    "Categories" => {
+                        categories = value
+                            .split(';')
+                            .filter(|s| !s.is_empty())
+                            .map(|s| s.to_string())
+                            .collect();
+                    }
+                    "Type" => app_type = Some(value.to_string()),
+                    _ => {}
+                }
             }
         }
     }
 
-    // Skip hidden apps, non-application types, or apps without names
-    if no_display || hidden {
+    // Skip hidden apps, terminal CLI tools, non-application types, or apps without names
+    if no_display || hidden || terminal {
         return None;
     }
 
@@ -1132,4 +1158,47 @@ pub fn map_category(desktop_categories: &[String]) -> Option<String> {
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_parse_desktop_file_filters_nodisplay_and_hidden() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("zenith_desktop_test_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&temp_dir);
+
+        let desktop_nodisplay = temp_dir.join("test_nodisplay.desktop");
+        std::fs::write(
+            &desktop_nodisplay,
+            "[Desktop Entry]\nType=Application\nName=Secret App\nExec=secret\nNoDisplay=true\n",
+        )
+        .unwrap();
+
+        assert!(parse_desktop_file(&desktop_nodisplay).is_none());
+
+        let desktop_hidden = temp_dir.join("test_hidden.desktop");
+        std::fs::write(
+            &desktop_hidden,
+            "[Desktop Entry]\nType=Application\nName=Hidden App\nExec=hidden\nHidden=true\n",
+        )
+        .unwrap();
+
+        assert!(parse_desktop_file(&desktop_hidden).is_none());
+
+        let desktop_valid = temp_dir.join("test_valid.desktop");
+        std::fs::write(
+            &desktop_valid,
+            "[Desktop Entry]\nType=Application\nName=Normal App\nExec=normal\n",
+        )
+        .unwrap();
+
+        let app = parse_desktop_file(&desktop_valid).expect("should parse valid app");
+        assert_eq!(app.name, "Normal App");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
 }
