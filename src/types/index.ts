@@ -71,6 +71,13 @@ export interface AutostartStatus {
   xdg_installed: boolean;
 }
 
+export interface SystemInfo {
+  os: string;
+  desktop_environment: string;
+  app_version: string;
+}
+
+
 export interface ExportRecord {
   date: string;
   app_name: string;

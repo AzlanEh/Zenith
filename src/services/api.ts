@@ -7,6 +7,7 @@ import type {
   HourlyUsage,
   InstalledApp,
   AutostartStatus,
+  SystemInfo,
   ExportRecord,
   BreakSettings,
   BreakStatus,
@@ -72,6 +73,8 @@ export const api = {
   disableAutostart: (): Promise<string> => invokeApi("disable_autostart"),
 
   getAutostartStatus: (): Promise<AutostartStatus> => invokeApi("get_autostart_status"),
+
+  getSystemInfo: (): Promise<SystemInfo> => invokeApi("get_system_info"),
 
   exportUsageData: (startDate: string, endDate: string): Promise<ExportRecord[]> => invokeApi("export_usage_data", { startDate, endDate }),
 
