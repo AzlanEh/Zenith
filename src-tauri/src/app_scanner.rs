@@ -1025,7 +1025,7 @@ fn parse_desktop_file(path: &PathBuf) -> Option<InstalledApp> {
 
     let name = name?;
 
-    // Skip some system utilities and internal apps that aren't useful to track
+    // Skip some system utilities that aren't useful to track
     let skip_names = [
         "Desktop",
         "Files",
@@ -1035,28 +1035,9 @@ fn parse_desktop_file(path: &PathBuf) -> Option<InstalledApp> {
         "Archive Manager",
         "Disk Usage",
         "System Monitor",
-        "Zenith",
-        "Zenith-dw",
-        "limit-popup",
-        "Manage Printing",
-        "Hardware Locality lstopo",
-        "Limine-snapper-restore",
-        "Qt V4L2 test Utility",
-        "Qt V4L2 video capture utility",
-        "Qt6 Settings",
-        "xgps",
-        "xgpsspeed",
-        "uuctl",
-        "Voxtype Configuration",
-        "Print Settings",
-        "Remote Viewer",
-        "Kvantum Manager",
     ];
 
-    if skip_names.iter().any(|s| name.eq_ignore_ascii_case(s))
-        || name.starts_with("OpenJDK Java")
-        || (name.starts_with("Java ") && (name.contains("Shell") || name.contains("Console")))
-    {
+    if skip_names.iter().any(|s| name.eq_ignore_ascii_case(s)) {
         return None;
     }
 
