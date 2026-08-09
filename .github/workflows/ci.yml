@@ -72,7 +72,8 @@ jobs:
           VITEST_CACHE_DIR: .vitest-cache
 
       - name: Wait for Playwright browser
-        wait: playwright-setup
+        wait:
+          - playwright-setup
 
       - name: Run E2E tests
         run: npm run test:e2e
