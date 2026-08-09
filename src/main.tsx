@@ -14,7 +14,14 @@ if (!rootElement) {
   throw new Error("Root element not found");
 }
 
-const windowLabel = getCurrentWindow().label;
+let windowLabel: string | null = null;
+try {
+  if (typeof window !== "undefined" && "__TAURI_INTERNALS__" in window) {
+    windowLabel = getCurrentWindow().label;
+  }
+} catch {
+  // Web/E2E browser environment fallback
+}
 
 if (windowLabel === "limit-popup") {
   // Lightweight render for the limit popup — no query client or heavy providers
