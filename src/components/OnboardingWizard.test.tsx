@@ -1,7 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { toast } from "sonner";
 import { OnboardingWizard } from "./OnboardingWizard";
 import { api } from "@/services/api";
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+  },
+}));
 
 vi.mock("@/services/api", () => ({
   api: {
@@ -31,12 +39,16 @@ describe("OnboardingWizard", () => {
     localStorage.clear();
   });
 
-  it("renders Step 0 and navigates to Step 1", () => {
+  it("renders Step 0 and navigates to Step 1", async () => {
     render(<OnboardingWizard onComplete={onComplete} />);
     expect(screen.getByText("ZENITH")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Begin Practice"));
     expect(screen.getByText("Establish Boundaries")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(api.getAutostartStatus).toHaveBeenCalled();
+    });
   });
 
   it("renders Start at Login card in Phase 03 and enables autostart on finish", async () => {
@@ -75,6 +87,26 @@ describe("OnboardingWizard", () => {
 
     await waitFor(() => {
       expect(api.disableAutostart).toHaveBeenCalled();
+      expect(onComplete).toHaveBeenCalled();
+    });
+  });
+
+  it("shows toast error when autostart configuration fails on finish", async () => {
+    vi.mocked(api.enableAutostart).mockRejectedValueOnce(
+      new Error("Failed autostart")
+    );
+    render(<OnboardingWizard onComplete={onComplete} />);
+
+    fireEvent.click(screen.getByText("Begin Practice"));
+    fireEvent.click(screen.getByText("Set Intentions"));
+
+    const enterBtn = screen.getByRole("button", { name: /Enter Sanctuary/i });
+    fireEvent.click(enterBtn);
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Failed to configure start at login"
+      );
       expect(onComplete).toHaveBeenCalled();
     });
   });

@@ -11,6 +11,7 @@ import {
   Plus,
   Power,
 } from "lucide-react";
+import { toast } from "sonner";
 import { api } from "@/services/api";
 import { logger } from "@/utils/logger";
 
@@ -55,13 +56,19 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     try {
       setIsSubmitting(true);
       await api.initOnboardingGoals(focus * 60, screen);
+    } catch (e) {
+      logger.error("Failed to initialize onboarding goals", e);
+    }
+
+    try {
       if (autostartEnabled) {
         await api.enableAutostart();
       } else {
         await api.disableAutostart();
       }
     } catch (e) {
-      logger.error("Failed during onboarding finish", e);
+      logger.error("Failed to configure start at login", e);
+      toast.error("Failed to configure start at login");
     } finally {
       localStorage.setItem("onboarding_completed", "true");
       onComplete();
