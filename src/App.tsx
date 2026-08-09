@@ -2,10 +2,8 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { BreakOverlay } from "./components/BreakOverlay";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { KeyboardShortcutsModal } from "./components/KeyboardShortcutsModal";
-import { LimitReached } from "./components/LimitReached";
 import { type Page, Sidebar } from "./components/layout/Sidebar";
 import { OnboardingWizard } from "./components/OnboardingWizard";
-import { useBlockedAppCheck } from "./hooks/useBlockedAppCheck";
 import { useDarkMode } from "./hooks/useDarkMode";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useUIStore } from "./store/useUIStore";
@@ -62,12 +60,6 @@ function App() {
   }, []);
 
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const {
-    blockedApp,
-    emergencyRemaining,
-    showLimitReached,
-    dismiss: dismissLimit,
-  } = useBlockedAppCheck();
 
   const sidebarHideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const handleSidebarEnter = useCallback(() => {
@@ -213,13 +205,6 @@ function App() {
       </main>
 
       <BreakOverlay />
-      {showLimitReached && blockedApp && (
-        <LimitReached
-          appName={blockedApp}
-          emergencyRemaining={emergencyRemaining}
-          onDismiss={dismissLimit}
-        />
-      )}
       <KeyboardShortcutsModal
         open={shortcutsOpen}
         onOpenChange={setShortcutsOpen}
