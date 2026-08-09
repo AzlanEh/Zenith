@@ -38,7 +38,7 @@ build() {
 }
 
 package() {
-    cd "$srcdir/zenith-$pkgver"
+    cd "$srcdir/Zenith-$pkgver"
 
 install -Dm755 "src-tauri/target/release/zenith" "$pkgdir/usr/bin/zenith-dw"
 install -Dm644 "pkg/linux/arch/zenith-dw.desktop" "$pkgdir/usr/share/applications/zenith-dw.desktop"
