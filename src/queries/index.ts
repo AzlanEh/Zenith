@@ -11,7 +11,7 @@ export {
   useRemoveFocusBlockedApp,
 } from "./useFocusSettings";
 export { useNotificationSettings, useUpdateNotificationSettings } from "./useNotificationSettings";
-export { useStartFocusSession, useStopFocusSession } from "./useFocusSession";
+export { useStartFocusSession, useStopFocusSession, useFocusSession } from "./useFocusSession";
 export {
   useGoals,
   useGoalsProgress,

@@ -23,6 +23,7 @@ import { Switch } from "../components/ui/switch";
 import { useFocusHistory } from "../hooks/useFocusHistory";
 import {
   useFocusSettings,
+  useFocusSession,
   useStartFocusSession,
   useStopFocusSession,
   useUpdateFocusSettings,
@@ -33,67 +34,22 @@ import { api } from "../services/api";
 import { logger } from "../utils/logger";
 import type { InstalledApp } from "../types";
 
-type FocusTimerState = "idle" | "running" | "paused" | "completed" | "cancelled";
-
 const DEFAULT_FOCUS_SECONDS = 25 * 60;
 
 export function FocusMode() {
   const { data: settings } = useFocusSettings();
+  const { data: focusSession } = useFocusSession();
   const updateFocusSettingsMutation = useUpdateFocusSettings();
   const addFocusBlockedAppMutation = useAddFocusBlockedApp();
   const removeFocusBlockedAppMutation = useRemoveFocusBlockedApp();
   const startFocusSession = useStartFocusSession();
   const stopFocusSession = useStopFocusSession();
 
-  const [timerState, setTimerState] = useState<FocusTimerState>("idle");
+  const isFocusActive = !!focusSession?.is_active;
+
+  const [pausedTimeLeft, setPausedTimeLeft] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(DEFAULT_FOCUS_SECONDS);
   const [totalTime, setTotalTime] = useState(DEFAULT_FOCUS_SECONDS);
-  const timeLeftRef = useRef(DEFAULT_FOCUS_SECONDS);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const clearTick = () => {
-    if (intervalRef.current !== null) clearInterval(intervalRef.current);
-    intervalRef.current = null;
-  };
-
-  const updateTimeLeft = (seconds: number) => {
-    timeLeftRef.current = seconds;
-    setTimeLeft(seconds);
-  };
-
-  useEffect(() => clearTick, []);
-
-  const start = () => {
-    if (timerState === "running") return;
-    clearTick();
-    setTotalTime(timeLeftRef.current);
-    intervalRef.current = setInterval(() => {
-      timeLeftRef.current -= 1;
-      if (timeLeftRef.current <= 0) {
-        clearTick();
-        setTimeLeft(0);
-        setTimerState("completed");
-      } else {
-        setTimeLeft(timeLeftRef.current);
-      }
-    }, 1000);
-    setTimerState("running");
-  };
-
-  const pause = () => {
-    clearTick();
-    setTimerState("paused");
-  };
-
-  const reset = () => {
-    clearTick();
-    updateTimeLeft(DEFAULT_FOCUS_SECONDS);
-    setTotalTime(DEFAULT_FOCUS_SECONDS);
-    setTimerState("idle");
-  };
-
-  const isFocusActive = timerState === "running";
-  const isPaused = timerState === "paused";
 
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [isManageOpen, setIsManageOpen] = useState(false);
@@ -111,6 +67,8 @@ export function FocusMode() {
 
   const hasReportedCompletion = useRef(false);
 
+  const isPaused = !isFocusActive && pausedTimeLeft !== null;
+
   useEffect(() => {
     if (isSettingsOpen && settings) {
       setLocalFocusMin(settings.default_duration_minutes);
@@ -118,20 +76,53 @@ export function FocusMode() {
   }, [isSettingsOpen, settings]);
 
   useEffect(() => {
-    if (timerState === "completed" && !hasReportedCompletion.current) {
-      hasReportedCompletion.current = true;
-      addSession({
-        date: new Date().toISOString().split("T")[0],
-        duration_minutes: Math.floor(totalTime / 60),
-        completed: true,
-        scheduled: false,
-      });
-      setNotesOpen(true);
-    }
-    if (timerState !== "completed") {
+    if (isFocusActive && focusSession?.end_time) {
+      const durationMins =
+        focusSession.duration_minutes ??
+        ((focusSession.start_time
+          ? Math.round((focusSession.end_time - focusSession.start_time) / 60)
+          : 25) || 25);
+      setTotalTime(durationMins * 60);
+      setPausedTimeLeft(null);
+
+      const updateRemaining = () => {
+        const nowSec = Math.floor(Date.now() / 1000);
+        const remaining = Math.max(0, focusSession.end_time! - nowSec);
+        setTimeLeft(remaining);
+
+        if (remaining <= 0 && !hasReportedCompletion.current) {
+          hasReportedCompletion.current = true;
+          addSession({
+            date: new Date().toISOString().split("T")[0],
+            duration_minutes: durationMins,
+            completed: true,
+            scheduled: focusSession.is_scheduled,
+          });
+          setNotesOpen(true);
+          stopFocusSession.mutate();
+        }
+      };
+
+      updateRemaining();
+      const interval = setInterval(updateRemaining, 1000);
+      return () => clearInterval(interval);
+    } else if (pausedTimeLeft !== null) {
+      setTimeLeft(pausedTimeLeft);
+    } else {
       hasReportedCompletion.current = false;
+      const defaultSec = (settings?.default_duration_minutes ?? localFocusMin ?? 25) * 60;
+      setTimeLeft(defaultSec);
+      setTotalTime(defaultSec);
     }
-  }, [timerState, totalTime, addSession]);
+  }, [
+    isFocusActive,
+    focusSession,
+    settings,
+    localFocusMin,
+    addSession,
+    stopFocusSession,
+    pausedTimeLeft,
+  ]);
 
   useEffect(() => {
     loadData();
@@ -142,20 +133,34 @@ export function FocusMode() {
       setIsLoading(true);
       const appsData = await api.getInstalledApps();
       setInstalledApps(appsData);
-
-      if (timerState === "idle") {
-        const storeTime = timeLeftRef.current;
-        const defaultTime = (settings?.default_duration_minutes ?? 25) * 60;
-        if (storeTime === DEFAULT_FOCUS_SECONDS || storeTime === defaultTime) {
-          updateTimeLeft(defaultTime);
-        }
-      }
     } catch (e) {
       logger.error(e);
       toast.error("Failed to load focus settings");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleStart = () => {
+    const mins =
+      isPaused && pausedTimeLeft !== null
+        ? Math.max(1, Math.ceil(pausedTimeLeft / 60))
+        : localFocusMin;
+    setPausedTimeLeft(null);
+    startFocusSession.mutate(mins);
+  };
+
+  const handlePause = () => {
+    setPausedTimeLeft(timeLeft);
+    stopFocusSession.mutate();
+  };
+
+  const handleReset = () => {
+    setPausedTimeLeft(null);
+    stopFocusSession.mutate();
+    const defaultSec = (settings?.default_duration_minutes ?? localFocusMin ?? 25) * 60;
+    setTimeLeft(defaultSec);
+    setTotalTime(defaultSec);
   };
 
   const handleAddBlockedApp = async (appName: string) => {
@@ -190,8 +195,9 @@ export function FocusMode() {
         default_duration_minutes: localFocusMin,
       });
 
-      if (!isFocusActive) {
-        updateTimeLeft(localFocusMin * 60);
+      if (!isFocusActive && pausedTimeLeft === null) {
+        setTimeLeft(localFocusMin * 60);
+        setTotalTime(localFocusMin * 60);
       }
       setIsSettingsOpen(false);
       toast.success("Timer settings saved");
@@ -262,22 +268,7 @@ export function FocusMode() {
 
                   <div className="flex items-center justify-center gap-4">
                     <button
-                      onClick={
-                        isFocusActive
-                          ? () => {
-                              pause();
-                              stopFocusSession.mutate();
-                            }
-                          : isPaused
-                            ? () => {
-                                start();
-                                startFocusSession.mutate(localFocusMin);
-                              }
-                            : () => {
-                                start();
-                                startFocusSession.mutate(localFocusMin);
-                              }
-                      }
+                      onClick={isFocusActive ? handlePause : handleStart}
                       className="flex-1 max-w-[200px] h-14 bg-foreground text-background hover:bg-foreground/90 transition-colors flex items-center justify-center gap-2 font-medium text-lg rounded-none"
                     >
                       {isFocusActive ? (
@@ -294,7 +285,7 @@ export function FocusMode() {
                       </span>
                     </button>
                     <button
-                      onClick={reset}
+                      onClick={handleReset}
                       aria-label="Reset timer"
                       className="size-14 border border-border bg-background hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center rounded-none"
                     >
@@ -590,7 +581,7 @@ export function FocusMode() {
         open={notesOpen}
         onClose={() => {
           setNotesOpen(false);
-          reset();
+          handleReset();
         }}
         durationMinutes={Math.floor(totalTime / 60)}
       />

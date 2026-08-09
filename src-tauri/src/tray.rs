@@ -2,7 +2,7 @@ use crate::AppState;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager, Runtime,
+    Emitter, Manager, Runtime,
 };
 
 /// Initialize the system tray with menu
@@ -67,6 +67,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
                         let session = state.focus_manager.start_session(Some(25), None).await;
                         if session.is_active {
                             tracing::info!("Focus mode started from tray (25 min)");
+                            let _ = app_handle.emit("focus-session-changed", &session);
                         }
                     }
                 });
@@ -77,8 +78,9 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
                 tauri::async_runtime::spawn(async move {
                     if let Some(state) = app_handle.try_state::<AppState>() {
                         if state.focus_manager.is_active() {
-                            state.focus_manager.stop_session().await;
+                            let session = state.focus_manager.stop_session().await;
                             tracing::info!("Focus mode stopped from tray");
+                            let _ = app_handle.emit("focus-session-changed", &session);
                         }
                     }
                 });

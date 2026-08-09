@@ -662,27 +662,40 @@ async fn get_focus_session(state: State<'_, AppState>) -> CmdResult<FocusSession
 
 #[tauri::command]
 async fn start_focus_session(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
     duration_minutes: Option<u32>,
     blocked_apps: Option<Vec<String>>,
 ) -> CmdResult<FocusSession> {
-    Ok(state
+    let session = state
         .focus_manager
         .start_session(duration_minutes, blocked_apps)
-        .await)
+        .await;
+    let _ = app.emit("focus-session-changed", &session);
+    Ok(session)
 }
 
 #[tauri::command]
-async fn stop_focus_session(state: State<'_, AppState>) -> CmdResult<FocusSession> {
-    Ok(state.focus_manager.stop_session().await)
+async fn stop_focus_session(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> CmdResult<FocusSession> {
+    let session = state.focus_manager.stop_session().await;
+    let _ = app.emit("focus-session-changed", &session);
+    Ok(session)
 }
 
 #[tauri::command]
 async fn extend_focus_session(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
     additional_minutes: u32,
 ) -> CmdResult<Option<FocusSession>> {
-    Ok(state.focus_manager.extend_session(additional_minutes).await)
+    let session = state.focus_manager.extend_session(additional_minutes).await;
+    if let Some(ref session) = session {
+        let _ = app.emit("focus-session-changed", session);
+    }
+    Ok(session)
 }
 
 #[tauri::command]
@@ -1279,6 +1292,7 @@ pub fn run() {
             });
 
             // Start focus mode background task (check schedules and session expiry)
+            let focus_task_app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
                 loop {
@@ -1288,14 +1302,18 @@ pub fn run() {
                             focus_mode::FocusEvent::ScheduleStarted(schedule) => {
                                 tracing::info!(schedule = %schedule.name, "Starting scheduled focus session");
                                 focus_manager_clone.start_scheduled_session(&schedule).await;
+                                let session = focus_manager_clone.get_session().await;
+                                let _ = focus_task_app_handle.emit("focus-session-changed", &session);
                             }
                             focus_mode::FocusEvent::ScheduleEnded => {
                                 tracing::info!("Scheduled focus session ended");
-                                focus_manager_clone.stop_session().await;
+                                let session = focus_manager_clone.stop_session().await;
+                                let _ = focus_task_app_handle.emit("focus-session-changed", &session);
                             }
                             focus_mode::FocusEvent::SessionExpired => {
                                 tracing::info!("Focus session expired");
-                                focus_manager_clone.stop_session().await;
+                                let session = focus_manager_clone.stop_session().await;
+                                let _ = focus_task_app_handle.emit("focus-session-changed", &session);
                             }
                         }
                     }
