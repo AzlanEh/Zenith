@@ -26,32 +26,47 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install system dependencies
+        id: sys-deps
+        background: true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev libxss-dev libx11-dev
+
+      - name: Install cargo-audit
+        id: cargo-audit-setup
+        background: true
+        run: cargo install cargo-audit --locked
+
+      - name: Install Playwright browser
+        id: playwright-setup
+        background: true
+        run: npx playwright install --with-deps chromium
+
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Frontend checks
-        run: npm run lint && npm run typecheck && npm run test:run
+      - parallel:
+          - name: Frontend checks
+            run: npm run lint && npm run typecheck && npm run test:run
+          - name: Frontend production dependency audit
+            run: npm run audit:prod
 
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+      - name: Wait for Playwright browser
+        wait: playwright-setup
 
       - name: Frontend E2E tests
         run: npm run test:e2e
 
-      - name: Frontend production dependency audit
-        run: npm run audit:prod
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev libxss-dev libx11-dev
+      - name: Wait for system dependencies
+        wait: sys-deps
 
       - name: Rust tests
         working-directory: src-tauri
         run: cargo test --all-features
 
-      - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+      - name: Wait for cargo-audit
+        wait: cargo-audit-setup
 
       - name: Rust dependency audit
         working-directory: src-tauri
