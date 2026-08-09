@@ -938,16 +938,34 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     app.restart();
 }
 
+/// Try to acquire exclusive file lock for window tracking
+fn try_acquire_tracking_lock(parent: &std::path::Path) -> Option<std::fs::File> {
+    let lock_path = parent.join("zenith.lock");
+    match std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&lock_path)
+    {
+        Ok(lock_file) => {
+            if lock_file.try_lock_exclusive().is_ok() {
+                Some(lock_file)
+            } else {
+                None
+            }
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, path = %lock_path.display(), "Failed to open tracking lock file");
+            None
+        }
+    }
+}
+
 /// Run the app in headless background mode (no GUI window)
 /// This is used by the autostart service to track usage silently
 pub fn run_background() {
     // Initialize tracing subscriber for background mode
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive(tracing::Level::INFO.into()),
-        )
-        .init();
+    init_tracing();
 
     tracing::info!("Starting Zenith in background mode...");
 
@@ -963,19 +981,14 @@ pub fn run_background() {
         }
 
         // Single-instance file lock check for background processes
-        let lock_path = parent.join("zenith.lock");
-        if let Ok(lock_file) = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .open(&lock_path)
-        {
-            if lock_file.try_lock_exclusive().is_err() {
-                tracing::warn!("Another Zenith process is already running. Exiting duplicate background process.");
-                return;
-            }
+        if let Some(lock_file) = try_acquire_tracking_lock(parent) {
             // Keep lock_file alive for the lifetime of run_background
             std::mem::forget(lock_file);
+        } else {
+            tracing::warn!(
+                "Another Zenith process is already running. Exiting duplicate background process."
+            );
+            return;
         }
     }
 
@@ -1074,11 +1087,14 @@ pub fn run() {
         .join("zenith")
         .join("zenith.db");
 
-    if let Some(parent) = db_path.parent() {
-        if let Err(e) = std::fs::create_dir_all(parent) {
-            tracing::error!(error = %e, path = %parent.display(), "Failed to create data directory");
-            return;
-        }
+    let lock_dir = db_path
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+
+    if let Err(e) = std::fs::create_dir_all(&lock_dir) {
+        tracing::error!(error = %e, path = %lock_dir.display(), "Failed to create data directory");
+        return;
     }
 
     let db = match Database::new(db_path) {
@@ -1226,9 +1242,15 @@ pub fn run() {
             }
 
             let background_tracker_for_task = Arc::clone(&background_tracker);
-            tauri::async_runtime::spawn(async move {
-                background_tracker_for_task.start_tracking().await;
-            });
+            if let Some(lock_file) = try_acquire_tracking_lock(&lock_dir) {
+                tracing::info!("Acquired tracking lock in GUI process. Spawning window tracker.");
+                tauri::async_runtime::spawn(async move {
+                    background_tracker_for_task.start_tracking().await;
+                });
+                std::mem::forget(lock_file);
+            } else {
+                tracing::info!("Background tracker is already running in another process. Skipping GUI window tracker spawn.");
+            }
 
             // Run data cleanup on startup (delete data older than 90 days)
             tauri::async_runtime::spawn(async move {
@@ -1555,5 +1577,31 @@ mod tests {
         let goals_guard = state.goals_state.lock().await;
         assert_eq!(goals_guard.goals.len(), 5);
         assert!(!goals_guard.goals.iter().any(|g| g.id == "goal-1"));
+    }
+
+    #[test]
+    fn test_try_acquire_tracking_lock_prevents_duplicate() {
+        let test_dir =
+            std::env::temp_dir().join(format!("zenith_test_lock_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&test_dir);
+
+        let lock1 = try_acquire_tracking_lock(&test_dir);
+        assert!(lock1.is_some(), "First lock attempt should succeed");
+
+        let lock2 = try_acquire_tracking_lock(&test_dir);
+        assert!(
+            lock2.is_none(),
+            "Second lock attempt should fail while first is held"
+        );
+
+        drop(lock1);
+        let lock3 = try_acquire_tracking_lock(&test_dir);
+        assert!(
+            lock3.is_some(),
+            "Lock attempt after dropping first lock should succeed"
+        );
+
+        drop(lock3);
+        let _ = std::fs::remove_dir_all(&test_dir);
     }
 }
