@@ -10,6 +10,7 @@ mod limit_popup;
 mod migrations;
 mod notification_settings;
 mod notifications;
+mod popup_manager;
 mod settings_store;
 mod tracker;
 mod tray;
@@ -26,6 +27,7 @@ use fs2::FileExt;
 use goals::{Achievement, Goal, GoalProgress, GoalType, GoalsState};
 use limit_popup::EmergencyAccessManager;
 use notification_settings::{NotificationManager, NotificationSettings};
+use popup_manager::PopupManager;
 use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -44,6 +46,7 @@ pub struct AppState {
     pub focus_manager: Arc<FocusManager>,
     pub goals_state: Arc<Mutex<GoalsState>>,
     pub emergency_access: Arc<EmergencyAccessManager>,
+    pub popup_manager: Arc<PopupManager>,
     pub tracker: Arc<Mutex<UsageTracker>>,
     /// The background tracker instance, used for graceful shutdown
     pub background_tracker: Arc<Mutex<Option<Arc<UsageTracker>>>>,
@@ -251,11 +254,28 @@ async fn get_blocked_apps(state: State<'_, AppState>) -> CmdResult<Vec<String>> 
 
 // Emergency access commands for limit popup
 #[tauri::command]
-async fn grant_emergency_access(state: State<'_, AppState>, app_name: String) -> CmdResult<i64> {
+async fn grant_emergency_access(
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+    app_name: String,
+) -> CmdResult<i64> {
     if !is_valid_app_name(&app_name) {
         return Err(WellbeingError::InvalidAppName(app_name));
     }
     let expiry = state.emergency_access.grant_access(&app_name).await;
+    // Invalidate the tracker's cached_blocked so it doesn't immediately re-trigger
+    {
+        let tracker = state.tracker.lock().await;
+        tracker.invalidate_blocked_cache(&app_name).await;
+    }
+    {
+        let bg_tracker = state.background_tracker.lock().await;
+        if let Some(ref tracker) = *bg_tracker {
+            tracker.invalidate_blocked_cache(&app_name).await;
+        }
+    }
+    // Close the popup window
+    state.popup_manager.close_popup(&app_handle).await;
     Ok(expiry)
 }
 
@@ -279,13 +299,21 @@ async fn has_emergency_access(state: State<'_, AppState>, app_name: String) -> C
 }
 
 #[tauri::command]
-async fn quit_blocked_app(state: State<'_, AppState>, app_name: String) -> CmdResult<()> {
+async fn quit_blocked_app(
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+    app_name: String,
+) -> CmdResult<()> {
     if !is_valid_app_name(&app_name) {
         return Err(WellbeingError::InvalidAppName(app_name));
     }
 
     let tracker = state.tracker.lock().await;
     tracker.block_app(&app_name);
+    drop(tracker);
+
+    // Close the popup window
+    state.popup_manager.close_popup(&app_handle).await;
 
     Ok(())
 }
@@ -1028,7 +1056,13 @@ pub fn run_background() {
     };
 
     rt.block_on(async {
-        let tracker = Arc::new(UsageTracker::new(db, emergency_access, focus_manager));
+        let popup_manager = Arc::new(PopupManager::new());
+        let tracker = Arc::new(UsageTracker::new(
+            db,
+            emergency_access,
+            focus_manager,
+            popup_manager,
+        ));
         let tracker_for_shutdown = Arc::clone(&tracker);
 
         tracing::info!("Background tracker started. Press Ctrl+C to stop.");
@@ -1134,6 +1168,9 @@ pub fn run() {
     // Create emergency access manager
     let emergency_access = Arc::new(EmergencyAccessManager::new());
 
+    // Create popup manager for limit enforcement popups
+    let popup_manager = Arc::new(PopupManager::new());
+
     // Clone for background tasks
     let tracker_db = Arc::clone(&db);
     let cleanup_db = Arc::clone(&db);
@@ -1141,6 +1178,8 @@ pub fn run() {
     let break_reminder_clone = Arc::clone(&break_reminder);
     let focus_manager_clone = Arc::clone(&focus_manager);
     let notification_manager_clone = Arc::clone(&notification_manager);
+    let popup_manager_for_tracker = Arc::clone(&popup_manager);
+    let popup_manager_for_bg = Arc::clone(&popup_manager);
 
     // Create tracker (will be set with app handle in setup)
     // This tracker is used for state management (emergency access commands)
@@ -1148,6 +1187,7 @@ pub fn run() {
         Arc::clone(&db),
         Arc::clone(&emergency_access),
         Arc::clone(&focus_manager),
+        popup_manager_for_tracker,
     )));
     let tracker_for_state = Arc::clone(&tracker);
 
@@ -1175,6 +1215,7 @@ pub fn run() {
             focus_manager,
             goals_state,
             emergency_access: Arc::clone(&tracker_emergency),
+            popup_manager: Arc::clone(&popup_manager),
             tracker: tracker_for_state,
             background_tracker: background_tracker_for_state,
         })
@@ -1243,7 +1284,7 @@ pub fn run() {
 
             // Create the background tracker as an Arc so we can share it for shutdown
             let mut background_tracker =
-                UsageTracker::new(tracker_db, emergency_for_tracker, Arc::clone(&focus_manager_clone));
+                UsageTracker::new(tracker_db, emergency_for_tracker, Arc::clone(&focus_manager_clone), popup_manager_for_bg);
             background_tracker.set_app_handle(handle.clone());
             background_tracker.set_notification_manager(notification_manager_for_tracker);
             let background_tracker = Arc::new(background_tracker);
@@ -1485,7 +1526,8 @@ mod tests {
         let db = Arc::new(Mutex::new(Database::new_in_memory().expect("in-memory db")));
         let emergency = Arc::new(EmergencyAccessManager::new());
         let focus_manager = Arc::new(FocusManager::new());
-        let tracker = UsageTracker::new(db, emergency, focus_manager);
+        let popup_manager = Arc::new(PopupManager::new());
+        let tracker = UsageTracker::new(db, emergency, focus_manager, popup_manager);
 
         tracker
             .set_test_state(Some("Firefox".to_string()), Some(123), Some(456))
@@ -1521,10 +1563,12 @@ mod tests {
         emergency_access.grant_access("Firefox").await;
 
         let focus_manager = Arc::new(FocusManager::new());
+        let popup_manager = Arc::new(PopupManager::new());
         let tracker = Arc::new(Mutex::new(UsageTracker::new(
             Arc::clone(&db),
             Arc::clone(&emergency_access),
             Arc::clone(&focus_manager),
+            Arc::clone(&popup_manager),
         )));
         {
             let tracker_guard = tracker.lock().await;
@@ -1537,6 +1581,7 @@ mod tests {
             Arc::clone(&db),
             Arc::clone(&emergency_access),
             Arc::clone(&focus_manager),
+            Arc::clone(&popup_manager),
         ));
         background_tracker
             .set_test_state(Some("Code".to_string()), Some(9), Some(10))
@@ -1560,6 +1605,7 @@ mod tests {
             focus_manager,
             goals_state: Arc::new(Mutex::new(goals_state)),
             emergency_access: Arc::clone(&emergency_access),
+            popup_manager,
             tracker: Arc::clone(&tracker),
             background_tracker: Arc::new(Mutex::new(Some(Arc::clone(&background_tracker)))),
         };

@@ -2,12 +2,13 @@ use crate::database::Database;
 use crate::focus_mode::FocusManager;
 use crate::limit_popup::EmergencyAccessManager;
 use crate::notification_settings::NotificationManager;
+use crate::popup_manager::PopupManager;
 use crate::window_tracker::{extract_app_name, get_active_window_name};
 use std::collections::HashMap;
 use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use tokio::sync::Mutex;
 use tokio::time::interval;
 
@@ -29,9 +30,13 @@ const MAX_RETRY_BUFFER_SIZE: usize = 100;
 #[cfg(target_os = "windows")]
 const WINDOWS_EXE_ALIASES: &[(&str, &str)] = &[
     ("visual studio code", "Code"),
+    ("code", "Code"),
     ("google chrome", "chrome"),
+    ("chrome", "chrome"),
     ("mozilla firefox", "firefox"),
+    ("firefox", "firefox"),
     ("microsoft edge", "msedge"),
+    ("edge", "msedge"),
     ("windows terminal", "WindowsTerminal"),
     ("notepad++", "notepad++"),
     ("sublime text", "sublime_text"),
@@ -39,6 +44,9 @@ const WINDOWS_EXE_ALIASES: &[(&str, &str)] = &[
     ("spotify", "Spotify"),
     ("discord", "Discord"),
     ("steam", "steam"),
+    ("brave", "brave"),
+    ("vscodium", "codium"),
+    ("zed", "zed"),
 ];
 
 /// Notification types to track what we've already sent
@@ -87,6 +95,7 @@ pub struct UsageTracker {
     last_written_end_time: Arc<Mutex<Option<i64>>>,
     /// Cache for is_app_blocked results to avoid DB queries every tick.
     cached_blocked: Arc<Mutex<HashMap<String, (bool, i64)>>>,
+    popup_manager: Arc<PopupManager>,
 }
 
 impl UsageTracker {
@@ -94,6 +103,7 @@ impl UsageTracker {
         db: Arc<Mutex<Database>>,
         emergency_access: Arc<EmergencyAccessManager>,
         focus_manager: Arc<FocusManager>,
+        popup_manager: Arc<PopupManager>,
     ) -> Self {
         let today = chrono::Local::now().format("%Y-%m-%d").to_string();
         UsageTracker {
@@ -111,6 +121,7 @@ impl UsageTracker {
             retry_buffer: Arc::new(Mutex::new(Vec::new())),
             last_written_end_time: Arc::new(Mutex::new(None)),
             cached_blocked: Arc::new(Mutex::new(HashMap::new())),
+            popup_manager,
         }
     }
 
@@ -638,8 +649,7 @@ impl UsageTracker {
     /// The frontend overlay (LimitReached component) handles the actual popup UI.
     async fn emit_blocked_event(&self, app_name: &str) {
         if let Some(ref handle) = self.app_handle {
-            let payload = serde_json::json!({ "app": app_name });
-            let _ = handle.emit("blocked-app-detected", payload);
+            self.popup_manager.show_popup(handle, app_name).await;
         }
 
         let _ = self
@@ -648,6 +658,12 @@ impl UsageTracker {
                 &format!("Daily time limit exceeded for {}.", app_name),
             )
             .await;
+    }
+
+    /// Remove a specific app from the blocked-app cache so the tracker
+    /// re-queries the DB on the next tick instead of using stale data.
+    pub async fn invalidate_blocked_cache(&self, app_name: &str) {
+        self.cached_blocked.lock().await.remove(app_name);
     }
 
     /// Block/close an app (called when user clicks "Quit App" or emergency access expires).
@@ -698,7 +714,7 @@ fn block_app_linux(app_lower: &str, app_original: &str) -> Result<(), String> {
     let is_wayland = std::env::var("WAYLAND_DISPLAY").is_ok()
         || std::env::var("XDG_SESSION_TYPE").unwrap_or_default() == "wayland";
 
-    // Strategy 1: Wayland native -- Hyprland
+    // 1. Wayland window closing strategies (Hyprland / Sway)
     if is_wayland {
         if let Ok(true) = which_cmd("hyprctl") {
             if let Ok(output) = Command::new("hyprctl").args(["clients", "-j"]).output() {
@@ -708,9 +724,25 @@ fn block_app_linux(app_lower: &str, app_original: &str) -> Result<(), String> {
                         for client in &clients {
                             let class = client.get("class").and_then(|v| v.as_str()).unwrap_or("");
                             let title = client.get("title").and_then(|v| v.as_str()).unwrap_or("");
+                            let initial_class = client
+                                .get("initialClass")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("");
                             if class.to_lowercase().contains(app_lower)
                                 || title.to_lowercase().contains(app_lower)
+                                || initial_class.to_lowercase().contains(app_lower)
                             {
+                                let address = client
+                                    .get("address")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or(class);
+                                let _ = Command::new("hyprctl")
+                                    .args([
+                                        "dispatch",
+                                        "closewindow",
+                                        &format!("address:{}", address),
+                                    ])
+                                    .output();
                                 let _ = Command::new("hyprctl")
                                     .args(["dispatch", "closewindow", class])
                                     .output();
@@ -719,36 +751,23 @@ fn block_app_linux(app_lower: &str, app_original: &str) -> Result<(), String> {
                     }
                 }
             }
-            // Also try pkill as fallback on Hyprland
-            let _ = Command::new("pkill")
-                .args(["-f", &format!("(?i){}", app_lower)])
-                .output();
-            return Ok(());
         }
 
-        // Strategy 2: Wayland native -- Sway
         if let Ok(true) = which_cmd("swaymsg") {
-            // swaymsg [class="..."] kill
             let _ = Command::new("swaymsg")
-                .args([format!("[class=\"{}\"]", app_original).as_str(), "kill"])
+                .args([format!("[class=\"(?i){}\"]", app_original).as_str(), "kill"])
                 .output();
-            // Also try by title
             let _ = Command::new("swaymsg")
-                .args([format!("[title=\"{}\"]", app_original).as_str(), "kill"])
+                .args([format!("[title=\"(?i){}\"]", app_original).as_str(), "kill"])
                 .output();
-            let _ = Command::new("pkill")
-                .args(["-f", &format!("(?i){}", app_lower)])
-                .output();
-            return Ok(());
         }
     }
 
-    // Strategy 3: X11 / wmctrl -- list all windows, match by class/ title, close each
+    // 2. X11 window closing strategies (wmctrl / xdotool)
     if let Ok(output) = Command::new("wmctrl").args(["-l"]).output() {
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
             for line in stdout.lines() {
-                // Format: <hex_id> <desktop> <hostname> <window title>
                 let parts: Vec<&str> = line.splitn(4, ' ').collect();
                 if parts.len() >= 4 {
                     let window_id = parts[0];
@@ -763,7 +782,6 @@ fn block_app_linux(app_lower: &str, app_original: &str) -> Result<(), String> {
         }
     }
 
-    // Strategy 4: xdotool -- find windows by name, close each
     if let Ok(output) = Command::new("xdotool")
         .args(["search", "--name", &format!("(?i){}", app_lower)])
         .output()
@@ -780,7 +798,6 @@ fn block_app_linux(app_lower: &str, app_original: &str) -> Result<(), String> {
         }
     }
 
-    // Strategy 5: xdotool -- search by class name
     if let Ok(output) = Command::new("xdotool")
         .args(["search", "--class", &format!("(?i){}", app_lower)])
         .output()
@@ -797,10 +814,90 @@ fn block_app_linux(app_lower: &str, app_original: &str) -> Result<(), String> {
         }
     }
 
-    // Strategy 6: pkill -f as the nuclear option
-    let _ = Command::new("pkill")
-        .args(["-f", &format!("(?i){}", app_lower)])
-        .output();
+    // 3. Process termination candidates
+    let mut targets = vec![app_original.to_string(), app_lower.to_string()];
+
+    // Add candidates based on known app mappings
+    match app_lower {
+        "visual studio code" | "code" => {
+            targets.push("code".to_string());
+            targets.push("code-oss".to_string());
+        }
+        "chrome" | "google chrome" | "google-chrome" => {
+            targets.push("chrome".to_string());
+            targets.push("google-chrome".to_string());
+            targets.push("google-chrome-stable".to_string());
+        }
+        "chromium" => {
+            targets.push("chromium".to_string());
+            targets.push("chromium-browser".to_string());
+        }
+        "brave" | "brave browser" | "brave-browser" => {
+            targets.push("brave".to_string());
+            targets.push("brave-browser".to_string());
+        }
+        "firefox" | "mozilla firefox" => {
+            targets.push("firefox".to_string());
+            targets.push("firefox-esr".to_string());
+        }
+        "microsoft edge" | "edge" => {
+            targets.push("msedge".to_string());
+            targets.push("microsoft-edge".to_string());
+        }
+        "zen browser" | "zen" => {
+            targets.push("zen-alpha".to_string());
+            targets.push("zen".to_string());
+        }
+        "vscodium" => {
+            targets.push("vscodium".to_string());
+            targets.push("codium".to_string());
+        }
+        "sublime text" => {
+            targets.push("sublime_text".to_string());
+            targets.push("subl".to_string());
+        }
+        "telegram" => {
+            targets.push("telegram-desktop".to_string());
+            targets.push("telegram".to_string());
+        }
+        "discord" => {
+            targets.push("discord".to_string());
+            targets.push("vesktop".to_string());
+            targets.push("webcord".to_string());
+        }
+        "slack" => {
+            targets.push("slack".to_string());
+        }
+        "spotify" => {
+            targets.push("spotify".to_string());
+        }
+        _ => {}
+    }
+
+    if app_lower.contains(' ') {
+        targets.push(app_lower.replace(' ', "-"));
+        targets.push(app_lower.replace(' ', ""));
+        targets.push(app_lower.replace(' ', "_"));
+    }
+
+    // De-duplicate targets and remove any that match "zenith"
+    targets.retain(|t| {
+        let t_lower = t.to_lowercase();
+        !t_lower.is_empty() && t_lower != "zenith" && t_lower != "zenith-dw"
+    });
+
+    for target in &targets {
+        // Try pkill -9 -x (exact process name)
+        let _ = Command::new("pkill").args(["-9", "-x", target]).output();
+
+        // Try pkill -9 -f (case insensitive full command line pattern)
+        let _ = Command::new("pkill")
+            .args(["-9", "-f", &format!("(?i){}", target)])
+            .output();
+
+        // Try killall -9
+        let _ = Command::new("killall").args(["-9", target]).output();
+    }
 
     Ok(())
 }
