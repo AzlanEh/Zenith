@@ -682,8 +682,8 @@ impl UsageTracker {
             let exe = WINDOWS_EXE_ALIASES
                 .iter()
                 .find(|(d, _)| d == &app_lower.as_str())
-                .map(|(_, e)| e.to_string())
-                .unwrap_or_else(|| app_name.clone());
+                .map(|(_, e)| *e)
+                .unwrap_or(app_name);
             // /F force kill, /T kill child process tree.
             let _ = Command::new("taskkill")
                 .args(["/T", "/F", "/IM", &format!("{}.exe", exe)])

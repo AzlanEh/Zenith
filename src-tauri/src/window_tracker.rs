@@ -1,5 +1,6 @@
 use active_win_pos_rs::get_active_window;
 use std::collections::HashMap;
+#[cfg(target_os = "linux")]
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::LazyLock;
 
@@ -290,6 +291,7 @@ static EXACT_MATCH_MAP: LazyLock<HashMap<&'static str, &'static str>> = LazyLock
 });
 
 /// Detection backend: 0 = unknown, 1 = wayland-hyprland, 2 = wayland-sway, 3 = x11
+#[cfg(target_os = "linux")]
 static DETECTION_BACKEND: AtomicU8 = AtomicU8::new(0);
 
 /// Get the name of the currently active window (cross-platform)

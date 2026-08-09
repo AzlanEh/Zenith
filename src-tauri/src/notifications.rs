@@ -14,13 +14,13 @@ pub fn send_notification(title: &str, body: &str) -> bool {
 
 /// Send a notification with a specific urgency level.
 /// Urgency: "low", "normal", or "critical"
-pub fn send_notification_with_urgency(title: &str, body: &str, urgency: &str) -> bool {
+pub fn send_notification_with_urgency(title: &str, body: &str, _urgency: &str) -> bool {
     #[cfg(target_os = "linux")]
     {
         let result = Command::new("notify-send")
             .args([
                 "--app-name=Zenith",
-                &format!("--urgency={}", urgency),
+                &format!("--urgency={}", _urgency),
                 "--icon=dialog-information",
                 title,
                 body,
