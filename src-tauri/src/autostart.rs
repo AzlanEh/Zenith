@@ -61,8 +61,8 @@ After=graphical-session.target
 [Service]
 Type=simple
 ExecStart={binary_path} --background
-Restart=on-failure
-RestartSec=5
+Restart=always
+RestartSec=10
 
 [Install]
 WantedBy=default.target
