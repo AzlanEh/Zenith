@@ -147,18 +147,20 @@ jobs:
 
       - name: Install system dependencies (Linux)
         if: matrix.config.platform == 'ubuntu-22.04'
+        id: sys-deps
+        background: true
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev libxss-dev libx11-dev
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+      - parallel:
+          - name: Setup Node.js
+            uses: actions/setup-node@v4
+            with:
+              node-version: "20"
+              cache: "npm"
+          - name: Setup Rust
+            uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -178,6 +180,10 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Wait for system dependencies (Linux)
+        if: matrix.config.platform == 'ubuntu-22.04'
+        wait: sys-deps
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
@@ -199,6 +205,8 @@ jobs:
       image: archlinux:latest
     steps:
       - name: Install base dependencies
+        id: pacman-setup
+        background: true
         run: |
           pacman -Syu --noconfirm
           pacman -S --noconfirm base-devel git sudo nodejs npm curl \
@@ -218,6 +226,8 @@ jobs:
           chown -R builder:builder .
 
       - name: Setup Rust as builder user
+        id: rust-setup
+        background: true
         run: |
           su builder -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable"
 
@@ -227,6 +237,9 @@ jobs:
           path: /home/builder/.cargo/registry
           key: arch-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
           restore-keys: arch-cargo-
+
+      - name: Wait for base dependencies and Rust
+        wait-all: true
 
       - name: Build PKGBUILD
         run: su builder -s /bin/bash -c "export PATH=/home/builder/.cargo/bin:\$PATH && cd $(pwd)/pkg/linux/arch && makepkg -s --noconfirm --noprogressbar"
