@@ -9,6 +9,7 @@ import {
   Hourglass,
   Minus,
   Plus,
+  Power,
 } from "lucide-react";
 import { api } from "@/services/api";
 import { logger } from "@/utils/logger";
@@ -22,11 +23,25 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const [focus, setFocus] = useState(4);
   const [screen, setScreen] = useState(2);
   const [mind, setMind] = useState(3);
+  const [autostartEnabled, setAutostartEnabled] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
     return () => document.documentElement.classList.remove("dark");
+  }, []);
+
+  useEffect(() => {
+    api
+      .getAutostartStatus()
+      .then((status) => {
+        if (status && typeof status.enabled === "boolean") {
+          setAutostartEnabled(status.enabled);
+        }
+      })
+      .catch((e) => {
+        logger.error("Failed to fetch autostart status in onboarding", e);
+      });
   }, []);
 
   const updateFocus = (change: number) =>
@@ -40,8 +55,13 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     try {
       setIsSubmitting(true);
       await api.initOnboardingGoals(focus * 60, screen);
+      if (autostartEnabled) {
+        await api.enableAutostart();
+      } else {
+        await api.disableAutostart();
+      }
     } catch (e) {
-      logger.error("Failed to initialize onboarding goals", e);
+      logger.error("Failed during onboarding finish", e);
     } finally {
       localStorage.setItem("onboarding_completed", "true");
       onComplete();
@@ -292,6 +312,40 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               Your parameters are set. The environment has been calibrated to
               your precise specifications for deep focus.
             </p>
+          </div>
+
+          <div className="bg-card border border-border p-6 text-left flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-muted border border-border text-foreground">
+                <Power className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-headline text-lg font-medium text-foreground">
+                    Start at Login
+                  </span>
+                  <span className="font-mono text-[0.65rem] px-2 py-0.5 bg-foreground text-background font-bold tracking-widest uppercase">
+                    RECOMMENDED
+                  </span>
+                </div>
+                <p className="font-body text-xs md:text-sm text-muted-foreground leading-relaxed">
+                  Launch Zenith automatically on boot to ensure continuous telemetry and screen time enforcement.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              aria-label="toggle start at login"
+              aria-pressed={autostartEnabled}
+              onClick={() => setAutostartEnabled(!autostartEnabled)}
+              className={`px-4 py-2 font-mono text-xs uppercase tracking-widest transition-colors border cursor-pointer ${
+                autostartEnabled
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-muted text-muted-foreground"
+              }`}
+            >
+              {autostartEnabled ? "ON" : "OFF"}
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-1 bg-muted border border-border p-1">
