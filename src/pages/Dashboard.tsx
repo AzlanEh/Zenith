@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  BarChart3,
   ChevronLeft,
   ChevronRight,
   CircleDot,
@@ -24,7 +23,6 @@ import {
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
   donut_large: CircleDot,
   tune: SlidersHorizontal,
-  bar_chart: BarChart3,
   memory: Cpu,
   list_alt: List,
   military_tech: Medal,
@@ -282,7 +280,6 @@ function WeeklyTelemetry({
           <h2 className="font-mono text-xs tracking-[0.1em] uppercase text-foreground border-b border-border pb-1 font-bold">
             Weekly Activity
           </h2>
-          <BarChart3 className="text-muted-foreground w-4 h-4" />
         </div>
         <div className="flex items-center gap-2 font-mono text-[0.625rem] uppercase tracking-[0.1em]">
           <span className="text-muted-foreground border border-border px-2 py-1 bg-background">
