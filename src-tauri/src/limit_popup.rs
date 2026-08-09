@@ -3,6 +3,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 /// Duration of emergency access in seconds (10 minutes)
+#[allow(dead_code)]
 pub const EMERGENCY_ACCESS_DURATION: i64 = 10 * 60;
 
 /// Manages emergency access grants for blocked apps

@@ -329,6 +329,76 @@ async fn quit_blocked_app(
     Ok(())
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SystemInfo {
+    pub os: String,
+    pub desktop_environment: String,
+    pub app_version: String,
+}
+
+fn get_os_name() -> String {
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(content) = std::fs::read_to_string("/etc/os-release") {
+            for line in content.lines() {
+                if let Some(name) = line.strip_prefix("PRETTY_NAME=") {
+                    return name.trim_matches('"').to_string();
+                }
+            }
+        }
+        "Linux".to_string()
+    }
+    #[cfg(target_os = "windows")]
+    {
+        "Windows".to_string()
+    }
+    #[cfg(target_os = "macos")]
+    {
+        "macOS".to_string()
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+    {
+        std::env::consts::OS.to_string()
+    }
+}
+
+fn get_desktop_environment() -> String {
+    #[cfg(target_os = "linux")]
+    {
+        let desktop = std::env::var("XDG_CURRENT_DESKTOP")
+            .or_else(|_| std::env::var("DESKTOP_SESSION"))
+            .unwrap_or_else(|_| "Unknown".to_string());
+        let session_type = std::env::var("XDG_SESSION_TYPE").unwrap_or_default();
+        if !session_type.is_empty() {
+            format!("{} ({})", desktop, session_type)
+        } else {
+            desktop
+        }
+    }
+    #[cfg(target_os = "windows")]
+    {
+        "Windows Desktop".to_string()
+    }
+    #[cfg(target_os = "macos")]
+    {
+        "Aqua".to_string()
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+    {
+        "Unknown".to_string()
+    }
+}
+
+#[tauri::command]
+fn get_system_info(app_handle: tauri::AppHandle) -> CmdResult<SystemInfo> {
+    let app_version = app_handle.package_info().version.to_string();
+    Ok(SystemInfo {
+        os: get_os_name(),
+        desktop_environment: get_desktop_environment(),
+        app_version,
+    })
+}
+
 #[tauri::command]
 fn get_installed_apps() -> CmdResult<Vec<InstalledApp>> {
     Ok(app_scanner::get_installed_apps())
@@ -1393,6 +1463,7 @@ pub fn run() {
             has_emergency_access,
             quit_blocked_app,
             get_installed_apps,
+            get_system_info,
             resolve_app_icon,
             send_test_notification,
             enable_autostart,
@@ -1484,6 +1555,14 @@ mod tests {
     use super::*;
     use std::sync::Arc;
     use tokio::sync::Mutex;
+
+    #[test]
+    fn test_system_info_fields_not_empty() {
+        let os = get_os_name();
+        let de = get_desktop_environment();
+        assert!(!os.is_empty(), "OS name should not be empty");
+        assert!(!de.is_empty(), "Desktop environment should not be empty");
+    }
 
     #[test]
     fn test_valid_app_names() {
