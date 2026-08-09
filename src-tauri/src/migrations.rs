@@ -6,7 +6,7 @@
 use rusqlite::{Connection, Result as SqliteResult};
 
 /// Current schema version - increment this when adding new migrations
-pub const SCHEMA_VERSION: i64 = 4;
+pub const SCHEMA_VERSION: i64 = 5;
 
 /// Represents a single migration
 struct Migration {
@@ -56,6 +56,24 @@ fn get_migrations() -> Vec<Migration> {
         Migration {
             version: 4,
             description: "Deduplicate overlapping usage sessions from concurrent multi-instance tracking",
+            sql: "
+                DELETE FROM usage_sessions 
+                WHERE id IN (
+                  SELECT s2.id 
+                  FROM usage_sessions s1 
+                  JOIN usage_sessions s2 ON s1.app_id = s2.app_id 
+                    AND s1.id < s2.id 
+                    AND (
+                      (s2.start_time >= s1.start_time AND s2.start_time <= s1.end_time)
+                      OR
+                      (ABS(s1.start_time - s2.start_time) <= 10)
+                    )
+                );
+            ",
+        },
+        Migration {
+            version: 5,
+            description: "Deduplicate overlapping usage sessions from dual background service instances",
             sql: "
                 DELETE FROM usage_sessions 
                 WHERE id IN (

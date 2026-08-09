@@ -119,6 +119,15 @@ X-GNOME-Autostart-Delay=5
                     .args(["--user", "start", "zenith.service"])
                     .output();
                 methods_installed.push("systemd user service");
+
+                // Remove XDG autostart file to prevent systemd-xdg-autostart-generator
+                // from launching a duplicate background service on login
+                if let Some(autostart_dir) = get_autostart_dir() {
+                    let desktop_path = autostart_dir.join("zenith.desktop");
+                    if desktop_path.exists() {
+                        let _ = fs::remove_file(&desktop_path);
+                    }
+                }
             }
         }
 
