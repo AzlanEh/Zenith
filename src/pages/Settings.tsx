@@ -42,7 +42,7 @@ import {
   useUpdateNotificationSettings,
 } from "../queries";
 import { api } from "../services/api";
-import type { AutostartStatus, BreakSettings, ExportRecord } from "../types";
+import type { AutostartStatus, BreakSettings, ExportRecord, SystemInfo } from "../types";
 import {
   Dialog,
   DialogContent,
@@ -182,24 +182,30 @@ function ReportIssueDialog() {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [appVersion, setAppVersion] = useState("");
+  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    import("@tauri-apps/api/app")
-      .then(({ getVersion }) => getVersion())
-      .then(setAppVersion)
-      .catch(() => setAppVersion("unknown"));
+    api
+      .getSystemInfo()
+      .then(setSystemInfo)
+      .catch((err) => {
+        logger.error("Failed to fetch system info:", err);
+      });
   }, [open]);
 
   const handleSubmit = () => {
     if (!title.trim() || !body.trim()) return;
     const url = new URL(REPORT_ISSUE_URL);
     url.searchParams.set("title", title.trim());
-    url.searchParams.set(
-      "body",
-      `${body.trim()}\n\n---\n<sub>Zenith ${appVersion} / ${navigator.userAgent}</sub>`,
-    );
+    if (systemInfo) {
+      url.searchParams.set("version", systemInfo.app_version);
+      url.searchParams.set(
+        "os",
+        `${systemInfo.os} / ${systemInfo.desktop_environment}`,
+      );
+    }
+    url.searchParams.set("description", body.trim());
     openUrl(url.toString());
     setTitle("");
     setBody("");
@@ -256,6 +262,22 @@ function ReportIssueDialog() {
               className="bg-background border border-border text-foreground font-body p-3 text-sm focus:border-foreground focus:ring-0 outline-none resize-y"
             />
           </div>
+          {systemInfo && (
+            <div className="border border-border bg-muted/30 p-3 font-mono text-xs flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
+              <div>
+                <span className="text-foreground font-semibold">OS:</span>{" "}
+                {systemInfo.os}
+              </div>
+              <div>
+                <span className="text-foreground font-semibold">DE:</span>{" "}
+                {systemInfo.desktop_environment}
+              </div>
+              <div>
+                <span className="text-foreground font-semibold">Version:</span>{" "}
+                v{systemInfo.app_version}
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <button
