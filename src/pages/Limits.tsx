@@ -23,14 +23,16 @@ export function Limits() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedApps, setSelectedApps] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [displayLimit, setDisplayLimit] = useState(30);
 
   useEffect(() => {
+    setDisplayLimit(30);
     if (!isAddOpen) {
       setSearchQuery("");
       setSelectedApps([]);
       setActiveCategory("All");
     }
-  }, [isAddOpen]);
+  }, [isAddOpen, searchQuery, activeCategory]);
 
   useEffect(() => {
     api
@@ -103,6 +105,17 @@ export function Limits() {
     );
   }, [filteredInstalledApps, activeCategory]);
 
+  const displayedApps = useMemo(() => {
+    return appsForCategory.slice(0, displayLimit);
+  }, [appsForCategory, displayLimit]);
+
+  const handleModalScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, clientHeight, scrollHeight } = e.currentTarget;
+    if (scrollTop + clientHeight >= scrollHeight - 300) {
+      setDisplayLimit((prev) => Math.min(appsForCategory.length, prev + 30));
+    }
+  };
+
   return (
     <ErrorBoundary>
       <div className="p-4 lg:p-8 max-w-5xl mx-auto flex flex-col gap-8 pb-20 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -158,7 +171,10 @@ export function Limits() {
                 </div>
 
                 {/* Content Area */}
-                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-background">
+                <div
+                  className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-background"
+                  onScroll={handleModalScroll}
+                >
                   {/* Category Filter Chips */}
                   <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
                     {categoryOptions.map((category) => (
@@ -182,7 +198,7 @@ export function Limits() {
                         No applications found
                       </div>
                     ) : (
-                      appsForCategory.map((app) => {
+                      displayedApps.map((app) => {
                         const isSelected = selectedApps.includes(app.name);
                         return (
                           <div

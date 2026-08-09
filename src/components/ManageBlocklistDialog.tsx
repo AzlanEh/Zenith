@@ -1,4 +1,4 @@
-import { memo, useState, useMemo } from "react";
+import { memo, useState, useMemo, useEffect } from "react";
 import { Search, Plus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { AppIcon } from "./AppIcon";
@@ -23,6 +23,15 @@ export const ManageBlocklistDialog = memo(function ManageBlocklistDialog({
 }: ManageBlocklistDialogProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [displayLimit, setDisplayLimit] = useState(30);
+
+  useEffect(() => {
+    setDisplayLimit(30);
+    if (!open) {
+      setSearchQuery("");
+      setSelectedCategory("All");
+    }
+  }, [open, searchQuery, selectedCategory]);
 
   const blockedSet = useMemo(() => new Set(blockedAppsList), [blockedAppsList]);
 
@@ -48,6 +57,17 @@ export const ManageBlocklistDialog = memo(function ManageBlocklistDialog({
       return matchesSearch && matchesCategory;
     });
   }, [availableApps, searchQuery, selectedCategory]);
+
+  const displayedApps = useMemo(() => {
+    return filteredApps.slice(0, displayLimit);
+  }, [filteredApps, displayLimit]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, clientHeight, scrollHeight } = e.currentTarget;
+    if (scrollTop + clientHeight >= scrollHeight - 300) {
+      setDisplayLimit((prev) => Math.min(filteredApps.length, prev + 30));
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -104,7 +124,10 @@ export const ManageBlocklistDialog = memo(function ManageBlocklistDialog({
         </div>
 
         {/* Apps List */}
-        <div className="flex-1 overflow-y-auto p-6 sm:p-8 bg-background space-y-2">
+        <div
+          className="flex-1 overflow-y-auto p-6 sm:p-8 bg-background space-y-2"
+          onScroll={handleScroll}
+        >
           <div className="flex justify-between items-center mb-3">
             <span className="text-[0.65rem] font-mono uppercase tracking-widest text-muted-foreground font-bold">
               Available Applications ({filteredApps.length})
@@ -122,7 +145,7 @@ export const ManageBlocklistDialog = memo(function ManageBlocklistDialog({
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {filteredApps.map((app) => (
+              {displayedApps.map((app) => (
                 <button
                   key={app.name}
                   onClick={() => onAddBlockedApp(app.name)}

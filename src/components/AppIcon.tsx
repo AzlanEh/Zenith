@@ -122,6 +122,32 @@ export interface AppIconProps {
   color?: string;
 }
 
+// Shared module-level IntersectionObserver for all AppIcon instances to reduce memory & overhead
+let sharedObserver: IntersectionObserver | null = null;
+const observerCallbacks = new Map<Element, () => void>();
+
+function getSharedObserver(): IntersectionObserver | null {
+  if (typeof window === "undefined" || typeof IntersectionObserver === "undefined") return null;
+  if (!sharedObserver) {
+    sharedObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const cb = observerCallbacks.get(entry.target);
+            if (cb) {
+              cb();
+              observerCallbacks.delete(entry.target);
+              sharedObserver?.unobserve(entry.target);
+            }
+          }
+        }
+      },
+      { rootMargin: "100px" }
+    );
+  }
+  return sharedObserver;
+}
+
 export const AppIcon = memo(function AppIcon({
   appName,
   iconHint,
@@ -140,23 +166,19 @@ export const AppIcon = memo(function AppIcon({
     const el = containerRef.current;
     if (!el) return;
 
-    if (typeof IntersectionObserver === "undefined") {
+    const observer = getSharedObserver();
+    if (!observer) {
       setIsVisible(true);
       return;
     }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setIsVisible(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "100px" }
-    );
-
+    observerCallbacks.set(el, () => setIsVisible(true));
     observer.observe(el);
-    return () => observer.disconnect();
+
+    return () => {
+      observerCallbacks.delete(el);
+      observer.unobserve(el);
+    };
   }, []);
 
   useEffect(() => {
