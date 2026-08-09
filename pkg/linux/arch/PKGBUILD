@@ -1,6 +1,6 @@
 # Maintainer: Azlan Ehtasham <azlanehtesham02@gmail.com>
 pkgname=zenith-dw
-pkgver=0.2.0
+pkgver=0.2.5
 pkgrel=1
 pkgdesc="A high-fidelity digital wellbeing platform for reclaiming cognitive sovereignty."
 arch=('x86_64')
