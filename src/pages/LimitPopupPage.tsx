@@ -11,11 +11,16 @@ export function LimitPopupPage() {
   const appName = new URLSearchParams(window.location.search).get("app") ?? "Unknown";
   const [isLoading, setIsLoading] = useState(false);
   const [emergencyRemaining, setEmergencyRemaining] = useState(0);
+  const [configuredDuration, setConfiguredDuration] = useState(10);
 
   useEffect(() => {
     api.getEmergencyAccessRemaining(appName)
       .then(setEmergencyRemaining)
       .catch(() => setEmergencyRemaining(0));
+
+    api.getFocusSettings()
+      .then((s) => setConfiguredDuration(s.emergency_access_minutes ?? 10))
+      .catch(() => setConfiguredDuration(10));
   }, [appName]);
 
   const handleQuitApp = async () => {
@@ -97,19 +102,20 @@ export function LimitPopupPage() {
           <Clock className="w-3.5 h-3.5 mr-1.5" />
           {emergencyRemaining > 0 ? (
             <span>
-              Emergency Access (<span className="font-mono">{emergencyRemaining}m</span> left today)
+              Emergency Access (<span className="font-mono">{Math.ceil(emergencyRemaining / 60)}m</span> left today)
             </span>
           ) : (
-            <span>Emergency Access (10 Min)</span>
+            <span>Emergency Access ({configuredDuration} Min)</span>
           )}
         </Button>
       </div>
 
       {/* Footer Info */}
       <p className="font-mono text-[10px] text-muted-foreground text-center pt-2 border-t border-border/60 pointer-events-none">
-        Emergency access grants a single 10-minute pass per session.
+        Emergency access grants a single {configuredDuration}-minute pass per session.
       </p>
     </div>
   );
 }
+
 

@@ -6,6 +6,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+fn default_emergency_access_minutes() -> u32 {
+    10
+}
+
 /// Focus mode settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FocusSettings {
@@ -13,6 +17,9 @@ pub struct FocusSettings {
     pub blocked_apps: Vec<String>,
     /// Default focus session duration in minutes
     pub default_duration_minutes: u32,
+    /// Duration of emergency access in minutes (10, 15, or 20)
+    #[serde(default = "default_emergency_access_minutes")]
+    pub emergency_access_minutes: u32,
     /// Whether to show a notification when focus mode starts
     pub notify_on_start: bool,
     /// Whether to show a notification when focus mode ends
@@ -28,6 +35,7 @@ impl Default for FocusSettings {
         Self {
             blocked_apps: vec![],
             default_duration_minutes: 25,
+            emergency_access_minutes: 10,
             notify_on_start: true,
             notify_on_end: true,
             block_notifications: true,

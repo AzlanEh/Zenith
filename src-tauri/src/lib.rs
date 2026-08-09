@@ -262,7 +262,18 @@ async fn grant_emergency_access(
     if !is_valid_app_name(&app_name) {
         return Err(WellbeingError::InvalidAppName(app_name));
     }
-    let expiry = state.emergency_access.grant_access(&app_name).await;
+    let focus_settings = state.focus_manager.get_settings().await;
+    let duration_minutes = match focus_settings.emergency_access_minutes {
+        15 => 15,
+        20 => 20,
+        _ => 10,
+    } as i64;
+    let duration_seconds = duration_minutes * 60;
+    let expiry = state
+        .emergency_access
+        .grant_access(&app_name, duration_seconds)
+        .await;
+
     // Invalidate the tracker's cached_blocked so it doesn't immediately re-trigger
     {
         let tracker = state.tracker.lock().await;
@@ -1560,7 +1571,7 @@ mod tests {
         }
 
         let emergency_access = Arc::new(EmergencyAccessManager::new());
-        emergency_access.grant_access("Firefox").await;
+        emergency_access.grant_access("Firefox", 600).await;
 
         let focus_manager = Arc::new(FocusManager::new());
         let popup_manager = Arc::new(PopupManager::new());

@@ -113,11 +113,13 @@ export interface NotificationSettings {
 export interface FocusSettings {
   blocked_apps: string[];
   default_duration_minutes: number;
+  emergency_access_minutes?: number;
   notify_on_start: boolean;
   notify_on_end: boolean;
   block_notifications: boolean;
   schedules: FocusSchedule[];
 }
+
 
 export interface FocusSchedule {
   id: string;

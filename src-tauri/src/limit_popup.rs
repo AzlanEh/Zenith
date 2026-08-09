@@ -35,19 +35,19 @@ impl EmergencyAccessManager {
         }
     }
 
-    /// Grant emergency access for an app (10 minutes)
-    pub async fn grant_access(&self, app_name: &str) -> i64 {
+    /// Grant emergency access for an app for a given duration in seconds
+    pub async fn grant_access(&self, app_name: &str, duration_seconds: i64) -> i64 {
         self.reset_if_new_day().await;
 
         let now = chrono::Utc::now().timestamp();
-        let expiry = now + EMERGENCY_ACCESS_DURATION;
+        let expiry = now + duration_seconds;
 
         let mut grants = self.access_grants.lock().await;
         grants.insert(app_name.to_string(), expiry);
 
         tracing::info!(
             app = %app_name,
-            expiry_seconds = EMERGENCY_ACCESS_DURATION,
+            expiry_seconds = duration_seconds,
             "Granted emergency access"
         );
 
@@ -135,7 +135,9 @@ mod tests {
         assert_eq!(manager.get_remaining_time("Firefox").await, 0);
 
         // Grant access
-        let expiry = manager.grant_access("Firefox").await;
+        let expiry = manager
+            .grant_access("Firefox", EMERGENCY_ACCESS_DURATION)
+            .await;
         assert!(expiry > chrono::Utc::now().timestamp());
 
         // Now should have access
@@ -147,7 +149,9 @@ mod tests {
     async fn test_revoke_access() {
         let manager = EmergencyAccessManager::new();
 
-        manager.grant_access("Firefox").await;
+        manager
+            .grant_access("Firefox", EMERGENCY_ACCESS_DURATION)
+            .await;
         assert!(manager.has_active_access("Firefox").await);
 
         manager.revoke_access("Firefox").await;

@@ -579,7 +579,31 @@ export function Settings() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="flex flex-col gap-2">
+
+                  <label className="font-label text-xs uppercase tracking-widest text-muted-foreground">
+                    Emergency Access Time (Min)
+                  </label>
+                  <Select
+                    value={String(focusSettings?.emergency_access_minutes ?? 10)}
+                    onValueChange={(val) =>
+                      updateFocusSettingsMutation.mutate({
+                        emergency_access_minutes: parseInt(val),
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-full bg-background border-border text-foreground font-label p-3 uppercase focus:border-foreground focus:ring-0 rounded-none h-auto">
+                      <SelectValue placeholder="Select duration" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-none border-border bg-card">
+                      <SelectItem value="10">10 Minutes</SelectItem>
+                      <SelectItem value="15">15 Minutes</SelectItem>
+                      <SelectItem value="20">20 Minutes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="flex items-center justify-between p-4 border border-border bg-background">
+
                   <span
                     className="font-label text-sm text-foreground uppercase tracking-wide"
                     id="mute-label"
