@@ -2,7 +2,7 @@
 
 A high-fidelity digital wellbeing platform for reclaiming cognitive sovereignty. Built with Tauri, React, and TypeScript.
 
-![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)
+![Version](https://img.shields.io/badge/version-0.2.5-blue.svg)
 ![CI](https://github.com/AzlanEh/zenith/actions/workflows/release.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey.svg)

@@ -4,19 +4,22 @@ All notable changes to this project are documented in this file. Format based on
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-08-09
+
 ### Added
 
 - 4-week telemetry navigation buttons and historical week selection in `WeeklyTelemetry` dashboard
 - Expanded backend `get_weekly_stats` API query window to 30 days
 - Single-instance application process locking via `tauri-plugin-single-instance`
-- SQLite Migration 3 for automatic session deduplication and database indexing
+- SQLite Migration 5 for automatic session deduplication and database indexing
 - Windows UWP app scanning, `.lnk` target path resolution, and native Win32 executable icon extraction
 - App blocking on Windows by window title in addition to process name
 
 ### Fixed
 
 - Excluded Zenith background tracker process (`zenith-dw`) from application usage tracking
-- Local timezone boundary calculation in `WeeklyTelemetry` cutoff logic
+- Dual background service cleanup on autostart install
+- Web/E2E test blank page crash by guarding `getCurrentWindow()` in `main.tsx`
 
 ## [0.2.0] - 2026-08-02
 
