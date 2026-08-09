@@ -1160,12 +1160,11 @@ pub fn map_category(desktop_categories: &[String]) -> Option<String> {
     None
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "linux"))]
 mod tests {
     use super::*;
 
     #[test]
-    #[cfg(target_os = "linux")]
     fn test_parse_desktop_file_filters_nodisplay_and_hidden() {
         let temp_dir =
             std::env::temp_dir().join(format!("zenith_desktop_test_{}", std::process::id()));
