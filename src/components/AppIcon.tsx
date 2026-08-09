@@ -7,7 +7,7 @@
  *   Windows – resolves DisplayIcon registry paths (e.g. "C:\...\app.exe,0")
  */
 
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { api } from "@/services/api";
 import { COLORS } from "@/components/dashboard/constants";
@@ -74,18 +74,21 @@ function aliasCandidates(appName: string): string[] {
 }
 
 function iconCandidates(iconHint: string | null | undefined, appName: string): string[] {
-  const raw = [
-    iconHint ?? "",
-    ...aliasCandidates(appName),
-    appName,
-    appName.toLowerCase(),
-    appName.replace(/\s+/g, ""),
-    appName.toLowerCase().replace(/\s+/g, ""),
-    appName.split(/\s+/)[0] ?? "",
-    appName.split(/\s+/)[0]?.toLowerCase() ?? "",
-  ];
+  const raw: string[] = [];
 
-  return Array.from(new Set(raw.map((v) => v.trim()).filter(Boolean)));
+  if (iconHint && iconHint.trim()) {
+    raw.push(iconHint.trim());
+  }
+
+  const trimmed = appName.trim();
+  if (trimmed) {
+    raw.push(...aliasCandidates(trimmed));
+    raw.push(trimmed);
+    const lower = trimmed.toLowerCase();
+    if (lower !== trimmed) raw.push(lower);
+  }
+
+  return Array.from(new Set(raw.filter(Boolean)));
 }
 
 // Deterministic color for a given app name (same logic as the old COLORS array approach).
@@ -130,8 +133,35 @@ export const AppIcon = memo(function AppIcon({
 }: AppIconProps) {
   const [iconUrl, setIconUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    if (typeof IntersectionObserver === "undefined") {
+      setIsVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "100px" }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isVisible) return;
+
     setFailed(false);
     setIconUrl(null);
 
@@ -143,13 +173,14 @@ export const AppIcon = memo(function AppIcon({
     return () => {
       cancelled = true;
     };
-  }, [iconHint, appName]);
+  }, [isVisible, iconHint, appName]);
 
   const bgColor = color ?? getColorForName(appName);
   const showIcon = iconUrl && !failed;
 
   return (
     <div
+      ref={containerRef}
       className={cn(
         "relative flex items-center justify-center shrink-0 overflow-hidden",
         className,
