@@ -62,19 +62,25 @@ export function Limits() {
   };
 
   // Build name → icon hint map for quick lookup
-  const iconMap = new Map<string, string | null>(
-    installedApps.map((a) => [a.name.toLowerCase(), a.icon ?? null]),
+  const iconMap = useMemo(
+    () =>
+      new Map<string, string | null>(
+        installedApps.map((a) => [a.name.toLowerCase(), a.icon ?? null]),
+      ),
+    [installedApps],
   );
 
-  const filteredInstalledApps = installedApps.filter((app) => {
-    const notLimited = !appLimits.find(
-      (l) => l.app_name.toLowerCase() === app.name.toLowerCase(),
-    );
-    const matchesSearch =
-      searchQuery === "" ||
-      app.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return notLimited && matchesSearch;
-  });
+  const filteredInstalledApps = useMemo(() => {
+    return installedApps.filter((app) => {
+      const notLimited = !appLimits.find(
+        (l) => l.app_name.toLowerCase() === app.name.toLowerCase(),
+      );
+      const matchesSearch =
+        searchQuery === "" ||
+        app.name.toLowerCase().includes(searchQuery.toLowerCase());
+      return notLimited && matchesSearch;
+    });
+  }, [installedApps, appLimits, searchQuery]);
 
   const categoryOptions = useMemo(
     (): string[] => [
