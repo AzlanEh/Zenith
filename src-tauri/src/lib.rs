@@ -401,12 +401,20 @@ fn get_system_info(app_handle: tauri::AppHandle) -> CmdResult<SystemInfo> {
 
 #[tauri::command]
 async fn get_installed_apps() -> CmdResult<Vec<InstalledApp>> {
-    Ok(app_scanner::get_installed_apps())
+    // spawn_blocking: the Windows scan runs PowerShell subprocesses; even as an
+    // async command a blocking body can starve the runtime on current-thread
+    // setups, which froze the UI for the whole scan. Run it on the dedicated
+    // blocking executor instead.
+    tauri::async_runtime::spawn_blocking(app_scanner::get_installed_apps)
+        .await
+        .map_err(|e| WellbeingError::Other(format!("App scan task failed: {e}")))
 }
 
 #[tauri::command]
 async fn resolve_app_icon(icon_name: String) -> CmdResult<Option<String>> {
-    Ok(app_scanner::resolve_icon_path(&icon_name))
+    tauri::async_runtime::spawn_blocking(move || app_scanner::resolve_icon_path(&icon_name))
+        .await
+        .map_err(|e| WellbeingError::Other(format!("Icon resolution task failed: {e}")))
 }
 
 #[tauri::command]
@@ -1414,6 +1422,11 @@ pub fn run() {
                     _ => {}
                 }
             });
+
+            // Pre-warm the installed-apps cache on the blocking executor so the
+            // first Focus/Limits page visit doesn't wait on the (slow, Windows)
+            // PowerShell scan.
+            tauri::async_runtime::spawn_blocking(app_scanner::get_installed_apps);
 
             // Start break reminder background task
             tauri::async_runtime::spawn(async move {
