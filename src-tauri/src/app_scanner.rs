@@ -605,12 +605,50 @@ unsafe fn bitmap_to_bgra(hbm: HBITMAP) -> Option<(u32, u32, Vec<u8>)> {
 static INSTALLED_APPS_CACHE: LazyLock<Mutex<Option<Vec<InstalledApp>>>> =
     LazyLock::new(|| Mutex::new(None));
 
+/// Flag: a scan is already in progress on another thread.
+static SCAN_IN_PROGRESS: LazyLock<(Mutex<bool>, std::sync::Condvar)> =
+    LazyLock::new(|| (Mutex::new(false), std::sync::Condvar::new()));
+
 /// Get all installed applications (cross-platform), cached after first call.
+///
+/// The cache mutex is NOT held during the (slow) scan — only during the brief
+/// check and store operations. A condvar prevents duplicate concurrent scans:
+/// the first caller runs the scan while latecomers wait on the condvar and then
+/// read the freshly cached result.
 pub fn get_installed_apps() -> Vec<InstalledApp> {
-    let mut cache = INSTALLED_APPS_CACHE.lock().unwrap();
-    if let Some(ref cached) = *cache {
-        return cached.clone();
+    // Fast path: cache is already populated.
+    {
+        let cache = INSTALLED_APPS_CACHE.lock().unwrap();
+        if let Some(ref cached) = *cache {
+            return cached.clone();
+        }
     }
+
+    let (lock, cvar) = &*SCAN_IN_PROGRESS;
+    let mut scanning = lock.lock().unwrap();
+
+    // Another thread may have populated the cache while we waited for the flag.
+    {
+        let cache = INSTALLED_APPS_CACHE.lock().unwrap();
+        if let Some(ref cached) = *cache {
+            return cached.clone();
+        }
+    }
+
+    if *scanning {
+        // A scan is already running on another thread — wait for it.
+        while *scanning {
+            scanning = cvar.wait(scanning).unwrap();
+        }
+        // The scan finished; the cache should be populated now.
+        let cache = INSTALLED_APPS_CACHE.lock().unwrap();
+        return cache.as_ref().cloned().unwrap_or_default();
+    }
+
+    // We are the first caller — claim the scan.
+    *scanning = true;
+    drop(scanning);
+
     let start = std::time::Instant::now();
     let apps = scan_installed_apps();
     tracing::info!(
@@ -618,7 +656,18 @@ pub fn get_installed_apps() -> Vec<InstalledApp> {
         count = apps.len(),
         "Installed apps scan complete"
     );
-    *cache = Some(apps.clone());
+
+    // Store result and clear the flag.
+    {
+        let mut cache = INSTALLED_APPS_CACHE.lock().unwrap();
+        *cache = Some(apps.clone());
+    }
+    {
+        let mut scanning = lock.lock().unwrap();
+        *scanning = false;
+        cvar.notify_all();
+    }
+
     apps
 }
 
@@ -705,19 +754,35 @@ fn get_installed_apps_linux() -> Vec<InstalledApp> {
 /// Get installed applications on Windows from Start Menu shortcuts and registry
 #[cfg(target_os = "windows")]
 fn get_installed_apps_windows() -> Vec<InstalledApp> {
+    // Run the two expensive PowerShell scans in parallel — they are independent.
+    let start_menu_handle = std::thread::spawn(|| {
+        let mut apps = Vec::new();
+        let t = Instant::now();
+        scan_start_menu_shortcuts_batch(&mut apps);
+        tracing::info!(
+            elapsed_ms = t.elapsed().as_millis(),
+            count = apps.len(),
+            "Start menu scan"
+        );
+        apps
+    });
+
+    let uwp_handle = std::thread::spawn(|| {
+        let mut apps = Vec::new();
+        let t = Instant::now();
+        scan_uwp_apps(&mut apps);
+        tracing::info!(
+            elapsed_ms = t.elapsed().as_millis(),
+            count = apps.len(),
+            "UWP scan"
+        );
+        apps
+    });
+
     let mut apps = Vec::new();
 
-    // Scan Start Menu shortcuts (.lnk files) in a single batch PowerShell call
-    let t = std::time::Instant::now();
-    scan_start_menu_shortcuts_batch(&mut apps);
-    tracing::info!(
-        elapsed_ms = t.elapsed().as_millis(),
-        count = apps.len(),
-        "Start menu scan"
-    );
-
-    // Scan registry for installed programs
-    let t = std::time::Instant::now();
+    // Registry scan is fast (no subprocess) — run inline.
+    let t = Instant::now();
     scan_registry_apps(&mut apps);
     tracing::info!(
         elapsed_ms = t.elapsed().as_millis(),
@@ -725,14 +790,13 @@ fn get_installed_apps_windows() -> Vec<InstalledApp> {
         "Registry scan"
     );
 
-    // Scan UWP/Store apps (AppX packages)
-    let t = std::time::Instant::now();
-    scan_uwp_apps(&mut apps);
-    tracing::info!(
-        elapsed_ms = t.elapsed().as_millis(),
-        count = apps.len(),
-        "UWP scan"
-    );
+    // Collect results from the parallel scans.
+    if let Ok(start_menu_apps) = start_menu_handle.join() {
+        apps.extend(start_menu_apps);
+    }
+    if let Ok(uwp_apps) = uwp_handle.join() {
+        apps.extend(uwp_apps);
+    }
 
     // Sort by name
     apps.sort_by_key(|a| a.name.to_lowercase());
@@ -752,7 +816,11 @@ fn get_installed_apps_windows() -> Vec<InstalledApp> {
 // ponytail: fixed 30s ceiling; make configurable if exotic hardware needs more
 #[cfg(target_os = "windows")]
 fn run_ps_with_timeout(script: &str, timeout: Duration) -> Option<String> {
-    let out_file = std::env::temp_dir().join(format!("zenith_ps_{}.out", std::process::id()));
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static CALL_ID: AtomicU64 = AtomicU64::new(0);
+    let id = CALL_ID.fetch_add(1, Ordering::Relaxed);
+    let out_file =
+        std::env::temp_dir().join(format!("zenith_ps_{}_{}.out", std::process::id(), id));
     let mut child = std::process::Command::new("powershell")
         .args(["-NoProfile", "-NonInteractive", "-Command", script])
         .stdin(std::process::Stdio::null())
@@ -833,7 +901,7 @@ foreach ($d in $dirs) {
 $res | ConvertTo-Json -Compress
 "#;
 
-    let Some(stdout) = run_ps_with_timeout(script, Duration::from_secs(30)) else {
+    let Some(stdout) = run_ps_with_timeout(script, Duration::from_secs(15)) else {
         return;
     };
 
@@ -969,7 +1037,7 @@ foreach ($pkg in $pkgs) {
 }
 $rows | ConvertTo-Json -Compress
 "#;
-    let Some(stdout) = run_ps_with_timeout(script, Duration::from_secs(30)) else {
+    let Some(stdout) = run_ps_with_timeout(script, Duration::from_secs(15)) else {
         return;
     };
 
