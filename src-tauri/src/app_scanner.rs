@@ -915,7 +915,7 @@ fn resolve_shortcut_target_com(lnk_path: &Path) -> Option<PathBuf> {
         let mut persist_file: *mut std::ffi::c_void = std::ptr::null_mut();
 
         let query_hr =
-            ((**link_vtbl).query_interface)(shell_link, &IID_IPERSIST_FILE, &mut persist_file);
+            ((*link_vtbl).query_interface)(shell_link, &IID_IPERSIST_FILE, &mut persist_file);
 
         let mut target_path = None;
 
@@ -927,10 +927,10 @@ fn resolve_shortcut_target_com(lnk_path: &Path) -> Option<PathBuf> {
                 .chain(std::iter::once(0))
                 .collect();
 
-            let load_hr = ((**pf_vtbl).load)(persist_file, wide_path.as_ptr(), STGM_READ as u32);
+            let load_hr = ((*pf_vtbl).load)(persist_file, wide_path.as_ptr(), STGM_READ as u32);
             if load_hr >= 0 {
                 let mut buffer = [0u16; MAX_PATH as usize];
-                let get_path_hr = ((**link_vtbl).get_path)(
+                let get_path_hr = ((*link_vtbl).get_path)(
                     shell_link,
                     buffer.as_mut_ptr(),
                     MAX_PATH as i32,
@@ -948,10 +948,10 @@ fn resolve_shortcut_target_com(lnk_path: &Path) -> Option<PathBuf> {
                     }
                 }
             }
-            ((**pf_vtbl).release)(persist_file);
+            ((*pf_vtbl).release)(persist_file);
         }
 
-        ((**link_vtbl).release)(shell_link);
+        ((*link_vtbl).release)(shell_link);
         CoUninitialize();
 
         target_path
