@@ -369,7 +369,7 @@ fn resolve_icon_path_windows(icon: &str) -> Option<String> {
     // so the asset protocol can serve it. Cache keyed by the exe path.
     if path
         .extension()
-        .map_or(false, |e| e.eq_ignore_ascii_case("exe"))
+        .is_some_and(|e| e.eq_ignore_ascii_case("exe"))
     {
         return extract_exe_icon(&path);
     }
@@ -489,7 +489,7 @@ unsafe fn icon_to_ico(hicon: HICON, ico_path: &Path) -> bool {
 /// Monochrome AND-mask rows are padded to 32-bit boundaries.
 #[cfg(target_os = "windows")]
 fn row_bytes(width: u32) -> u32 {
-    ((width + 31) / 32) * 4
+    width.div_ceil(32) * 4
 }
 
 /// Build the AND mask (1 bit per pixel, MSB-first, 1 = transparent) from a

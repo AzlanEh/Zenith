@@ -410,7 +410,7 @@ async fn resolve_app_icon(icon_name: String) -> CmdResult<Option<String>> {
 }
 
 #[tauri::command]
-fn send_test_notification() -> CmdResult<()> {
+async fn send_test_notification() -> CmdResult<()> {
     if notifications::send_notification(
         "Zenith",
         "Notifications are working! You will receive alerts when approaching or exceeding app limits.",
@@ -424,17 +424,17 @@ fn send_test_notification() -> CmdResult<()> {
 }
 
 #[tauri::command]
-fn enable_autostart() -> CmdResult<String> {
+async fn enable_autostart() -> CmdResult<String> {
     autostart::install_autostart().map_err(WellbeingError::Autostart)
 }
 
 #[tauri::command]
-fn disable_autostart() -> CmdResult<String> {
+async fn disable_autostart() -> CmdResult<String> {
     autostart::uninstall_autostart().map_err(WellbeingError::Autostart)
 }
 
 #[tauri::command]
-fn get_autostart_status() -> CmdResult<AutostartStatus> {
+async fn get_autostart_status() -> CmdResult<AutostartStatus> {
     Ok(autostart::get_autostart_status())
 }
 
@@ -533,7 +533,7 @@ fn save_export_file(file_path: String, content: String) -> CmdResult<()> {
         .canonicalize()
         .map_err(|_| WellbeingError::Export("Export parent directory does not exist".into()))?;
 
-    let canonical_parent_str = raw_parent.to_string_lossy();
+    let canonical_parent_str = raw_parent.to_string_lossy().into_owned();
     #[cfg(target_os = "windows")]
     let canonical_parent_str = canonical_parent_str
         .strip_prefix(r"\\?\UNC\")
@@ -545,7 +545,7 @@ fn save_export_file(file_path: String, content: String) -> CmdResult<()> {
         })
         .unwrap_or_else(|| canonical_parent_str.to_string());
 
-    let canonical_parent = std::path::PathBuf::from(canonical_parent_str.as_ref());
+    let canonical_parent = std::path::PathBuf::from(canonical_parent_str);
 
     let canonical_path = canonical_parent.join(
         path.file_name()
