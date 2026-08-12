@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file. Format based on
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-08-12
+
+### Changed
+
+- Bumped application version to 0.2.6
+
 ## [0.2.5] - 2026-08-09
 
 ### Added
