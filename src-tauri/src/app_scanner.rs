@@ -7,6 +7,8 @@ use std::sync::{LazyLock, Mutex};
 use std::collections::VecDeque;
 
 #[cfg(target_os = "windows")]
+use std::time::{Duration, Instant};
+#[cfg(target_os = "windows")]
 use windows_sys::Win32::Graphics::Gdi::HBITMAP;
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::WindowsAndMessaging::HICON;
@@ -717,6 +719,51 @@ fn get_installed_apps_windows() -> Vec<InstalledApp> {
     apps
 }
 
+/// Run a PowerShell script with a hard timeout, capturing stdout to a temp file.
+///
+/// A hung powershell (reparse-point recursion, slow AppX enumeration, AV
+/// interference) would otherwise block forever on `.output()`. Kills the child
+/// and returns None after the timeout. stdout goes to a file, not a pipe, so an
+/// oversized result can't deadlock the child on a full pipe buffer.
+// ponytail: fixed 30s ceiling; make configurable if exotic hardware needs more
+#[cfg(target_os = "windows")]
+fn run_ps_with_timeout(script: &str, timeout: Duration) -> Option<String> {
+    let out_file = std::env::temp_dir().join(format!("zenith_ps_{}.out", std::process::id()));
+    let mut child = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::fs::File::create(&out_file).ok()?)
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .ok()?;
+
+    let started = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                let out = if status.success() {
+                    fs::read_to_string(&out_file).ok()
+                } else {
+                    None
+                };
+                let _ = fs::remove_file(&out_file);
+                return out;
+            }
+            Ok(None) if started.elapsed() >= timeout => {
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = fs::remove_file(&out_file);
+                return None;
+            }
+            Ok(None) => std::thread::sleep(Duration::from_millis(100)),
+            Err(_) => {
+                let _ = fs::remove_file(&out_file);
+                return None;
+            }
+        }
+    }
+}
+
 /// Recursively scan Start Menu directories for .lnk shortcut files in a single PowerShell batch
 #[cfg(target_os = "windows")]
 fn scan_start_menu_shortcuts_batch(apps: &mut Vec<InstalledApp>) {
@@ -757,15 +804,10 @@ foreach ($d in $dirs) {
 $res | ConvertTo-Json -Compress
 "#;
 
-    let output = match std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
-        .output()
-    {
-        Ok(o) if o.status.success() => o,
-        _ => return,
+    let Some(stdout) = run_ps_with_timeout(script, Duration::from_secs(30)) else {
+        return;
     };
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = match serde_json::from_str(stdout.trim()) {
         Ok(v) => v,
         Err(_) => return,
@@ -898,15 +940,10 @@ foreach ($pkg in $pkgs) {
 }
 $rows | ConvertTo-Json -Compress
 "#;
-    let output = match std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
-        .output()
-    {
-        Ok(o) if o.status.success() => o,
-        _ => return,
+    let Some(stdout) = run_ps_with_timeout(script, Duration::from_secs(30)) else {
+        return;
     };
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = match serde_json::from_str(stdout.trim()) {
         Ok(v) => v,
         Err(_) => return,
