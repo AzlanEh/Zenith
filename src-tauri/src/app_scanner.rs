@@ -361,7 +361,14 @@ fn resolve_icon_path_windows(icon: &str) -> Option<String> {
     };
 
     let path = PathBuf::from(clean);
-    if !path.exists() {
+    // Must be an existing file, not a directory
+    if !path.is_file() {
+        return None;
+    }
+
+    // Skip OS protected paths that cause asset protocol access denied errors
+    let clean_lower = clean.to_lowercase();
+    if clean_lower.contains(r"\windowsapps\") || clean_lower.contains(r"\systemapps\") {
         return None;
     }
 
@@ -1182,7 +1189,7 @@ fn scan_uwp_apps_native(apps: &mut Vec<InstalledApp>) {
             exec: install_location
                 .clone()
                 .map(|_| format!("explorer.exe shell:AppsFolder\\{}", package_id)),
-            icon: install_location,
+            icon: None,
             desktop_file: name,
             categories: Vec::new(),
         });
