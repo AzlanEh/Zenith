@@ -7,7 +7,7 @@ use std::sync::{LazyLock, Mutex};
 use std::collections::VecDeque;
 
 #[cfg(target_os = "windows")]
-use std::time::{Duration, Instant};
+use std::time::Instant;
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::Graphics::Gdi::HBITMAP;
 #[cfg(target_os = "windows")]
@@ -792,31 +792,61 @@ fn get_installed_apps_windows() -> Vec<InstalledApp> {
     apps
 }
 
-/// Resolve a .lnk shortcut target natively using Win32 IShellLink COM interface.
+#[cfg(target_os = "windows")]
+const CLSID_SHELL_LINK: windows_sys::core::GUID = windows_sys::core::GUID {
+    data1: 0x00021401,
+    data2: 0x0000,
+    data3: 0x0000,
+    data4: [0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46],
+};
+
+#[cfg(target_os = "windows")]
+const IID_ISHELL_LINK_W: windows_sys::core::GUID = windows_sys::core::GUID {
+    data1: 0x000214f9,
+    data2: 0x0000,
+    data3: 0x0000,
+    data4: [0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46],
+};
+
+#[cfg(target_os = "windows")]
+const IID_IPERSIST_FILE: windows_sys::core::GUID = windows_sys::core::GUID {
+    data1: 0x0000010b,
+    data2: 0x0000,
+    data3: 0x0000,
+    data4: [0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46],
+};
+
+/// Resolve a .lnk shortcut target natively using COM interface with binary parse fallback.
 #[cfg(target_os = "windows")]
 fn resolve_shortcut_target_native(lnk_path: &Path) -> Option<PathBuf> {
+    if let Some(target) = resolve_shortcut_target_com(lnk_path) {
+        return Some(target);
+    }
+    resolve_shortcut_target_binary(lnk_path)
+}
+
+#[cfg(target_os = "windows")]
+fn resolve_shortcut_target_com(lnk_path: &Path) -> Option<PathBuf> {
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::Foundation::MAX_PATH;
     use windows_sys::Win32::System::Com::{
-        CoCreateInstance, CoInitializeEx, CoUninitialize, IID_IPersistFile, IPersistFile,
-        CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE, STGM_READ,
+        CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_INPROC_SERVER,
+        COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE, STGM_READ,
     };
-    use windows_sys::Win32::UI::Shell::{
-        CLSID_ShellLink, IID_IShellLinkW, IShellLinkW, SLGP_RAWPATH,
-    };
+    use windows_sys::Win32::UI::Shell::SLGP_RAWPATH;
 
     unsafe {
         let _hr = CoInitializeEx(
             std::ptr::null_mut(),
-            COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE,
+            (COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) as u32,
         );
 
         let mut shell_link: *mut std::ffi::c_void = std::ptr::null_mut();
         let hr = CoCreateInstance(
-            &CLSID_ShellLink,
+            &CLSID_SHELL_LINK,
             std::ptr::null_mut(),
             CLSCTX_INPROC_SERVER,
-            &IID_IShellLinkW,
+            &IID_ISHELL_LINK_W,
             &mut shell_link,
         );
 
@@ -825,49 +855,130 @@ fn resolve_shortcut_target_native(lnk_path: &Path) -> Option<PathBuf> {
             return None;
         }
 
-        let link = shell_link as *mut IShellLinkW;
+        #[repr(C)]
+        struct IShellLinkWVtbl {
+            query_interface: unsafe extern "system" fn(
+                this: *mut std::ffi::c_void,
+                riid: *const windows_sys::core::GUID,
+                ppv: *mut *mut std::ffi::c_void,
+            ) -> i32,
+            add_ref: unsafe extern "system" fn(this: *mut std::ffi::c_void) -> u32,
+            release: unsafe extern "system" fn(this: *mut std::ffi::c_void) -> u32,
+            get_path: unsafe extern "system" fn(
+                this: *mut std::ffi::c_void,
+                psz_file: *mut u16,
+                cch: i32,
+                pfd: *mut std::ffi::c_void,
+                f_flags: u32,
+            ) -> i32,
+            get_id_list: *const std::ffi::c_void,
+            set_id_list: *const std::ffi::c_void,
+            get_description: *const std::ffi::c_void,
+            set_description: *const std::ffi::c_void,
+            get_working_directory: *const std::ffi::c_void,
+            set_working_directory: *const std::ffi::c_void,
+            get_arguments: *const std::ffi::c_void,
+            set_arguments: *const std::ffi::c_void,
+            get_hotkey: *const std::ffi::c_void,
+            set_hotkey: *const std::ffi::c_void,
+            get_show_cmd: *const std::ffi::c_void,
+            set_show_cmd: *const std::ffi::c_void,
+            get_icon_location: *const std::ffi::c_void,
+            set_icon_location: *const std::ffi::c_void,
+            set_relative_path: *const std::ffi::c_void,
+            resolve: *const std::ffi::c_void,
+            set_path: *const std::ffi::c_void,
+        }
+
+        #[repr(C)]
+        struct IPersistFileVtbl {
+            query_interface: unsafe extern "system" fn(
+                this: *mut std::ffi::c_void,
+                riid: *const windows_sys::core::GUID,
+                ppv: *mut *mut std::ffi::c_void,
+            ) -> i32,
+            add_ref: unsafe extern "system" fn(this: *mut std::ffi::c_void) -> u32,
+            release: unsafe extern "system" fn(this: *mut std::ffi::c_void) -> u32,
+            get_class_id: *const std::ffi::c_void,
+            is_dirty: *const std::ffi::c_void,
+            load: unsafe extern "system" fn(
+                this: *mut std::ffi::c_void,
+                psz_file_name: *const u16,
+                dw_mode: u32,
+            ) -> i32,
+            save: *const std::ffi::c_void,
+            save_completed: *const std::ffi::c_void,
+            get_cur_file: *const std::ffi::c_void,
+        }
+
+        let link_vtbl = *(shell_link as *mut *mut IShellLinkWVtbl);
         let mut persist_file: *mut std::ffi::c_void = std::ptr::null_mut();
 
         let query_hr =
-            ((*(*link).lpVtbl).QueryInterface)(link, &IID_IPersistFile, &mut persist_file);
+            ((**link_vtbl).query_interface)(shell_link, &IID_IPERSIST_FILE, &mut persist_file);
 
         let mut target_path = None;
 
         if query_hr >= 0 && !persist_file.is_null() {
-            let pf = persist_file as *mut IPersistFile;
+            let pf_vtbl = *(persist_file as *mut *mut IPersistFileVtbl);
             let wide_path: Vec<u16> = lnk_path
                 .as_os_str()
                 .encode_wide()
                 .chain(std::iter::once(0))
                 .collect();
 
-            let load_hr = ((*(*pf).lpVtbl).Load)(pf, wide_path.as_ptr(), STGM_READ);
+            let load_hr = ((**pf_vtbl).load)(persist_file, wide_path.as_ptr(), STGM_READ as u32);
             if load_hr >= 0 {
                 let mut buffer = [0u16; MAX_PATH as usize];
-                let get_path_hr = ((*(*link).lpVtbl).GetPath)(
-                    link,
+                let get_path_hr = ((**link_vtbl).get_path)(
+                    shell_link,
                     buffer.as_mut_ptr(),
                     MAX_PATH as i32,
                     std::ptr::null_mut(),
-                    SLGP_RAWPATH,
+                    SLGP_RAWPATH as u32,
                 );
 
                 if get_path_hr >= 0 {
                     let len = buffer.iter().position(|&c| c == 0).unwrap_or(buffer.len());
                     if len > 0 {
                         let path_str = String::from_utf16_lossy(&buffer[..len]);
-                        target_path = Some(PathBuf::from(path_str));
+                        if !path_str.trim().is_empty() {
+                            target_path = Some(PathBuf::from(path_str));
+                        }
                     }
                 }
             }
-            ((*(*pf).lpVtbl).Release)(pf);
+            ((**pf_vtbl).release)(persist_file);
         }
 
-        ((*(*link).lpVtbl).Release)(link);
+        ((**link_vtbl).release)(shell_link);
         CoUninitialize();
 
         target_path
     }
+}
+
+#[cfg(target_os = "windows")]
+fn resolve_shortcut_target_binary(lnk_path: &Path) -> Option<PathBuf> {
+    let bytes = fs::read(lnk_path).ok()?;
+    if bytes.len() < 76 || bytes[0..4] != [0x4C, 0x00, 0x00, 0x00] {
+        return None;
+    }
+    let content = String::from_utf8_lossy(&bytes);
+    for word in content.split('\0') {
+        let trimmed = word.trim_matches(|c: char| c.is_control() || c == '"' || c == '\'');
+        if (trimmed.starts_with("C:\\")
+            || trimmed.starts_with("D:\\")
+            || trimmed.starts_with("E:\\"))
+            && trimmed.to_lowercase().ends_with(".exe")
+        {
+            let p = PathBuf::from(trimmed);
+            if p.exists() {
+                return Some(p);
+            }
+        }
+    }
+    None
 }
 
 /// Recursively scan Start Menu directories for .lnk shortcut files natively in Rust.
