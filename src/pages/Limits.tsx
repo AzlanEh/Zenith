@@ -74,13 +74,14 @@ export function Limits() {
 
   const filteredInstalledApps = useMemo(() => {
     return installedApps.filter((app) => {
+      const isZenith = app.name.toLowerCase() === "zenith";
       const notLimited = !appLimits.find(
         (l) => l.app_name.toLowerCase() === app.name.toLowerCase(),
       );
       const matchesSearch =
         searchQuery === "" ||
         app.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return notLimited && matchesSearch;
+      return !isZenith && notLimited && matchesSearch;
     });
   }, [installedApps, appLimits, searchQuery]);
 

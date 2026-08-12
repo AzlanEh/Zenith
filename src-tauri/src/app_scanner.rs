@@ -755,6 +755,7 @@ fn get_installed_apps_linux() -> Vec<InstalledApp> {
 
     // Sort by name
     apps.sort_by_key(|a| a.name.to_lowercase());
+    apps.retain(|a| !a.name.eq_ignore_ascii_case("zenith"));
     apps
 }
 
@@ -795,6 +796,9 @@ fn get_installed_apps_windows() -> Vec<InstalledApp> {
 
     // Deduplicate by name
     apps.dedup_by(|a, b| a.name.to_lowercase() == b.name.to_lowercase());
+
+    // Filter out Zenith itself
+    apps.retain(|a| !a.name.eq_ignore_ascii_case("zenith"));
 
     apps
 }

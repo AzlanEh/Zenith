@@ -45,7 +45,9 @@ export const ManageBlocklistDialog = memo(function ManageBlocklistDialog({
   }, [installedApps]);
 
   const availableApps = useMemo(() => {
-    return installedApps.filter((app) => !blockedSet.has(app.name));
+    return installedApps.filter(
+      (app) => app.name.toLowerCase() !== "zenith" && !blockedSet.has(app.name)
+    );
   }, [installedApps, blockedSet]);
 
   const filteredApps = useMemo(() => {
