@@ -54,7 +54,6 @@ export function FocusMode() {
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [isManageOpen, setIsManageOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [notesOpen, setNotesOpen] = useState(false);
   const { addSession } = useFocusHistory();
 
@@ -131,14 +130,10 @@ export function FocusMode() {
 
   const loadData = async () => {
     try {
-      setIsLoading(true);
       const appsData = await api.getInstalledApps();
       setInstalledApps(appsData);
     } catch (e) {
       logger.error(e);
-      toast.error("Failed to load focus settings");
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -215,14 +210,6 @@ export function FocusMode() {
 
   // Apps currently blocked
   const blockedAppsList = settings?.blocked_apps || [];
-
-  if (isLoading) {
-    return (
-      <div className="p-4 lg:p-8 max-w-7xl mx-auto min-h-full flex-1 pb-12 w-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
   return (
     <ErrorBoundary>

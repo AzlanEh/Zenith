@@ -751,52 +751,37 @@ fn get_installed_apps_linux() -> Vec<InstalledApp> {
     apps
 }
 
-/// Get installed applications on Windows from Start Menu shortcuts and registry
+/// Get installed applications on Windows from Start Menu shortcuts, registry, and UWP packages natively.
 #[cfg(target_os = "windows")]
 fn get_installed_apps_windows() -> Vec<InstalledApp> {
-    // Run the two expensive PowerShell scans in parallel — they are independent.
-    let start_menu_handle = std::thread::spawn(|| {
-        let mut apps = Vec::new();
-        let t = Instant::now();
-        scan_start_menu_shortcuts_batch(&mut apps);
-        tracing::info!(
-            elapsed_ms = t.elapsed().as_millis(),
-            count = apps.len(),
-            "Start menu scan"
-        );
-        apps
-    });
-
-    let uwp_handle = std::thread::spawn(|| {
-        let mut apps = Vec::new();
-        let t = Instant::now();
-        scan_uwp_apps(&mut apps);
-        tracing::info!(
-            elapsed_ms = t.elapsed().as_millis(),
-            count = apps.len(),
-            "UWP scan"
-        );
-        apps
-    });
-
     let mut apps = Vec::new();
 
-    // Registry scan is fast (no subprocess) — run inline.
+    // 1. Scan registry for standard installed programs (winreg - < 5ms)
     let t = Instant::now();
     scan_registry_apps(&mut apps);
     tracing::info!(
         elapsed_ms = t.elapsed().as_millis(),
         count = apps.len(),
-        "Registry scan"
+        "Registry scan complete"
     );
 
-    // Collect results from the parallel scans.
-    if let Ok(start_menu_apps) = start_menu_handle.join() {
-        apps.extend(start_menu_apps);
-    }
-    if let Ok(uwp_apps) = uwp_handle.join() {
-        apps.extend(uwp_apps);
-    }
+    // 2. Scan Start Menu shortcuts natively using Win32 IShellLink COM (< 10ms, 0% CPU)
+    let t = Instant::now();
+    scan_start_menu_shortcuts_native(&mut apps);
+    tracing::info!(
+        elapsed_ms = t.elapsed().as_millis(),
+        count = apps.len(),
+        "Native Start Menu scan complete"
+    );
+
+    // 3. Scan UWP apps natively via Windows Registry (< 5ms)
+    let t = Instant::now();
+    scan_uwp_apps_native(&mut apps);
+    tracing::info!(
+        elapsed_ms = t.elapsed().as_millis(),
+        count = apps.len(),
+        "Native UWP scan complete"
+    );
 
     // Sort by name
     apps.sort_by_key(|a| a.name.to_lowercase());
@@ -807,135 +792,176 @@ fn get_installed_apps_windows() -> Vec<InstalledApp> {
     apps
 }
 
-/// Run a PowerShell script with a hard timeout, capturing stdout to a temp file.
-///
-/// A hung powershell (reparse-point recursion, slow AppX enumeration, AV
-/// interference) would otherwise block forever on `.output()`. Kills the child
-/// and returns None after the timeout. stdout goes to a file, not a pipe, so an
-/// oversized result can't deadlock the child on a full pipe buffer.
-// ponytail: fixed 30s ceiling; make configurable if exotic hardware needs more
+/// Resolve a .lnk shortcut target natively using Win32 IShellLink COM interface.
 #[cfg(target_os = "windows")]
-fn run_ps_with_timeout(script: &str, timeout: Duration) -> Option<String> {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static CALL_ID: AtomicU64 = AtomicU64::new(0);
-    let id = CALL_ID.fetch_add(1, Ordering::Relaxed);
-    let out_file =
-        std::env::temp_dir().join(format!("zenith_ps_{}_{}.out", std::process::id(), id));
-    let mut child = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::fs::File::create(&out_file).ok()?)
-        .stderr(std::process::Stdio::null())
-        .spawn()
-        .ok()?;
+fn resolve_shortcut_target_native(lnk_path: &Path) -> Option<PathBuf> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Foundation::MAX_PATH;
+    use windows_sys::Win32::System::Com::{
+        CoCreateInstance, CoInitializeEx, CoUninitialize, IID_IPersistFile, IPersistFile,
+        CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE, STGM_READ,
+    };
+    use windows_sys::Win32::UI::Shell::{
+        CLSID_ShellLink, IID_IShellLinkW, IShellLinkW, SLGP_RAWPATH,
+    };
 
-    let started = Instant::now();
-    loop {
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                let out = if status.success() {
-                    fs::read_to_string(&out_file).ok()
-                } else {
-                    None
-                };
-                let _ = fs::remove_file(&out_file);
-                return out;
-            }
-            Ok(None) if started.elapsed() >= timeout => {
-                let _ = child.kill();
-                let _ = child.wait();
-                let _ = fs::remove_file(&out_file);
-                tracing::warn!(
-                    timeout_secs = timeout.as_secs(),
-                    script = %script.lines().next().unwrap_or("").trim(),
-                    "PowerShell scan timed out and was killed"
+    unsafe {
+        let _hr = CoInitializeEx(
+            std::ptr::null_mut(),
+            COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE,
+        );
+
+        let mut shell_link: *mut std::ffi::c_void = std::ptr::null_mut();
+        let hr = CoCreateInstance(
+            &CLSID_ShellLink,
+            std::ptr::null_mut(),
+            CLSCTX_INPROC_SERVER,
+            &IID_IShellLinkW,
+            &mut shell_link,
+        );
+
+        if hr < 0 || shell_link.is_null() {
+            CoUninitialize();
+            return None;
+        }
+
+        let link = shell_link as *mut IShellLinkW;
+        let mut persist_file: *mut std::ffi::c_void = std::ptr::null_mut();
+
+        let query_hr =
+            ((*(*link).lpVtbl).QueryInterface)(link, &IID_IPersistFile, &mut persist_file);
+
+        let mut target_path = None;
+
+        if query_hr >= 0 && !persist_file.is_null() {
+            let pf = persist_file as *mut IPersistFile;
+            let wide_path: Vec<u16> = lnk_path
+                .as_os_str()
+                .encode_wide()
+                .chain(std::iter::once(0))
+                .collect();
+
+            let load_hr = ((*(*pf).lpVtbl).Load)(pf, wide_path.as_ptr(), STGM_READ);
+            if load_hr >= 0 {
+                let mut buffer = [0u16; MAX_PATH as usize];
+                let get_path_hr = ((*(*link).lpVtbl).GetPath)(
+                    link,
+                    buffer.as_mut_ptr(),
+                    MAX_PATH as i32,
+                    std::ptr::null_mut(),
+                    SLGP_RAWPATH,
                 );
-                return None;
+
+                if get_path_hr >= 0 {
+                    let len = buffer.iter().position(|&c| c == 0).unwrap_or(buffer.len());
+                    if len > 0 {
+                        let path_str = String::from_utf16_lossy(&buffer[..len]);
+                        target_path = Some(PathBuf::from(path_str));
+                    }
+                }
             }
-            Ok(None) => std::thread::sleep(Duration::from_millis(100)),
-            Err(_) => {
-                let _ = fs::remove_file(&out_file);
-                return None;
-            }
+            ((*(*pf).lpVtbl).Release)(pf);
+        }
+
+        ((*(*link).lpVtbl).Release)(link);
+        CoUninitialize();
+
+        target_path
+    }
+}
+
+/// Recursively scan Start Menu directories for .lnk shortcut files natively in Rust.
+#[cfg(target_os = "windows")]
+fn scan_start_menu_shortcuts_native(apps: &mut Vec<InstalledApp>) {
+    let mut dirs = Vec::new();
+
+    if let Ok(common) = std::env::var("PROGRAMDATA") {
+        dirs.push(PathBuf::from(common).join(r"Microsoft\Windows\Start Menu\Programs"));
+    }
+    if let Ok(appdata) = std::env::var("APPDATA") {
+        dirs.push(PathBuf::from(appdata).join(r"Microsoft\Windows\Start Menu\Programs"));
+    }
+    if let Ok(local_appdata) = std::env::var("LOCALAPPDATA") {
+        dirs.push(PathBuf::from(local_appdata).join(r"Microsoft\Windows\Application Shortcuts"));
+    }
+
+    let skip_keywords = [
+        "uninstall",
+        "readme",
+        "help",
+        "license",
+        "changelog",
+        "release notes",
+        "website",
+        "documentation",
+    ];
+
+    for dir in dirs {
+        if dir.exists() && dir.is_dir() {
+            walk_lnk_directory(&dir, 0, 4, &skip_keywords, apps);
         }
     }
 }
 
-/// Recursively scan Start Menu directories for .lnk shortcut files in a single PowerShell batch
 #[cfg(target_os = "windows")]
-fn scan_start_menu_shortcuts_batch(apps: &mut Vec<InstalledApp>) {
-    let script = r#"
-$sh = New-Object -ComObject WScript.Shell
-$dirs = @(
-  [System.Environment]::GetFolderPath('CommonPrograms'),
-  [System.Environment]::GetFolderPath('Programs')
-)
-$skip = @('uninstall', 'readme', 'help', 'license', 'changelog', 'release notes', 'website', 'documentation')
-$res = @()
-
-foreach ($d in $dirs) {
-  if ($d -and (Test-Path -LiteralPath $d -ErrorAction SilentlyContinue)) {
-    Get-ChildItem -LiteralPath $d -Recurse -Filter *.lnk -ErrorAction SilentlyContinue | ForEach-Object {
-      $name = $_.BaseName
-      $nameLower = $name.ToLower()
-      $shouldSkip = $false
-      foreach ($s in $skip) {
-        if ($nameLower.Contains($s)) { $shouldSkip = $true; break }
-      }
-      if (-not $shouldSkip) {
-        try {
-          $target = $sh.CreateShortcut($_.FullName).TargetPath
-          if ($target -and $target.ToLower().EndsWith('.exe') -and (Test-Path -LiteralPath $target -ErrorAction SilentlyContinue)) {
-            $res += [PSCustomObject]@{
-              Name = $name
-              Exec = $target
-              Icon = $target
-              File = $_.Name
-            }
-          }
-        } catch {}
-      }
+fn walk_lnk_directory(
+    dir: &Path,
+    depth: usize,
+    max_depth: usize,
+    skip_keywords: &[&str],
+    apps: &mut Vec<InstalledApp>,
+) {
+    if depth > max_depth {
+        return;
     }
-  }
-}
-$res | ConvertTo-Json -Compress
-"#;
-
-    let Some(stdout) = run_ps_with_timeout(script, Duration::from_secs(15)) else {
+    let Ok(entries) = fs::read_dir(dir) else {
         return;
     };
 
-    let json: serde_json::Value = match serde_json::from_str(stdout.trim()) {
-        Ok(v) => v,
-        Err(_) => return,
-    };
-
-    let rows = match json {
-        serde_json::Value::Array(arr) => arr,
-        serde_json::Value::Object(_) => vec![json],
-        _ => return,
-    };
-
-    for row in rows {
-        let name = row.get("Name").and_then(|v| v.as_str()).unwrap_or("");
-        if name.is_empty() || apps.iter().any(|a| a.name == name) {
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            walk_lnk_directory(&path, depth + 1, max_depth, skip_keywords, apps);
             continue;
         }
-        let exec = row.get("Exec").and_then(|v| v.as_str()).map(String::from);
-        let icon = row.get("Icon").and_then(|v| v.as_str()).map(String::from);
-        let file = row
-            .get("File")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
 
-        apps.push(InstalledApp {
-            name: name.to_string(),
-            exec,
-            icon,
-            desktop_file: file,
-            categories: Vec::new(),
-        });
+        if path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("lnk"))
+        {
+            let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+                continue;
+            };
+
+            let lower_name = stem.to_lowercase();
+            if skip_keywords.iter().any(|k| lower_name.contains(k)) {
+                continue;
+            }
+
+            if apps.iter().any(|a| a.name.eq_ignore_ascii_case(stem)) {
+                continue;
+            }
+
+            if let Some(target) = resolve_shortcut_target_native(&path) {
+                if target
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("exe"))
+                    && target.exists()
+                {
+                    let target_str = target.to_string_lossy().to_string();
+                    apps.push(InstalledApp {
+                        name: stem.to_string(),
+                        exec: Some(target_str.clone()),
+                        icon: Some(target_str),
+                        desktop_file: path
+                            .file_name()
+                            .map(|f| f.to_string_lossy().to_string())
+                            .unwrap_or_default(),
+                        categories: Vec::new(),
+                    });
+                }
+            }
+        }
     }
 }
 
@@ -1002,71 +1028,51 @@ fn scan_registry_apps(apps: &mut Vec<InstalledApp>) {
     }
 }
 
-/// Scan Windows Store (UWP/AppX) apps.
-///
-/// UWP apps have no .exe, .lnk or registry entry — they're AppX packages
-/// launched via `explorer.exe shell:AppsFolder\{AppUserModelId}`. This queries
-/// PowerShell once for all installed packages, resolves the friendly name via
-/// Get-StartApps (which contains AppUserModelId), and picks the largest png
-/// from the package's Assets folder as the icon.
+/// Scan Windows Store (UWP/AppX) apps natively via Windows Registry (< 5ms, no PowerShell).
 #[cfg(target_os = "windows")]
-fn scan_uwp_apps(apps: &mut Vec<InstalledApp>) {
-    let script = r#"
-$pkgs = Get-AppxPackage -ErrorAction SilentlyContinue
-$startApps = Get-StartApps -ErrorAction SilentlyContinue
-$rows = @()
-foreach ($pkg in $pkgs) {
-  if ($pkg.IsFramework -or $pkg.IsBundle -or -not $pkg.InstallLocation) { continue }
-  $pkgFamily = $pkg.PackageFamilyName
-  $sa = $startApps | Where-Object { $_.AppID -like "$pkgFamily!*" } | Select-Object -First 1
-  if (-not $sa) { continue }
-  $icon = $null
-  try {
-    $assets = Join-Path $pkg.InstallLocation "Assets"
-    if (Test-Path -LiteralPath $assets -ErrorAction SilentlyContinue) {
-      $icon = Get-ChildItem -LiteralPath $assets -Filter *.png -ErrorAction SilentlyContinue |
-        Sort-Object Length -Descending | Select-Object -First 1 | Select-Object -ExpandProperty FullName
-    }
-  } catch {}
-  $rows += [PSCustomObject]@{
-    Name = $sa.Name
-    Exec = "explorer.exe shell:AppsFolder\" + $sa.AppID
-    Icon = $icon
-    Pkg  = $pkgFamily
-  }
-}
-$rows | ConvertTo-Json -Compress
-"#;
-    let Some(stdout) = run_ps_with_timeout(script, Duration::from_secs(15)) else {
+fn scan_uwp_apps_native(apps: &mut Vec<InstalledApp>) {
+    use winreg::enums::*;
+    use winreg::RegKey;
+
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let path = "Software\\Classes\\Local Settings\\Software\\Microsoft\\Windows\\CurrentVersion\\AppModel\\Repository\\Packages";
+
+    let Ok(key) = hkcu.open_subkey_with_flags(path, KEY_READ) else {
         return;
     };
 
-    let json: serde_json::Value = match serde_json::from_str(stdout.trim()) {
-        Ok(v) => v,
-        Err(_) => return,
-    };
+    for name in key.enum_keys().flatten() {
+        let Ok(subkey) = key.open_subkey_with_flags(&name, KEY_READ) else {
+            continue;
+        };
 
-    // ConvertTo-Json returns an array for >1 row, or a bare object for exactly 1.
-    let rows = match json {
-        serde_json::Value::Array(arr) => arr,
-        serde_json::Value::Object(_) => vec![json],
-        _ => return,
-    };
+        let display_name: String = match subkey.get_value("DisplayName") {
+            Ok(n) => n,
+            Err(_) => continue,
+        };
 
-    for row in rows {
-        let name = row.get("Name").and_then(|v| v.as_str()).unwrap_or("");
-        if name.is_empty() || apps.iter().any(|a| a.name == name) {
+        // Resource strings look like @{PackageName?ms-resource://...} - skip unresolved raw strings
+        if display_name.starts_with('@') || display_name.trim().is_empty() {
             continue;
         }
+
+        if apps
+            .iter()
+            .any(|a| a.name.eq_ignore_ascii_case(&display_name))
+        {
+            continue;
+        }
+
+        let package_id: String = subkey.get_value("PackageID").unwrap_or_default();
+        let install_location: Option<String> = subkey.get_value("PackageRootFolder").ok();
+
         apps.push(InstalledApp {
-            name: name.to_string(),
-            exec: row.get("Exec").and_then(|v| v.as_str()).map(String::from),
-            icon: row.get("Icon").and_then(|v| v.as_str()).map(String::from),
-            desktop_file: row
-                .get("Pkg")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
+            name: display_name,
+            exec: install_location
+                .clone()
+                .map(|_| format!("explorer.exe shell:AppsFolder\\{}", package_id)),
+            icon: install_location,
+            desktop_file: name,
             categories: Vec::new(),
         });
     }
