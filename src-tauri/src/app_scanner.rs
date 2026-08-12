@@ -45,10 +45,20 @@ pub fn resolve_icon_path(icon: &str) -> Option<String> {
 /// Canonicalize a path, resolving any symlinks.
 /// Falls back to the original string if canonicalization fails (e.g. broken symlink).
 fn canonicalize_path(path: &PathBuf) -> String {
-    std::fs::canonicalize(path)
+    let s = std::fs::canonicalize(path)
         .unwrap_or_else(|_| path.clone())
         .to_string_lossy()
-        .to_string()
+        .to_string();
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(stripped) = s.strip_prefix(r"\\?\UNC\") {
+            return format!(r"\\{}", stripped);
+        }
+        if let Some(stripped) = s.strip_prefix(r"\\?\") {
+            return stripped.to_string();
+        }
+    }
+    s
 }
 
 #[cfg(target_os = "linux")]
@@ -334,22 +344,19 @@ fn resolve_icon_path_linux(icon: &str) -> Option<String> {
 #[cfg(target_os = "windows")]
 fn resolve_icon_path_windows(icon: &str) -> Option<String> {
     // Registry DisplayIcon values often look like "C:\path\to\app.exe,0" or "C:\path\to\app.ico"
-    // Strip the trailing comma+index if present.
-    let clean = if let Some(comma_pos) = icon.rfind(',') {
-        let before_comma = &icon[..comma_pos];
-        // Only strip if what follows the comma looks like an integer index
-        let after_comma = &icon[comma_pos + 1..];
+    // Strip the trailing comma+index if present, trimming quotes appropriately.
+    let raw = icon.trim().trim_matches('"');
+    let clean = if let Some(comma_pos) = raw.rfind(',') {
+        let before_comma = raw[..comma_pos].trim().trim_matches('"');
+        let after_comma = &raw[comma_pos + 1..];
         if after_comma.trim().parse::<i32>().is_ok() {
-            before_comma.trim()
+            before_comma
         } else {
-            icon.trim()
+            raw
         }
     } else {
-        icon.trim()
+        raw
     };
-
-    // Remove surrounding quotes if present
-    let clean = clean.trim_matches('"');
 
     let path = PathBuf::from(clean);
     if !path.exists() {
@@ -416,6 +423,9 @@ fn extract_exe_icon(exe_path: &Path) -> Option<String> {
         std::ptr::null_mut()
     };
     if chosen.is_null() {
+        if !spare.is_null() {
+            unsafe { DestroyIcon(spare) };
+        }
         return None;
     }
 
@@ -689,27 +699,8 @@ fn get_installed_apps_linux() -> Vec<InstalledApp> {
 fn get_installed_apps_windows() -> Vec<InstalledApp> {
     let mut apps = Vec::new();
 
-    // Scan Start Menu shortcuts (.lnk files)
-    let start_menu_dirs: Vec<PathBuf> = vec![
-        // Common (all users) Start Menu
-        std::env::var("ProgramData")
-            .map(|p| PathBuf::from(p).join("Microsoft\\Windows\\Start Menu\\Programs"))
-            .unwrap_or_default(),
-        // Current user Start Menu
-        dirs::data_dir()
-            .map(|p| {
-                p.parent()
-                    .unwrap_or(&p)
-                    .join("Roaming\\Microsoft\\Windows\\Start Menu\\Programs")
-            })
-            .unwrap_or_default(),
-    ];
-
-    for dir in start_menu_dirs {
-        if dir.exists() && dir.is_dir() {
-            scan_start_menu_dir(&dir, &mut apps);
-        }
-    }
+    // Scan Start Menu shortcuts (.lnk files) in a single batch PowerShell call
+    scan_start_menu_shortcuts_batch(&mut apps);
 
     // Scan registry for installed programs
     scan_registry_apps(&mut apps);
@@ -726,80 +717,86 @@ fn get_installed_apps_windows() -> Vec<InstalledApp> {
     apps
 }
 
-/// Recursively scan Start Menu directories for .lnk shortcut files (Windows)
+/// Recursively scan Start Menu directories for .lnk shortcut files in a single PowerShell batch
 #[cfg(target_os = "windows")]
-fn scan_start_menu_dir(dir: &PathBuf, apps: &mut Vec<InstalledApp>) {
-    if let Ok(entries) = fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                // Recurse into subdirectories (program groups)
-                scan_start_menu_dir(&path, apps);
-            } else if path.extension().map_or(false, |ext| ext == "lnk") {
-                // Extract name from .lnk filename (without extension)
-                if let Some(name) = path.file_stem().and_then(|n| n.to_str()) {
-                    let name = name.to_string();
+fn scan_start_menu_shortcuts_batch(apps: &mut Vec<InstalledApp>) {
+    let script = r#"
+$sh = New-Object -ComObject WScript.Shell
+$dirs = @(
+  [System.Environment]::GetFolderPath('CommonPrograms'),
+  [System.Environment]::GetFolderPath('Programs')
+)
+$skip = @('uninstall', 'readme', 'help', 'license', 'changelog', 'release notes', 'website', 'documentation')
+$res = @()
 
-                    // Skip common uninstallers and system utilities
-                    let skip_patterns = [
-                        "uninstall",
-                        "readme",
-                        "help",
-                        "license",
-                        "changelog",
-                        "release notes",
-                        "website",
-                        "documentation",
-                    ];
-                    if skip_patterns
-                        .iter()
-                        .any(|p| name.to_lowercase().contains(p))
-                    {
-                        continue;
-                    }
-
-                    if !apps.iter().any(|a| a.name == name) {
-                        // Resolve the .lnk to its real target exe so `exec` is
-                        // usable (icon lookup + future launch) instead of a .lnk path.
-                        let target = resolve_lnk_target(&path);
-                        apps.push(InstalledApp {
-                            name,
-                            exec: target.clone(),
-                            icon: target,
-                            desktop_file: path
-                                .file_name()
-                                .unwrap_or_default()
-                                .to_string_lossy()
-                                .to_string(),
-                            categories: Vec::new(),
-                        });
-                    }
-                }
+foreach ($d in $dirs) {
+  if ($d -and (Test-Path -LiteralPath $d -ErrorAction SilentlyContinue)) {
+    Get-ChildItem -LiteralPath $d -Recurse -Filter *.lnk -ErrorAction SilentlyContinue | ForEach-Object {
+      $name = $_.BaseName
+      $nameLower = $name.ToLower()
+      $shouldSkip = $false
+      foreach ($s in $skip) {
+        if ($nameLower.Contains($s)) { $shouldSkip = $true; break }
+      }
+      if (-not $shouldSkip) {
+        try {
+          $target = $sh.CreateShortcut($_.FullName).TargetPath
+          if ($target -and $target.ToLower().EndsWith('.exe') -and (Test-Path -LiteralPath $target -ErrorAction SilentlyContinue)) {
+            $res += [PSCustomObject]@{
+              Name = $name
+              Exec = $target
+              Icon = $target
+              File = $_.Name
             }
-        }
+          }
+        } catch {}
+      }
     }
+  }
 }
+$res | ConvertTo-Json -Compress
+"#;
 
-/// Resolve a Windows .lnk shortcut to its target executable path.
-/// Uses PowerShell's WScript.Shell COM object (available on all Windows).
-#[cfg(target_os = "windows")]
-fn resolve_lnk_target(lnk_path: &Path) -> Option<String> {
-    let script = format!(
-        r#"$sh = New-Object -ComObject WScript.Shell; $lnk = $sh.CreateShortcut('{}'); $lnk.TargetPath"#,
-        lnk_path.to_string_lossy().replace('\'', "''")
-    );
-    let output = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+    let output = match std::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
         .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let target = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if target.is_empty() || !target.to_lowercase().ends_with(".exe") {
-        None
-    } else {
-        Some(target)
+    {
+        Ok(o) if o.status.success() => o,
+        _ => return,
+    };
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = match serde_json::from_str(stdout.trim()) {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+
+    let rows = match json {
+        serde_json::Value::Array(arr) => arr,
+        serde_json::Value::Object(_) => vec![json],
+        _ => return,
+    };
+
+    for row in rows {
+        let name = row.get("Name").and_then(|v| v.as_str()).unwrap_or("");
+        if name.is_empty() || apps.iter().any(|a| a.name == name) {
+            continue;
+        }
+        let exec = row.get("Exec").and_then(|v| v.as_str()).map(String::from);
+        let icon = row.get("Icon").and_then(|v| v.as_str()).map(String::from);
+        let file = row
+            .get("File")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+
+        apps.push(InstalledApp {
+            name: name.to_string(),
+            exec,
+            icon,
+            desktop_file: file,
+            categories: Vec::new(),
+        });
     }
 }
 
@@ -876,20 +873,22 @@ fn scan_registry_apps(apps: &mut Vec<InstalledApp>) {
 #[cfg(target_os = "windows")]
 fn scan_uwp_apps(apps: &mut Vec<InstalledApp>) {
     let script = r#"
-$pkgs = Get-AppxPackage
-$startApps = Get-StartApps
+$pkgs = Get-AppxPackage -ErrorAction SilentlyContinue
+$startApps = Get-StartApps -ErrorAction SilentlyContinue
 $rows = @()
 foreach ($pkg in $pkgs) {
-  if ($pkg.IsFramework -or $pkg.IsBundle) { continue }
+  if ($pkg.IsFramework -or $pkg.IsBundle -or -not $pkg.InstallLocation) { continue }
   $pkgFamily = $pkg.PackageFamilyName
   $sa = $startApps | Where-Object { $_.AppID -like "$pkgFamily!*" } | Select-Object -First 1
   if (-not $sa) { continue }
   $icon = $null
-  $assets = Join-Path $pkg.InstallLocation "Assets"
-  if (Test-Path $assets) {
-    $icon = Get-ChildItem $assets -Filter *.png -ErrorAction SilentlyContinue |
-      Sort-Object Length -Descending | Select-Object -First 1 | Select-Object -ExpandProperty FullName
-  }
+  try {
+    $assets = Join-Path $pkg.InstallLocation "Assets"
+    if (Test-Path -LiteralPath $assets -ErrorAction SilentlyContinue) {
+      $icon = Get-ChildItem -LiteralPath $assets -Filter *.png -ErrorAction SilentlyContinue |
+        Sort-Object Length -Descending | Select-Object -First 1 | Select-Object -ExpandProperty FullName
+    }
+  } catch {}
   $rows += [PSCustomObject]@{
     Name = $sa.Name
     Exec = "explorer.exe shell:AppsFolder\" + $sa.AppID

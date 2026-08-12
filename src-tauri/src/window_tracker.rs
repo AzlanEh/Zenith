@@ -465,9 +465,13 @@ fn get_active_window_x11() -> Result<Option<String>, String> {
                 return Ok(None);
             };
 
-            // On Windows, strip the .exe extension from app names
+            // On Windows, strip the .exe / .EXE extension from app names
             #[cfg(target_os = "windows")]
-            let name = name.strip_suffix(".exe").unwrap_or(&name).to_string();
+            let name = if name.to_lowercase().ends_with(".exe") {
+                name[..name.len() - 4].to_string()
+            } else {
+                name
+            };
 
             Ok(Some(name))
         }
@@ -500,8 +504,15 @@ pub fn extract_app_name(window_name: &str) -> Option<String> {
     // Normalize the name
     let name_lower = window_name.to_lowercase();
 
-    // ponytail: hardcoded exclusion, promote to user-configurable list when requested
-    if name_lower == "zenith-dw" {
+    // Ignore Zenith background binary and Windows system lock screen processes
+    if name_lower == "zenith-dw"
+        || name_lower == "lockapp"
+        || name_lower == "logonui"
+        || name_lower == "shellexperiencehost"
+        || name_lower == "searchhost"
+        || name_lower == "taskhostw"
+        || name_lower == "dwm"
+    {
         return None;
     }
 

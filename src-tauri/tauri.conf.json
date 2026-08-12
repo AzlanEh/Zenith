@@ -36,7 +36,11 @@
           "$HOME/.local/share/flatpak/exports/share/icons/**/*",
           "$HOME/.local/share/flatpak/app/**/*",
           "$HOME/.icons/**/*",
-          "$HOME/.local/share/applications/icons/*"
+          "$HOME/.local/share/applications/icons/*",
+          "$LOCALAPPDATA/**/*",
+          "$APPDATA/**/*",
+          "$PROGRAMFILES/**/*",
+          "$PROGRAMFILESX86/**/*"
         ]
       }
     }

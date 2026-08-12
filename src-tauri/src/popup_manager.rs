@@ -34,8 +34,10 @@ impl PopupManager {
                 // Popup already active for this app
                 if let Some(window) = handle.get_webview_window(POPUP_WINDOW_LABEL) {
                     let _ = window.set_focus();
+                    return;
                 }
-                return;
+                // Window was closed externally, reset active state
+                *active = None;
             }
         }
 

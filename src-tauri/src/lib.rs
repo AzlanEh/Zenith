@@ -400,12 +400,12 @@ fn get_system_info(app_handle: tauri::AppHandle) -> CmdResult<SystemInfo> {
 }
 
 #[tauri::command]
-fn get_installed_apps() -> CmdResult<Vec<InstalledApp>> {
+async fn get_installed_apps() -> CmdResult<Vec<InstalledApp>> {
     Ok(app_scanner::get_installed_apps())
 }
 
 #[tauri::command]
-fn resolve_app_icon(icon_name: String) -> CmdResult<Option<String>> {
+async fn resolve_app_icon(icon_name: String) -> CmdResult<Option<String>> {
     Ok(app_scanner::resolve_icon_path(&icon_name))
 }
 
@@ -525,13 +525,27 @@ fn save_export_file(file_path: String, content: String) -> CmdResult<()> {
         ));
     }
 
-    let canonical_parent = path
+    let raw_parent = path
         .parent()
         .ok_or_else(|| {
             WellbeingError::Export("Export path must include a parent directory".into())
         })?
         .canonicalize()
         .map_err(|_| WellbeingError::Export("Export parent directory does not exist".into()))?;
+
+    let canonical_parent_str = raw_parent.to_string_lossy();
+    #[cfg(target_os = "windows")]
+    let canonical_parent_str = canonical_parent_str
+        .strip_prefix(r"\\?\UNC\")
+        .map(|s| format!(r"\\{}", s))
+        .or_else(|| {
+            canonical_parent_str
+                .strip_prefix(r"\\?\")
+                .map(|s| s.to_string())
+        })
+        .unwrap_or_else(|| canonical_parent_str.to_string());
+
+    let canonical_parent = std::path::PathBuf::from(canonical_parent_str.as_ref());
 
     let canonical_path = canonical_parent.join(
         path.file_name()

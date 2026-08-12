@@ -421,7 +421,7 @@ impl UsageTracker {
 
         // Check if the current app should be blocked
         if let Some(ref app) = app_name {
-            if app != "Zenith" && app != "limit-popup" {
+            if !is_self_app(app) {
                 let now = chrono::Utc::now().timestamp();
                 let is_blocked = {
                     let mut cache = self.cached_blocked.lock().await;
@@ -475,7 +475,7 @@ impl UsageTracker {
             // Start new session if we have an app
             if let Some(ref app) = app_name {
                 // Skip tracking our own app
-                if app != "Zenith" {
+                if !is_self_app(app) {
                     let db = self.db.lock().await;
                     match db.get_or_create_app(app, None) {
                         Ok(app_id) => match db.start_session(app_id, now) {
@@ -674,8 +674,9 @@ impl UsageTracker {
             || !app_name
                 .chars()
                 .all(|c| c.is_alphanumeric() || c == ' ' || c == '-' || c == '_' || c == '.')
+            || is_self_app(app_name)
         {
-            tracing::warn!(app = %app_name, "Refusing to block app with invalid name");
+            tracing::warn!(app = %app_name, "Refusing to block app with invalid or self name");
             return;
         }
         let app_lower = app_name.to_lowercase();
@@ -700,12 +701,31 @@ impl UsageTracker {
                 .find(|(d, _)| d == &app_lower.as_str())
                 .map(|(_, e)| *e)
                 .unwrap_or(app_name);
+
+            let exe_clean = if exe.to_lowercase().ends_with(".exe") {
+                &exe[..exe.len() - 4]
+            } else {
+                exe
+            };
+            if is_self_app(exe_clean) {
+                tracing::warn!(exe = %exe_clean, "Refusing to kill Zenith process");
+                return;
+            }
+
+            let exe_full = format!("{}.exe", exe_clean);
+
             // /F force kill, /T kill child process tree.
             let _ = Command::new("taskkill")
-                .args(["/T", "/F", "/IM", &format!("{}.exe", exe)])
+                .args(["/T", "/F", "/IM", &exe_full])
                 .output();
         }
     }
+}
+
+/// Helper to check if an app name matches Zenith itself
+fn is_self_app(app: &str) -> bool {
+    let lower = app.to_lowercase();
+    lower == "zenith" || lower == "zenith-dw" || lower == "limit-popup"
 }
 
 /// Linux-specific app blocking with multiple strategies.
