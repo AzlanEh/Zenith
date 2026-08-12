@@ -611,7 +611,13 @@ pub fn get_installed_apps() -> Vec<InstalledApp> {
     if let Some(ref cached) = *cache {
         return cached.clone();
     }
+    let start = std::time::Instant::now();
     let apps = scan_installed_apps();
+    tracing::info!(
+        elapsed_ms = start.elapsed().as_millis(),
+        count = apps.len(),
+        "Installed apps scan complete"
+    );
     *cache = Some(apps.clone());
     apps
 }
@@ -702,13 +708,31 @@ fn get_installed_apps_windows() -> Vec<InstalledApp> {
     let mut apps = Vec::new();
 
     // Scan Start Menu shortcuts (.lnk files) in a single batch PowerShell call
+    let t = std::time::Instant::now();
     scan_start_menu_shortcuts_batch(&mut apps);
+    tracing::info!(
+        elapsed_ms = t.elapsed().as_millis(),
+        count = apps.len(),
+        "Start menu scan"
+    );
 
     // Scan registry for installed programs
+    let t = std::time::Instant::now();
     scan_registry_apps(&mut apps);
+    tracing::info!(
+        elapsed_ms = t.elapsed().as_millis(),
+        count = apps.len(),
+        "Registry scan"
+    );
 
     // Scan UWP/Store apps (AppX packages)
+    let t = std::time::Instant::now();
     scan_uwp_apps(&mut apps);
+    tracing::info!(
+        elapsed_ms = t.elapsed().as_millis(),
+        count = apps.len(),
+        "UWP scan"
+    );
 
     // Sort by name
     apps.sort_by_key(|a| a.name.to_lowercase());
@@ -753,6 +777,11 @@ fn run_ps_with_timeout(script: &str, timeout: Duration) -> Option<String> {
                 let _ = child.kill();
                 let _ = child.wait();
                 let _ = fs::remove_file(&out_file);
+                tracing::warn!(
+                    timeout_secs = timeout.as_secs(),
+                    script = %script.lines().next().unwrap_or("").trim(),
+                    "PowerShell scan timed out and was killed"
+                );
                 return None;
             }
             Ok(None) => std::thread::sleep(Duration::from_millis(100)),
